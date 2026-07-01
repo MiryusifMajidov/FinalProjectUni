@@ -1,0 +1,218 @@
+# 8. Şahmat UI/UX: Lövhə, Saat və Gediş Siyahısı
+
+## 1. Giriş
+
+Şahmat mühərrikinin (bax Hissə 7) "ağıl" hissəsi olduğunu desək, bu hissədə təsvir olunan vidjetlər tətbiqin "üz"üdür — istifadəçinin oyun zamanı gördüyü, toxunduğu və qarşılıqlı əlaqədə olduğu bütün vizual elementlər. Bu sənəd üç əsas komponenti əhatə edir: şahmat lövhəsi (`ChessBoardWidget`), saat (`ClockWidget`) və gediş siyahısı (`MoveListWidget`), həmçinin vaxt nəzarəti seçicisini (`TimeControlSelector`).
+
+**Fayllar:**
+- `lib/features/game/widgets/chess_board_widget.dart`
+- `lib/features/game/widgets/clock_widget.dart`
+- `lib/features/game/widgets/move_list_widget.dart`
+- `lib/features/game/widgets/time_control_selector.dart`
+
+## 2. İstifadə Olunan Texnologiyalar
+
+- **`CustomPainter`** — lövhənin xanalarını, vurğulamaları və koordinat etiketlərini birbaşa Canvas üzərində çəkmək üçün (yüksək performans, az widget overhead).
+- **`flutter_svg`** — şahmat fiqurlarının SVG formatında (vektor, istənilən ölçüyə miqyaslana bilən) göstərilməsi üçün.
+- **`AnimatedBuilder` + `AnimationController`** — fiqurların bir xanadan digərinə "sürüşmə" animasiyası üçün.
+- **`Curves.easeOutCubic`** — animasiyaların təbii, "yumşaq dayanma" effekti yaratması üçün.
+- **`FontFeature.tabularFigures()`** — saat göstəricisində rəqəmlərin "tərəddüd etməməsi" (sabit en) üçün monospace rəqəm xüsusiyyəti.
+- **`google_fonts` (JetBrains Mono)** — reytinq və saat göstəricilərində.
+
+## 3. Lövhə Vidjeti: 3-Qatlı Render Strategiyası
+
+`ChessBoardWidget` lövhəni THREE LAYER STACK (üç qatlı yığın) memarlığı ilə qurur:
+
+> Qat 1: CustomPainter (_BoardPainter)
+>   - 64 xananın çəkilməsi (açıq/tünd növbələşən)
+>   - Vurğulamalar: son gediş, seçilmiş xana, qanuni gedişlər, şah, premove
+>   - Koordinat etiketləri (a-h, 1-8)
+>
+> Qat 2: Animasiyalı fiqur Positioned widget-ləri
+>   - Hər dolu xana üçün bir _PieceWidget
+>   - SVG fiqurlar (cburnett/merida/alpha dəstlərindən)
+>   - Son köçürülən fiqur mənbədən hədəfə sürüşmə animasiyası
+>
+> Qat 3: 8x8 GridView (görünməz toxunma sahələri)
+>   - Xana basımlarının aşkarlanması üçün jest detektorları
+
+Bu üç qatlı yanaşmanın səbəbi performans və ayrılma prinsipidir: statik vizual elementlər (xanalar, vurğular) BİR DƏFƏ Canvas-a çəkilir (ucuz əməliyyat), animasiyalı elementlər (fiqurlar) ayrıca, yalnız öz vəziyyətləri dəyişdikdə yenidən qurulur, və toxunma məntiqi tamamilə vizual qatdan AYRI saxlanılır.
+
+## 4. Konstruktor Parametrləri
+
+> const ChessBoardWidget({
+>   required ChessEngine engine,
+>   required bool flipped,
+>   required String? selectedSquare,
+>   required List<String> legalMoveSquares,
+>   required void Function(String square) onSquareTap,
+>   required BoardTheme boardTheme,
+>   required PieceSet pieceSet,
+>   bool showCoordinates = true,
+>   bool showLastMoveHighlight = true,
+>   String? premoveFrom,
+>   String? premoveTo,
+>   Duration animationDuration = const Duration(milliseconds: 220),
+> });
+
+`flipped` parametri qara fiqurlarla oynayan istifadəçi üçün lövhənin 180° döndərilməsini idarə edir. `premoveFrom`/`premoveTo` — onlayn oyunlarda, rəqibin gedişini GÖZLƏMƏDƏN əvvəlcədən planlaşdırılan gedişi vizuallaşdırmaq üçündür (premove funksionallığı).
+
+## 5. Lövhə Mövzuları və Fiqur Dəstləri
+
+`BoardTheme` enum-u 5 fərqli lövhə rəng sxemini təmsil edir:
+
+> brownWood   — açıq #F0D9B5 / tünd #B58863  (klassik Lichess üslubu)
+> greenFelt   — açıq #EEEED2 / tünd #769656  (yaşıl klub keçəsi)
+> darkMarble  — açıq #2C2C3E / tünd #1A1A28  (tünd mərmər/şifer)
+> blueIce     — açıq #DEE3E6 / tünd #8CA2AD  (sərin mavi tonlar)
+> creamPaper  — açıq #F5F0E8 / tünd #D4C5A9  (isti perqament)
+
+`PieceSet` enum-u isə üç fərqli fiqur qrafika dəstini təmsil edir (`cburnett`, `merida`, `alpha`), hər biri `assets/pieces/{set}/` qovluğunda SVG fayllar şəklində saxlanılır (məsələn, `wK.svg` = ağ şah, `bN.svg` = qara at). İstifadəçi Tənzimləmələr ekranından bu seçimləri dəyişə bilər və seçim `BoardTheme`/`PieceSet` enum dəyəri kimi `SharedPreferences`-də saxlanılır.
+
+## 6. Fiqur Render Edilməsi və Sürüşmə Animasiyası
+
+> class _PieceWidget extends StatelessWidget {
+>   Widget build(BuildContext context) {
+>     final color = piece.isWhite ? 'w' : 'b';
+>     final type = _typeCode(piece.type);
+>     final path = 'assets/pieces/${pieceSet.folderName}/$color$type.svg';
+>     return Center(child: SvgPicture.asset(path, width: size * 0.88));
+>   }
+> }
+
+Son gediş edilmiş fiqur üçün, vidjet `AnimatedBuilder` ilə BAŞLANĞIC mövqedən HƏDƏF mövqeyə doğru "sürüşmə" effekti yaradır:
+
+> pw = AnimatedBuilder(
+>   animation: _slideCtrl,
+>   builder: (_, child) {
+>     final t = Curves.easeOutCubic.transform(_slideCtrl.value);
+>     return Transform.translate(
+>       offset: Offset(dx * (1 - t), dy * (1 - t)),
+>       child: child,
+>     );
+>   },
+> );
+
+Burada `dx`/`dy` — fiqurun ƏVVƏLKİ mövqeyi ilə YENİ mövqeyi arasındakı piksel fərqidir. Animasiyanın başlanğıcında (`t=0`) fiqur HƏLƏ DƏ köhnə mövqedə görünür, animasiya irəlilədikcə (`t→1`) tədricən yeni mövqeyə "sürüşür". `easeOutCubic` əyrisi animasiyanın sonunda yumşaq dayanma effekti yaradır ki, bu da "süni" deyil, "fiziki" hərəkət hissi versin.
+
+## 7. Lövhə Boyama: CustomPainter Vurğulamaları
+
+`_BoardPainter.paint()` metodu hər frame-də aşağıdakı qatları ardıcıl çəkir:
+
+#### 7.1. Əsas Xanalar
+8x8 grid, açıq/tünd rənglər `(row+col) % 2` şərtinə görə növbələşir.
+
+#### 7.2. Son Gediş Vurğusu (Sarı/Kəhrəba Çaları)
+Əgər xana `lastMove.from` və ya `lastMove.to` ilə üst-üstə düşürsə, üzərinə yarımşəffaf kəhrəba rəngi (`AppColors.moveHighlight`) çəkilir.
+
+#### 7.3. Şah Təhlükəsi Vurğusu (Qırmızı Radial Qradient)
+> if (square == checkSquare) {
+>   canvas.drawRect(rect, Paint()..shader = RadialGradient(
+>     colors: [error.withOpacity(0.88), error.withOpacity(0.0)],
+>   ).createShader(rect));
+> }
+
+Şah olan xana mərkəzdən kənara doğru sönən qırmızı "parıltı" effekti ilə vurğulanır — bu, oyunçunun diqqətini DƏRHAL təhlükəyə yönəldir.
+
+#### 7.4. Qanuni Gedişlərin Göstəriciləri
+İki fərqli vizual: adi gedişlər üçün KİÇİK DAİRƏ (nöqtə), tutma gedişləri üçün isə xananın kənarı boyu HALQA (ring):
+
+> if (captureSquares.contains(square)) {
+>   canvas.drawCircle(center, sq * 0.46, Paint()
+>     ..color = legalMoveDot.withOpacity(0.55)
+>     ..style = PaintingStyle.stroke
+>     ..strokeWidth = sq * 0.09);
+> } else {
+>   canvas.drawCircle(center, sq * 0.155, Paint()..color = legalMoveDot);
+> }
+
+Bu fərqləndirmə, lichess.org və chess.com kimi tanınmış platformalarda istifadə olunan VİZUAL KONVENSİYALARA uyğundur — istifadəçilər artıq bu işarələrin mənasını intuitiv olaraq bilirlər.
+
+## 8. Koordinat Etiketləri (Çevrilmə Dəstəyi ilə)
+
+> void _paintCoords(Canvas canvas, Size size, double sq) {
+>   final dFiles = flipped ? files.reversed.toList() : files;
+>   final dRanks = flipped ? ranks : ranks.reversed.toList();
+>   for (var i = 0; i < 8; i++) {
+>     _drawLabel(canvas, dFiles[i], Offset(i*sq + sq*0.62, size.height - sq*0.30));
+>     _drawLabel(canvas, dRanks[i], Offset(sq*0.05, i*sq + sq*0.04));
+>   }
+> }
+
+Lövhə çevrildikdə (qara fiqurlarla oynayanda), HƏRF (a-h) və RƏQƏM (1-8) etiketləri də İSTİQAMƏTİNİ DƏYİŞİR ki, istifadəçi hər zaman düzgün şahmat notasiyasını görsün.
+
+## 9. Saat Vidjeti (ClockWidget)
+
+> const ClockWidget({
+>   required int milliseconds,
+>   required bool isActive,
+>   required bool isWhite,
+> });
+
+#### 9.1. Vaxt Formatı və Kritik Rejim
+
+> final seconds = milliseconds ~/ 1000;
+> final isCritical = seconds < 10;
+> final timeText = isCritical
+>     ? '$seconds.${(milliseconds % 1000) ~/ 100}'   // "9.2" (onda bir saniyə)
+>     : '${minutes}:${secs.toString().padLeft(2,'0')}'; // "5:43"
+
+Saat 10 saniyədən AZ qaldıqda, format AVTOMATIK olaraq "dəqiqə:saniyə"-dən "saniyə.onda-bir-saniyə"-yə keçir (məsələn, "9.2") — bu, blits/bullet oyunlarda son saniyələrin DƏQİQ izlənməsi üçün vacibdir.
+
+#### 9.2. Vizual Vəziyyətlər
+
+> AnimatedContainer(
+>   decoration: BoxDecoration(
+>     color: isActive ? (isWhite ? Colors.white : cardElevated) : card,
+>     border: isActive ? Border.all(
+>       color: isCritical ? error : (isWhite ? textPrimary : primary),
+>       width: 2,
+>     ) : null,
+>     boxShadow: isActive ? [BoxShadow(
+>       color: (isCritical ? error : primary).withOpacity(0.2),
+>       blurRadius: 12, offset: Offset(0,3),
+>     )] : null,
+>   ),
+> )
+
+AKTİV oyunçunun saatı — qızılı (kəhrəba) çərçivə və "parıltı" effekti ilə vurğulanır; vaxt kritik həddə (< 10s) çatdıqda isə bu rəng QIRMIZIYA dəyişir, xəbərdarlıq effekti yaradaraq. `FontFeature.tabularFigures()` istifadəsi sayəsində, rəqəmlər dəyişdikcə ("9:59" → "10:00") mətnin GENİŞLİYİ DƏYİŞMİR — bu, "titrəyən" interfeysin qarşısını alır.
+
+## 10. Gediş Siyahısı Vidjeti (MoveListWidget)
+
+> const MoveListWidget({
+>   required List<String> moves,
+>   List<({String from, String to, String san})>? verboseHistory,
+>   String notation = 'san',     // 'san' | 'long' | 'figurine'
+>   int? reviewIndex,
+>   required VoidCallback onFirst, onPrev, onNext, onLast,
+> });
+
+#### 10.1. Üç Notasiya Rejimi
+
+- **SAN (standart):** "Nf3", "exd5", "O-O" — şahmatda ən geniş yayılmış format.
+- **Uzun (long):** "g1f3", "e4d5" — başlanğıc və hədəf xanaları açıq göstərir, başlanğıc oyunçular üçün daha anlaşılan.
+- **Fiqurlu (figurine):** hərflər ("N", "B", "R", "Q", "K") şahmat fiqur SİMVOLLARI ilə ("♘", "♗", "♖", "♕", "♔") əvəz olunur — dil baryerini aradan qaldırır.
+
+#### 10.2. Cüt-Cüt Düzülüş (Move Pairs)
+
+> for (var i = 0; i < moves.length; i += 2) {
+>   pairs.add((i ~/ 2 + 1, moves[i], i+1 < moves.length ? moves[i+1] : null));
+> }
+
+Hər sətirdə "1. e4 e5", "2. Nf3 Nc6" formatında bir CÜT gediş (ağ + qara) göstərilir — bu, ənənəvi şahmat qeyd dəftərçələrinin formatını əks etdirir.
+
+#### 10.3. Nəzərdən Keçirmə Vurğulanması və Naviqasiya
+
+`reviewIndex` parametri (1-əsaslı: 0=başlanğıc mövqeyi) hazırda nəzərdən keçirilən gedişi YAŞIL/KƏHRƏBA RƏNGLƏ vurğulayır. Dörd naviqasiya düyməsi (⏮ ◀ ▶ ⏭) `ChessEngine.snapshotAt()` metodunu çağıraraq istənilən mövqeyə "səyahət" imkanı verir.
+
+## 11. Vaxt Nəzarəti Seçicisi (TimeControlSelector)
+
+> TimeControls.allBullet  // 1+0, 1+1, 2+1
+> TimeControls.allBlitz   // 3+0, 3+2, 5+0, 5+3
+> TimeControls.allRapid   // 10+0, 15+10, 30+0
+
+Hər `TimeControl` obyekti `.label` ("5+3"), `.initialMs`, `.incrementMs` və `.category` (bullet/blitz/rapid enum-u) sahələrinə malikdir. Kateqoriya HESABLANMIŞ DƏYƏRDİR — ümumi gözlənilən oyun müddətinə (`minutes*60 + increment*40`) əsasən avtomatik təyin olunur, bu, FIDE-nin rəsmi vaxt nəzarəti təsnifatına uyğundur.
+
+## 12. Nəticə
+
+Şahmat UI/UX qatı, Flutter-in `CustomPainter` vasitəsilə yüksək performanslı render və `AnimatedBuilder` vasitəsilə yumşaq animasiyaları birləşdirərək, sənaye standartı sayılan onlayn şahmat platformalarına (Lichess, Chess.com) bənzər vizual təcrübə yaradır. Üç-qatlı memarlıq (statik Canvas + animasiyalı fiqurlar + görünməz toxunma sahəsi) performans, vizual zənginlik və interaktivlik arasında effektiv tarazlıq qurur. Mövzu (theme) və fiqur dəsti seçimlərinin modul şəkildə (enum + extension) idarə olunması, istifadəçi fərdiləşdirməsini asanlaşdırır və yeni vizual variantların əlavə edilməsini sadələşdirir.

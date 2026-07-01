@@ -1,0 +1,198 @@
+# 9. Süni İntellekt: Bot Alqoritmləri
+
+## 1. Giriş
+
+"Grandmaster" tətbiqinin üç oyun modulu (Şahmat, Dama, Domino) hər biri öz süni intellekt (bot) sisteminə malikdir. Diqqətəlayiq cəhət ondan ibarətdir ki, bu üç bot İDENTIK ALQORİTMDƏN istifadə ETMİR — əksinə, hər oyunun öz xüsusiyyətlərinə (tam məlumatlı/natamam məlumatlı, axtarış fəzasının ölçüsü, real-vaxt performans tələbləri) uyğun olaraq FƏRQLİ alqoritmik yanaşmalar seçilmişdir. Bu sənəd hər üç botun daxili işləmə prinsipini, istifadə olunan klassik süni intellekt alqoritmlərini və onların Dart dilində praktiki tətbiqini izah edir.
+
+Ümumi mənzərə belədir:
+
+- Şahmat botu — HİBRİD yanaşma: онлайн Stockfish API + lokal Minimax/Alpha-Beta ehtiyat planı, ELO-əsaslı çətinlik tənzimləməsi.
+- Dama botu — Iterative Deepening + Negamax + Alpha-Beta + Transposition Table + Killer Moves.
+- Domino botu — Monte Carlo Tree Search (MCTS) + UCB1 + "Determinization" (natamam məlumatın simulyasiyası).
+
+## 2. Şahmat Botu: Hibrid Stockfish API + Lokal Minimax
+
+**Fayl:** `lib/features/game/engine/stockfish_service.dart`
+
+#### 2.1. Çətinlik Səviyyələri (6 ELO Pilləsi)
+
+Şahmat botunun çətinliyi 6 səviyyəyə bölünmüşdür, hər biri konkret ELO reytinqi, təsvir, fiqur emojisi ilə təmsil olunur:
+
+> Beginner     — 400 ELO  — "Perfect for learning the basics"
+> Casual       — 800 ELO  — "Good for relaxed play"
+> Intermediate — 1400 ELO — "A real challenge for most players"
+> Advanced     — 1800 ELO — "Tactical and strategic strength"
+> Expert       — 2400 ELO — "Near tournament-level play"
+> Master       — 3000 ELO — "World-class engine strength"
+
+#### 2.2. Gediş Seçimi Boru Kəməri (Pipeline)
+
+Botun `getBestMove()` metodu hər gediş üçün dörd mərhələli proses işlədir:
+
+1. **Vizual gözləmə vaxtı** — `_thinkingMs(elo)` funksiyası ELO-ya əsasən 400-1200ms arasında "düşünmə vaxtı" hesablayır ki, bot dərhal cavab verməsin və insana bənzər təcrübə yaransın.
+2. **Təsadüfi gediş inyeksiyası** — aşağı ELO-larda (`_randomChance(elo)`) bot QƏSDƏN səhv edir: 200 ELO-da 80% ehtimalla, 600 ELO-da 50%, 1000 ELO-da 25%, 1000+ ELO-da isə 0% ehtimalla TƏSADÜFİ (qeyri-optimal) gediş seçilir. Bu, real başlanğıc səviyyəli oyunçuların səhv etmə ehtimalını simulyasiya edir.
+3. **Onlayn Stockfish API çağırışı** — `stockfish.online/api/s/v2.php` ünvanına FEN mövqeyi və axtarış dərinliyi (`_depthForElo`, 1-15 arası) göndərilir, paralel olaraq icra olunur (4 saniyə timeout).
+4. **Lokal Minimax ehtiyat planı** — əgər API cavab verməzsə (şəbəkə xətası, timeout), `compute()` ilə AYRI BİR İZOLYATDA (isolate) lokal Alpha-Beta axtarışı işə düşür (dərinlik 2-3, sürətli).
+
+#### 2.3. ELO → Axtarış Dərinliyi Xəritələnməsi
+
+> int _depthForElo(int elo) {
+>   if (elo <= 600)  return 1;
+>   if (elo <= 1000) return 3;
+>   if (elo <= 1400) return 5;
+>   if (elo <= 1800) return 8;
+>   if (elo <= 2200) return 12;
+>   return 15;  // API limiti
+> }
+
+#### 2.4. Onlayn API İnteqrasiyası
+
+> final uri = Uri.https('stockfish.online', '/api/s/v2.php', {
+>   'fen': fen,
+>   'depth': depth.toString(),
+> });
+> final resp = await http.get(uri).timeout(const Duration(seconds: 4));
+> final data = jsonDecode(resp.body);
+> // data['bestmove'] formatı: "bestmove e2e4 ponder d7d5"
+
+API-dən qaytarılan UCI-format gediş (`e2e4`) parçalanır və Flutter-in `chess` paketi ilə birbaşa tətbiq olunur.
+
+#### 2.5. Lokal Minimax + Alpha-Beta (Ehtiyat Planı)
+
+İnternet əlçatmaz olduqda, `_alphabeta()` funksiyası işə düşür — bu, KLASSİK MİNİMAX alqoritminin Alpha-Beta budaması ilə optimallaşdırılmış versiyasıdır:
+
+> double _alphabeta(Chess chess, int depth, double alpha, double beta, bool maximizing) {
+>   if (depth == 0 || chess.game_over) return _evaluate(chess);
+>   if (maximizing) {
+>     var best = double.negativeInfinity;
+>     for (final mv in chess.moves({'verbose': true})) {
+>       final copy = Chess.fromFEN(chess.fen)..move(mv);
+>       best = max(best, _alphabeta(copy, depth-1, alpha, beta, false));
+>       alpha = max(alpha, best);
+>       if (beta <= alpha) break;  // Budama
+>     }
+>     return best;
+>   } else { /* simmetrik minimallaşdırma */ }
+> }
+
+Qiymətləndirmə funksiyası `_evaluate()` sadə material hesablamasına əsaslanır: piyada=1.0, at=3.0, fil=3.2 (cüt fil bonusu üçün cüzi üstünlük), qala=5.0, vəzir=9.0, şah=0 (mat vəziyyəti ayrıca ±10000 ilə qiymətləndirilir). `compute()` funksiyası vasitəsilə bu hesablama ayrı bir Dart isolate-də aparılır ki, UI axını bloklanmasın.
+
+#### 2.6. Mövqe Qiymətləndirməsi (Analiz Rejimi üçün)
+
+`evaluatePositionOnline()` və `evaluatePositionLocal()` metodları, oyun bitdikdən sonra "Analiz" rejimində istifadəçiyə hər mövqenin qiymətini (pawn vahidləri ilə, məsələn "+1.4") göstərmək üçün istifadə olunur — eyni Stockfish API-dən, sabit dərinlik (12) ilə.
+
+## 3. Dama Botu: Negamax + Iterative Deepening + Transposition Table
+
+**Fayl:** `lib/features/checkers/engine/checkers_engine.dart`, metod: `bestBotMove({int depth})`
+
+Dama TAM MƏLUMATLI (perfect information) oyun olduğundan, burada KLASSİK ŞAHMAT MÜHƏRRİKİ ALQORİTMLƏRİNİN dəsti tətbiq olunur, lakin xarici API-dən asılı olmadan, TAMAMILƏ LOKAL şəkildə:
+
+#### 3.1. Iterative Deepening (Tədricən Dərinləşən Axtarış)
+
+Bot dərinliyi 1-dən başlayaraq tələb olunan maksimum dərinliyə (1-6) qədər ARDICIL OLARAQ artırır. Hər mərhələdə tapılan ən yaxşı gediş NÖVBƏTİ mərhələnin başında YOXLANILIR — bu, "move ordering" prinsipi ilə Alpha-Beta budamasının effektivliyini KƏSKİN ARTIRIR. Əgər hər hansı mərhələdə "məcburi qələbə" (qiymət ≥ 900) aşkarlanarsa, axtarış dərhal dayandırılır (vaxt itirməmək üçün).
+
+#### 3.2. Negamax Forması
+
+Negamax — Minimax-ın işarə-simmetrik formasıdır:
+
+> final score = -sim._negamax(depth - 1, -beta, -alpha, ply + 1);
+
+Hər iki oyunçu üçün EYNİ qiymətləndirmə funksiyasından istifadə olunur, sadəcə nəticə işarəsi tərsinə çevrilir — bu, kodu sadələşdirir və simmetrik səhvlərin qarşısını alır.
+
+#### 3.3. Transposition Table (TT) — Təkrar Mövqelərin Keşlənməsi
+
+`Map<int, _TTEntry>` strukturu, polinomial hash funksiyası (`hash = hash*31 + i*5 + piece.index`) ilə hesablanmış mövqe identifikatorlarını saxlayır. Eyni mövqeyə fərqli gediş ardıcıllıqları ilə (transposition) gəlindikdə, NƏTİCƏ YENİDƏN HESABLANMIR — keşdən oxunur. Hər TT girişi `depth`, `score` və `flag` (exact/lower/upper bound) sahələrini ehtiva edir ki, Alpha-Beta sərhədləri ilə düzgün inteqrasiya olunsun.
+
+#### 3.4. Killer Moves Evristikası
+
+Hər axtarış səviyyəsində (ply) Alpha-Beta "kəsməsinə" (β-cutoff) səbəb olmuş gedişlər `_killers` Map-ində saxlanılır və `_orderMoves()` metodunda BU GEDİŞLƏRƏ ÜSTÜNLÜK verilir. Bu, demək olar ki, bütün müasir şahmat/dama mühərriklərində istifadə olunan sübut edilmiş optimallaşdırmadır.
+
+#### 3.5. Çoxfaktorlu Qiymətləndirmə Funksiyası
+
+> double _evaluate() {
+>   // Material: adi daş 1.5, kral 4.0
+>   // + irəliləyiş bonusu (advance * 0.12)
+>   // + arxa cərgə müdafiə bonusu (+0.3)
+>   // + mərkəz nəzarəti
+>   // - kral kənar cəzası (-0.2)
+>   // + mobillik (legalMoves.length * 0.04)
+>   // + material üstünlüyü amplifikatoru
+>   // + endşpil kral bonusu (≤8 daş qalanda kral fərqi × 1.5)
+> }
+
+Bu çoxfaktorlu yanaşma, botun YALNIZ "neçə daş apardığına" deyil, MÖVQENİN KEYFİYYƏTİNƏ (mərkəz nəzarəti, mobillik, endşpil dinamikası) görə də qərar verməsini təmin edir.
+
+#### 3.6. Çətinlik Səviyyələri (Dərinliklə Əlaqə)
+
+> Novice   — 600 ELO  — dərinlik 1
+> Club     — 1000 ELO — dərinlik 2
+> Skilled  — 1400 ELO — dərinlik 3
+> Sharp    — 1700 ELO — dərinlik 4
+> Master   — 2000 ELO — dərinlik 5
+> Champion — 2300 ELO — dərinlik 6
+
+Burada şahmat botundan FƏRQLİ olaraq, çətinlik BİRBAŞA axtarış dərinliyi ilə idarə olunur — heç bir təsadüfi səhv inyeksiyası yoxdur, çünki dərinlik fərqi artıq kifayət qədər güc fərqi yaradır.
+
+## 4. Domino Botu: Monte Carlo Tree Search (MCTS)
+
+**Fayl:** `lib/features/domino/engine/domino_engine.dart`, metod: `bestBotPlay({int simulations = 800})`
+
+Domino NATAMAM MƏLUMATLI (imperfect information) oyundur — bot rəqiblərinin əlini görmür. Buna görə Negamax/Minimax birbaşa tətbiq edilə bilməz; bunun əvəzinə MCTS istifadə olunur.
+
+#### 4.1. Determinization — Naməlum Məlumatın Simulyasiyası
+
+Hər simulyasiyanın əvvəlində, bot rəqiblərin əllərini VƏ bazarı TƏSADÜFİ şəkildə "doldurur" (`_randomizeUnknownHands`), lakin `_knownMissing` strukturunda saxlanılan MƏLUMATLI MƏHDUDİYYƏTLƏRƏ riayət edərək (məsələn, "rəqib pas keçib, deməli onun '5' daşı yoxdur"). Bu texnika oyunun mahiyyətini "natamam məlumatlı" oyundan "çoxlu mümkün tam-məlumatlı ssenarilərin orta nəticəsi"nə çevirir.
+
+#### 4.2. UCB1 Seçim Düsturu
+
+> UCB1 = (wins / visits) + C × sqrt(ln(totalVisits) / visits)
+
+Hər addımda bot bu düstura əsasən YA ən perspektivli (yüksək qazanc nisbətli) gedişi seçir (istismar), YA DA hələ az sınanmış gedişi araşdırır (kəşfiyyat). Bu balans, AlphaGo-dan tutmuş müasir kart/lövhə oyunu botlarına qədər geniş tətbiq olunan üsuldur.
+
+#### 4.3. Ağıllı-Təsadüfi Playout (_randomPlayout)
+
+Hər simulyasiya seçilmiş gedişdən sonra, OYUN SONUNADƏK "ağıllı-təsadüfi" siyasətlə davam edir — cüt daşlar (doubles) və yüksək xallı daşlar üstünlüklü oynanılır, çünki bu, real oyunçu davranışına daha yaxındır və simulyasiyaların keyfiyyətini artırır.
+
+#### 4.4. Nəticə Kreditləşməsi
+
+> Qələbə → +1.0 xal
+> Bərabərlik → +0.5 xal
+> Məğlubiyyət → +0.0 xal
+
+800 simulyasiyadan sonra, ən yüksək `wins/visits` nisbətinə malik gediş seçilir.
+
+## 5. Üç Botun Müqayisəli Təhlili
+
+#### Məlumat növü
+- Şahmat: Tam məlumatlı (perfect information)
+- Dama: Tam məlumatlı (perfect information)
+- Domino: Natamam məlumatlı (imperfect information — rəqibin daşları gizlidir)
+
+#### Əsas Alqoritm
+- Şahmat: Minimax + Alpha-Beta budama (lokal mühərrik) / Stockfish (uzaq, bulud)
+- Dama: Negamax + Alpha-Beta budama + Transposition Table
+- Domino: Monte Carlo Tree Search (MCTS)
+
+#### Çətinlik Mexanizmi
+- Şahmat: ELO reytinqi axtarış DƏRİNLİYİNƏ çevrilir + təsadüfi səhv ehtimalı əlavə olunur
+- Dama: ELO reytinqi axtarış DƏRİNLİYİNƏ (1-6 səviyyə) çevrilir
+- Domino: ELO reytinqindən asılı olmayaraq, sabit simulyasiya sayı (800) istifadə olunur
+
+#### Xarici Asılılıq
+- Şahmat: Stockfish Online API (şəbəkə xətası halında lokal mühərrikə keçid)
+- Dama: Yoxdur (tam lokal hesablama)
+- Domino: Yoxdur (tam lokal hesablama)
+
+#### İzolyat (Isolate) İstifadəsi
+- Şahmat: Bəli — ağır hesablamalar compute() funksiyası ilə ayrı izolyatda işlədilir
+- Dama: Birbaşa UI thread-də (sürətli, dərinlik aşağı olduğu üçün lazım deyil)
+- Domino: Birbaşa UI thread-də
+
+#### Əsas Optimallaşdırma Texnikası
+- Şahmat: Alpha-Beta budama
+- Dama: Transposition Table + Killer Moves + Iterative Deepening
+- Domino: UCB1 düsturu + Determinization
+
+## 6. Nəticə
+
+Bu üç bot sistemi, layihənin süni intellekt qatının nə qədər DÜŞÜNÜLMÜŞ şəkildə dizayn edildiyini göstərir: hər bot, oynadığı oyunun NƏZƏRİ XÜSUSİYYƏTLƏRİNƏ (məlumatın tamlığı, axtarış fəzasının ölçüsü, real-vaxt performans tələbləri) uyğun olaraq fərqli, lakin hər biri kompüter elmləri ədəbiyyatında YAXŞI SƏNƏDLƏŞDİRİLMİŞ alqoritmlər üzərində qurulmuşdur. Şahmat botu hibrid bulud+lokal arxitektura ilə həm güc, həm də etibarlılıq təmin edir; Dama botu klassik mühərrik texnikalarının (TT, killer moves, iterative deepening) sıx inteqrasiyasını nümayiş etdirir; Domino botu isə qeyri-mükəmməl məlumat şəraitində qərarvermənin müasir həlli olan MCTS-i praktiki tətbiq edir.

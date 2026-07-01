@@ -1,0 +1,181 @@
+# 15. Kampaniya Rejimi (Campaign Mode)
+
+## 1. Giriş və Məqsəd
+
+Onlayn rəqabətli oyunlardan əlavə, "Grandmaster" tətbiqi YENİ BAŞLAYAN İSTİFADƏÇİLƏR üçün strukturlaşdırılmış, TƏDRİCƏN ÇƏTİNLƏŞƏN bir **Kampaniya Rejimi** təqdim edir. Bu rejim, istifadəçinin BOT RƏQİBLƏRƏ qarşı ardıcıl "fəsillər" (chapters) vasitəsilə irəliləməsinə əsaslanır — hər fəsil özünəməxsus hekayə konteksti, çətinlik səviyyəsi və mükafat sistemi ilə təqdim olunur. Bu, video oyunlarda geniş yayılmış "Campaign/Story Mode" konsepsiyasının şahmat, dama və domino kontekstinə UYĞUNLAŞDIRILMIŞ tətbiqidir.
+
+**Fayllar:**
+- `lib/core/models/campaign_chapter.dart`
+- `lib/features/campaign/screens/campaign_map_screen.dart`
+- `lib/features/campaign/screens/campaign_chapter_screen.dart`
+
+## 2. İstifadə Olunan Texnologiyalar
+
+- **`List.generate()`** — 100 fəsillik (chess), 60 fəsillik (checkers) və 40 fəsillik (domino) məlumat strukturlarının PROSEDURLA (proqramatik) generasiyası — əl ilə 100 obyekt yazmaq əvəzinə.
+- **Riyazi pilləli funksiyalar (piecewise functions)** — bot reytinqinin fəsil nömrəsinə görə HESABLANMASI üçün.
+- **`CustomPainter`** — kampaniya xəritəsindəki "ilanvari yol" (winding path) və dairəvi proqres göstəricisinin (`_ProgressHeroCard`) çəkilməsi üçün.
+- **`flutter_animate`** — fəsil düyümlərinin (node) açılması zamanı animasiya effektləri.
+- **Riverpod** — `campaignProgressProvider` (chess), `checkersCampaignProgressProvider`, `dominoCampaignProgressProvider` — istifadəçinin hər oyun növü üzrə irəliləyişini izləmək üçün.
+
+## 3. CampaignChapter Modeli
+
+> class CampaignChapter {
+>   final int number;          // 1-100 (chess), 1-60 (checkers), 1-40 (domino)
+>   final String title;
+>   final String flavorText;
+>   final int botRating;
+>   final TimeControl timeControl;
+>
+>   bool isUnlocked(int progress)  => number <= progress + 1;
+>   bool isCompleted(int progress) => number <= progress;
+> }
+
+İki sadə, lakin İŞ MƏNTİQİNİN ƏSASINI TƏŞKİL EDƏN metod:
+- `isUnlocked()`: fəsil N, yalnız istifadəçi (N-1) fəsli bitiribsə (`progress >= N-1`, yəni `N <= progress+1`) AÇILIR. Bu, "xətti irəliləyiş" (linear progression) modelidir — fəsillər sıra ilə açılır, ATLAMA MÜMKÜN DEYİL.
+- `isCompleted()`: fəsil N, `progress >= N`-dirsə TAMAMLANMIŞ sayılır.
+
+## 4. Bot Reytinqinin Pilləli Hesablanması
+
+Kampaniyanın "tədricən çətinləşən" hissi, `botRatingForChapter()` funksiyasının BEŞ FƏRQLİ XƏTTİ SEQMENTDƏN ibarət pilləli (piecewise linear) düsturu ilə yaradılır:
+
+> static int botRatingForChapter(int chapter) {
+>   if (chapter <= 10) return 200 + (chapter - 1) * 33;       // 200  → 497
+>   if (chapter <= 25) return 500 + (chapter - 11) * 26;      // 500  → 864
+>   if (chapter <= 50) return 900 + (chapter - 26) * 20;      // 900  → 1380
+>   if (chapter <= 75) return 1400 + (chapter - 51) * 24;     // 1400 → 1976
+>   return math.min(2000 + (chapter - 76) * 40, 3200);        // 2000 → 3200 (cap)
+> }
+
+#### 4.1. Niyə Pilləli (Piecewise) Yanaşma?
+
+Əgər BÜTÜN 100 fəsil üçün TƏK, XƏTTİ bir düstur (`200 + chapter * 30`) istifadə edilsəydi, ya BAŞLANĞIC fəsillər real botlar üçün ÇOX ASAN/MƏNASIZ aralıqda olardı (200-dən başlayıb tez 1000-ə çatardı), ya da SON fəsillər REAL DÜNYADA MÖVCUD OLMAYAN reytinqlərə (5000+) çatardı. Beş seqmentli pilləli düstur, HƏR ARALIQDA fərqli "artım sürəti" (slope) tətbiq edir:
+
+- **Fəsil 1-10 (Foundations):** 200→497, addım=33/fəsil — TƏCRÜBƏSİZ botlar, əsas qaydaların öyrədilməsi.
+- **Fəsil 11-25 (Tactics/Endgames/Openings):** 500→864, addım=26/fəsil — başlanğıc taktikalar.
+- **Fəsil 26-50 (MiddleGame/Strategy):** 900→1380, addım=20/fəsil — orta səviyyə, daha YAVAŞ artım (uzun "plato" effekti).
+- **Fəsil 51-75 (Advanced/Grandmaster):** 1400→1976, addım=24/fəsil — qabaqcıl strategiya.
+- **Fəsil 76-100 (Elite/Champion):** 2000→3200 (3200-də ZİRVƏYƏ ÇATIB DAYANIR), addım=40/fəsil — son fəsillər ÇOX SÜRƏTLİ artır, çünki bunlar "elit" oyunçular üçün son sınaqdır.
+
+`math.min(..., 3200)` — `EloService`-dəki (bax Hissə 13) reytinq tavanı ilə UYĞUNLUĞU TƏMİN EDİR; heç bir bot reytinqi 3200-dən yuxarı ola bilməz.
+
+## 5. Vaxt Nəzarətinin Fəsilə Görə Dəyişməsi
+
+> static TimeControl timeControlForChapter(int chapter) {
+>   if (chapter <= 20) return TimeControls.rapid30;     // 30+0
+>   if (chapter <= 40) return TimeControls.rapid15p10;  // 15+10
+>   if (chapter <= 60) return TimeControls.blitz5;      // 5+0
+>   if (chapter <= 80) return TimeControls.blitz3p2;    // 3+2
+>   return TimeControls.bullet2p1;                      // 2+1
+> }
+
+Bu funksiya MAHIYYƏTCƏ BİR PEDAQOJİ QƏRARI ƏKS ETDİRİR: BAŞLANĞICDA (1-20) istifadəçiyə UZUN VAXT (30 dəqiqə) verilir ki, qaydaları öyrənsin və TƏLƏSİK SƏHV ETMƏSİN; kampaniya irəlilədikcə VAXT TƏZYİQİ ARTIR (sonda 2+1 bullet) — bu, istifadəçinin TEZ QƏRAR VERMƏ BACARIĞINI da inkişaf etdirməyə yönəlmiş bir dizayn qərarıdır.
+
+## 6. 100 Fəsilin Generasiyası: 10 "Akt" Strukturu
+
+> static final List<CampaignChapter> chapters = List.generate(100, (i) {
+>   final number = i + 1;
+>   return CampaignChapter(
+>     number: number,
+>     title: _titleFor(number),
+>     flavorText: _flavorFor(number),
+>     botRating: botRatingForChapter(number),
+>     timeControl: timeControlForChapter(number),
+>   );
+> });
+
+100 fəsil 10 "AKT"a (Act) bölünür, hər biri 10 fəsildən ibarətdir, və hər Akt UNIKAL TEMA ADINA malikdir:
+
+- I Akt (Fəsil 1-10): Foundations — Əsaslar
+- II Akt (Fəsil 11-20): Tactics — Taktikalar
+- III Akt (Fəsil 21-30): Endgames — Final oyunlar
+- IV Akt (Fəsil 31-40): Openings — Debütlər
+- V Akt (Fəsil 41-50): Middle Game — Orta oyun
+- VI Akt (Fəsil 51-60): Strategy — Strategiya
+- VII Akt (Fəsil 61-70): Advanced — Qabaqcıl
+- VIII Akt (Fəsil 71-80): Grandmaster — Qrossmeyster
+- IX Akt (Fəsil 81-90): Elite — Elit
+- X Akt (Fəsil 91-100): Champion — Çempion
+
+Hər Aktın özünəməxsus "fiqur emoji"si fəsil aralığına görə dövr edir (cycle), bu da xəritədə vizual müxtəlifliyi artırır.
+
+## 7. Çoxoyun Dəstəyi: Fərqli Fəsil Sayları
+
+Kampaniya rejimi YALNIZ ŞAHMATLA məhdudlaşmır — DAMA və DOMINO modulları da öz kampaniyalarına malikdir, lakin DAHA QISA:
+
+- **Şahmat:** 100 fəsil (10 Akt × 10).
+- **Dama:** 60 fəsil, öz tematik başlıqları ilə: "First Moves" (İlk Hərəkətlər), "Capture Rules" (Tutma Qaydaları), "Forced Jump" (Məcburi Tullanma), "Corner Control" (Künc Nəzarəti) və s.
+- **Domino:** 40 fəsil, tematik başlıqlar: "First Bone" (İlk Daş), "Matching Ends" (Uyğun Uclar), "The Spinner" (Mərkəz Daşı), "Doubles" (Cüt Daşlar) və s.
+
+Hər oyun növünün öz `botRatingForChapter`/`timeControlForChapter`-ə BƏNZƏR (lakin fəsil sayına uyğunlaşdırılmış) pilləli düsturları və öz fiqur emoji dövrləri var. Bu, eyni ARXİTEKTURA NÜMUNƏSİNİN (pattern) üç fərqli oyun növünə TƏKRAR İSTİFADƏ EDİLMƏSİNİN (DRY prinsipinin tətbiqinin) gözəl nümunəsidir.
+
+## 8. Kampaniya Xəritəsi Ekranı (CampaignMapScreen)
+
+#### 8.1. _ProgressHeroCard — Dairəvi Proqres Göstəricisi
+
+Ekranın yuxarı hissəsində, `CustomPainter` ilə çəkilmiş DAİRƏVİ HALQA (progress ring) "X/100 Fəsil" formatında ümumi irəliləyişi göstərir. Halqanın doldurulma faizi `progress/totalChapters` nisbətinə bərabərdir.
+
+#### 8.2. _UpNextCard — Növbəti Fəsil
+
+İstifadəçinin İNDİCƏ AÇILMIŞ, lakin HƏLƏ TAMAMLANMAMIŞ fəslini vurğulayan bir kart — "Davam et" düyməsi birbaşa bu fəslə yönləndirir.
+
+#### 8.3. _WindingPath — "İlanvari Yol" Vizuallaşdırması
+
+Hər Akt 10 fəsil düyümünü (`_ChapterNode`) "S" formalı, dolanbac bir yol üzərində göstərir (`_PathPainter`, hər düyüm üçün `y += 70px`). Düyümlər arası BAĞLANTI XƏTLƏRİ:
+- **Yaşıl, davamlı xətt:** tamamlanmış fəsillər arası.
+- **Boz, kəsik-kəsik (dashed) xətt:** hələ keçilməmiş fəsillər arası.
+
+Hər `_ChapterNode`-un üç vizual vəziyyəti var:
+- **Tamamlanmış:** yaşıl arxa fon + ✓ işarəsi.
+- **Cari (açıq, lakin tamamlanmamış):** vurğu rəngi (accent) + KƏSIK-KƏSIK HALQA animasiyası (diqqəti cəlb etmək üçün).
+- **Kilidli:** boz rəng + 🔒 ikonu.
+
+#### 8.4. _ActDivider və _LockedActPlaceholder
+
+Hər Aktın başlanğıcında "ACT I · FOUNDATIONS · 1-10" formatında bölücü başlıq göstərilir. N-ci Akt YALNIZ `progress >= (N-1)*10` olduqda açılır; əlavə olaraq, açıq Aktlardan SONRA GƏLƏN İLK KİLİDLİ AKT da "TEASER" (qıcıqlandırıcı önizləmə) kimi qismən göstərilir — istifadəçi "irəlidə nə olduğunu" görüb MOTİVASİYA ALIR.
+
+## 9. Fəsil Ekranı (CampaignChapterScreen)
+
+#### 9.1. Vizual Tərkib
+
+- Minimal başlıq + "FƏSİL N / 100" formatında pill-şəkilli etiket.
+- Böyük, italik Fraunces fontu ilə fəsil adı.
+- `_PiecePortraitCard`: gradient dairə + fiqur emojisi + "flavor text" (hekayə konteksti, məsələn "Kiçik bir kənd kəndlisi ilk addımlarını atır...").
+- `_StatsRow`: ÜÇ KART — "Bot Reytinqi" (`botRating`), "Vaxt Nəzarəti" (`timeControl.label`), "Mükafat" ("+20 XP").
+
+#### 9.2. Məqsədlər (Objectives) Bölməsi
+
+Hər fəsildə ÜÇ ƏLAVƏ MƏQSƏD (`_ObjectiveRow`) göstərilir, hər biri "+5 XP" mükafatlandırır:
+1. **"Oyunu qazan"** (Win game) — əsas məqsəd.
+2. **"Tutma et"** (Make a capture) — ən azı bir fiqur tutmaq.
+3. **"40 gedişdən az"** (<40 moves) — sürətli, effektiv oyun.
+
+#### 9.3. _startChapter() — Oyunun Başladılması
+
+> void _startChapter() {
+>   final config = {
+>     'mode': 'campaign',
+>     'gameType': gameType,
+>     'timeControl': chapter.timeControl,
+>     'playerIsWhite': true,
+>     'botRating': chapter.botRating,
+>     'isRated': false,
+>     'myUsername': myUsername,
+>     'opponentUsername': 'Bot (${chapter.botRating})',
+>     'campaignChapter': chapter.number,
+>   };
+>   context.push(gt.gameRoute(gameId), extra: config);
+> }
+
+Diqqət ediləsi məqamlar:
+- **`isRated: false`:** kampaniya oyunları İSTİFADƏÇİNİN ONLAYN REYTİNQİNƏ TƏSİR ETMİR — bu, kampaniyanın "məşq mühiti" rolunu vurğulayır.
+- **`playerIsWhite: true`:** kampaniyada istifadəçi HƏMİŞƏ AĞ FİQURLARLA oynayır — sadəlik və proqnozlaşdırıla bilənlik üçün.
+- **`campaignChapter: chapter.number`:** bu sahə `GameModel`-ə yazılır və oyun bitdikdə HANSI FƏSLİN TAMAMLANDIĞINI biləri təmin edir.
+
+#### 9.4. Nəticənin Emalı
+
+- **Qələbə:** müvafiq irəliləyiş sayğacı (`campaignProgress`/`checkersCampaignProgress`/`dominoCampaignProgress`) `FirestoreService.updateCampaignProgress()` vasitəsilə artırılır, NÖVBƏTİ FƏSİL AÇILIR, istifadəçi xəritəyə qayıdır və yeni açılmış düyümün animasiyasını görür.
+- **Məğlubiyyət:** irəliləyiş DƏYİŞMİR, istifadəçi eyni fəsli TƏKRAR CƏHD edə bilər — kampaniya "cəzalandırıcı" deyil, sadəcə TƏKRARLANA BİLƏN məşq mühitidir.
+
+## 10. Nəticə
+
+Kampaniya rejimi, "Grandmaster" tətbiqinin İSTİFADƏÇİ SAXLAMA (retention) və TƏHSİL (onboarding) strategiyasının mərkəzi elementidir. Riyazi pilləli funksiyalar vasitəsilə diqqətlə tənzimlənmiş çətinlik əyrisi (difficulty curve), 10 tematik Akta bölünmüş struktur, və üç oyun növü arasında TƏKRARLANAN (lakin uyğunlaşdırılmış) memarlıq nümunəsi — bu rejimi həm YENİ BAŞLAYANLAR üçün əlçatan, həm də TƏCRÜBƏLİ İSTİFADƏÇİLƏR üçün (xüsusilə son Aktlarda, 3200 ELO-ya qədər çatan botlarla) MƏNALI BİR ÇAĞIRIŞ edir.

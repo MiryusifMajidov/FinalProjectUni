@@ -1,0 +1,206 @@
+# 2. Layihə Strukturu və Dizayn Pattern-ləri (Riverpod)
+
+## 1. Giriş
+
+Birinci bölmədə tətbiqin DÖRD QATLI ÜMUMİ ARXİTEKTURASI təqdim olundu. Bu bölmə isə HƏMİN ARXİTEKTURANIN PRAKTİKİ TƏTBİQİNƏ — KONKRET QOVLUQ TƏŞKİLATINA, VƏZİYYƏT İDARƏETMƏ KİTABXANASI OLAN **Riverpod**-UN İSTİFADƏ ÜSULLARINA, VƏ LAYİHƏ BOYU TƏKRARLANAN DİZAYN PATTERN-LƏRİNƏ HƏSR OLUNUB. Burada izah olunan pattern-lər, sonrakı bölmələrdə (3-16) HƏR BİR MODULUN KODUNDA DƏFƏLƏRLƏ RAST GƏLİNƏCƏK — ona görə bu bölmə, BİR NÖV "ÜMUMİ LÜĞƏT" (vocabulary) rolunu oynayır.
+
+## 2. "Feature-First" Qovluq Təşkilatı
+
+Proqram təminatında iki əsas qovluq təşkilatı strategiyası mövcuddur:
+
+- **"Layer-First" (qat-yönümlü):** bütün modellər `models/`, bütün ekranlar `screens/`, bütün servislər `services/` qovluğunda — MODULA GÖRƏ DEYİL, FAYL TİPİNƏ GÖRƏ qruplaşdırma.
+- **"Feature-First" (xüsusiyyət-yönümlü):** hər funksional modul (`game`, `campaign`, `tournaments`...) ÖZ DAXİLİNDƏ `screens/`, `widgets/`, `providers/`, (lazım olduqda) `engine/` ALT-QOVLUQLARINA malikdir.
+
+"Grandmaster" **Feature-First** YANAŞMASINI seçib (`lib/features/<modul-adı>/`). Bunun PRAKTİKİ ÜSTÜNLÜKLƏRİ:
+
+1. **Lokallıq (Locality):** "Kampaniya" modulu üzərində işləyərkən, TƏTBİQÇİ YALNIZ `lib/features/campaign/` qovluğuna baxmalıdır — ƏLAQƏLİ EKRAN, VİDJET VƏ PROVİDER FAYLLARI BİR-BİRİNDƏN UZAQDA DEYİL.
+2. **Aşağı Bağlılıq (Low Coupling):** modullar arasında ASILILIQ MİNİMALDIR — hər modul, ƏSASƏN, `lib/core/` İLƏ ƏLAQƏ SAXLAYIR (paylaşılan modellər, servislər), DİGƏR `features/` modullarına BİRBAŞA İSTİNAD ETMİR.
+3. **Asan Genişlənmə:** YENİ BİR OYUN NÖVÜ (məsələn, gələcəkdə "Reversi") ƏLAVƏ ETMƏK ÜÇÜN sadəcə `lib/features/reversi/` adlı YENİ BİR QOVLUQ YARADILIR — MÖVCUD MODULLARA TOXUNMADAN.
+
+`lib/core/` qovluğu isə BÜTÜN MODULLAR ARASINDA PAYLAŞILAN "ÜMUMİ DİL"İ təşkil edir:
+
+> lib/core/
+>  ├── models/     → UserModel, GameModel, TournamentModel, GameType (bütün modullarda istifadə olunur)
+>  ├── services/   → FirestoreService, AuthService, RealtimeGameService, CacheService, EloService...
+>  ├── router/     → app_router.dart (bütün modulların marşrutları)
+>  ├── theme/      → AppColors, AppTheme (vahid dizayn dili)
+>  ├── widgets/    → InviteListener, GameSwitch, OfflineBanner (paylaşılan UI komponentləri)
+>  ├── constants/  → sabit dəyərlər
+>  ├── utils/      → ümumi köməkçi funksiyalar
+>  └── config/     → mühit konfiqurasiyaları
+
+## 3. Riverpod: Niyə Seçildi?
+
+Flutter ekosistemində bir neçə vəziyyət idarəetmə (state management) seçimi mövcuddur: `setState` (ən sadə, lakin böyük tətbiqlər üçün uyğun deyil), `Provider`, `Bloc`/`Cubit`, `GetX`, `Riverpod`. "Grandmaster" **`flutter_riverpod` (v2.6.1)**-i seçib, çünki:
+
+- **Compile-time təhlükəsizlik:** Riverpod-da `Provider`-lər `BuildContext`-dən ASILI DEYİL — bu, "`Provider not found`" kimi RUNTIME XƏTALARININ BÖYÜK ƏKSƏRİYYƏTİNİ COMPILE VAXTI AŞKARLAMAĞA KÖMƏK EDİR.
+- **`autoDispose` və `family` modifikatorları:** HƏR OYUN/EKRAN ÜÇÜN PARAMETRLƏŞDİRİLMİŞ, AVTOMATİK TƏMİZLƏNƏN VƏZİYYƏT YARATMAĞA İMKAN VERİR (bax Hissə 6).
+- **Test edilə bilənlik:** `ProviderScope(overrides: [...])` vasitəsilə İSTƏNİLƏN PROVIDERİ TEST ÜÇÜN SAXTA (mock) VERSİYA İLƏ ƏVƏZ ETMƏK MÜMKÜNDÜR.
+- **Reaktiv zəncirlər (reactive chains):** bir provider digərini `ref.watch()` ilə İZLƏYƏ BİLƏR, və ZƏNCIR BOYU AVTOMATIK YENİDƏN HESABLAMA baş verir (bax Hissə 7).
+
+## 4. Provider Növləri və Tətbiqdəki Real Nümunələri
+
+Layihə boyu Riverpod-un BEŞ FƏRQLİ PROVIDER NÖVÜNDƏN, HƏR BİRİNİN ÖZ TƏYİNATINA UYĞUN OLARAQ İSTİFADƏ EDİLİB:
+
+#### 4.1. `Provider<T>` — Asılılıq İnyeksiyası (Dependency Injection)
+
+DƏYİŞMƏYƏN (immutable), VƏZİYYƏTSİZ (stateless) SERVİS NÜSXƏLƏRİ YARATMAQ ÜÇÜN istifadə olunur:
+
+> final firestoreServiceProvider = Provider((_) => FirestoreService());
+> final soundServiceProvider = Provider<SoundService>((ref) { ... });
+> final photoServiceProvider = Provider((_) => PhotoService());
+> final otpServiceProvider = Provider<OtpService>((_) => OtpService());
+> final chatServiceProvider = Provider<ChatService>((ref) => ChatService());
+> final logServiceProvider = Provider<LogService>((_) => LogService());
+> final groupServiceProvider = Provider<GroupService>((ref) => GroupService());
+
+Bu YANAŞMA, HƏR YERDƏ `FirestoreService()` KİMİ YENİ NÜSXƏLƏR YARATMAQ ƏVƏZİNƏ, BÜTÜN TƏTBİQ BOYU **TƏK BİR PAYLAŞILAN NÜSXƏ**dən (singleton) istifadə edilməsini TƏMİN EDİR — Riverpod bu nüsxəni LAZY (yalnız ilk istifadə zamanı) yaradır və KEŞLƏYİR.
+
+#### 4.2. `StreamProvider<T>` — Real-Vaxt Firebase Axınları
+
+Firestore/Firebase Auth-ın `Stream`-lərini Widget AĞACINA "körpü" edir:
+
+> final authStateProvider = StreamProvider<User?>((ref) {
+>   return ref.read(authServiceProvider).authStateChanges;
+> });
+>
+> final currentUserProvider = StreamProvider.autoDispose<UserModel?>((ref) {
+>   final authAsync = ref.watch(authStateProvider);
+>   final uid = authAsync.valueOrNull?.uid;
+>   if (uid == null) return Stream.value(null);
+>   return ref.read(firestoreServiceProvider).watchUser(uid);
+> });
+
+`currentUserProvider` — istifadəçinin Firestore sənədini CANLI DİNLƏYİR. Bunun SAYƏSİNDƏ, məsələn, kampaniya rejimində bir fəsil TAMAMLANDIQDA VƏ `campaignProgress` SAHƏSİ Firestore-da YENİLƏNDİKDƏ, BU PROVIDERİ İZLƏYƏN HƏR BİR EKRAN (Kampaniya Xəritəsi, Profil, və s.) **HEÇ BİR ƏLAVƏ KOD YAZMADAN, AVTOMATIK OLARAQ** yenilənir. Liderlər lövhəsi ekranında da OXŞAR PRİNSİPLƏ `_bulletLeaderboardProvider`, `_blitzLeaderboardProvider` və s. `StreamProvider`-lər istifadə olunur (bax Bölmə 13) — onlayn istifadəçilərin reytinqləri DƏYİŞDİKCƏ, lövhə REAL VAXTDA YENİDƏN SIRALANIR.
+
+#### 4.3. `StateProvider<T>` — Sadə, Tək-Dəyərli Vəziyyət
+
+EKRAN-DAXİLİ, SADƏ DƏYİŞƏN DƏYƏRLƏR ÜÇÜN (filtr seçimi, bayraq və s.):
+
+> final currentSessionIdProvider = StateProvider<String?>((ref) => null);
+> final _arenaFilterProvider = StateProvider((_) => _ArenaFilter.all);
+> final photoPromptDismissedProvider = StateProvider<bool>((ref) => false);
+
+`currentSessionIdProvider` — istifadəçi DAXİL OLDUQDAN SONRA, CARİ SESSİYANIN Firestore ID-sini SAXLAYIR (bax Bölmə 4); `_arenaFilterProvider` isə Turnir Siyahısı ekranında "Hamısı / Aktiv / Gözləyən / Bitmiş" FİLTR DÜYMƏLƏRİNİN CARİ SEÇİMİNİ saxlayır. Adın `_` (alt-xətt) İLƏ BAŞLAMASI — bu provider-in YALNIZ ÖZ FAYLINDA (private) İSTİFADƏ ÜÇÜN NƏZƏRDƏ TUTULDUĞUNU BİLDİRİR; bu, Dart-ın FAYL-SƏVİYYƏLİ GİZLƏTMƏ (privacy) konvensiyasıdır.
+
+#### 4.4. `ChangeNotifierProvider<T>` — SharedPreferences Üzərində Reaktivlik
+
+> class CacheService extends ChangeNotifier {
+>   final SharedPreferences _p;
+>   bool get premove => _p.getBool('pref_premove') ?? true;
+>   Future<void> setPremove(bool v) async {
+>     await _p.setBool('pref_premove', v);
+>     notifyListeners();  // bütün ref.watch(cacheServiceProvider) widget-larını yenidən qurur
+>   }
+> }
+>
+> final cacheServiceProvider = ChangeNotifierProvider<CacheService>((_) {
+>   throw UnimplementedError('... overrideWithValue() ilə əvəz edilməlidir');
+> });
+
+`CacheService`, `SharedPreferences` ÜZƏRİNDƏ NAZİK BİR "WRAPPER" (örtük) olub, 30-dan çox TƏNZİMLƏMƏ AÇARINI (board teması, səs, premove, auto-queen, bildiriş kanalları və s.) idarə edir. ƏN VACİB DETAL — `SharedPreferences` ÖZÜ-ÖZLÜYÜNDƏ REAKTİV DEYİL (`notifyListeners()` çağırmır), ona görə `CacheService` **`ChangeNotifier`-DAN TÖRƏYİR** VƏ HƏR DƏYİŞİKLİKDƏN SONRA `notifyListeners()` ÇAĞIRIR. `ChangeNotifierProvider` bu siqnalı TUTUR VƏ BÜTÜN `ref.watch(cacheServiceProvider)` EDƏN VİDJETLƏRİ YENİDƏN QURUR. Məsələn, İSTİFADƏÇİ TƏNZİMLƏMƏLƏRDƏ "Taxta Koordinatlarını Göstər" SEÇİMİNİ DƏYİŞDİKDƏ, ŞAHMAT TAXTASI DƏRHAL YENİDƏN ÇƏKİLİR.
+
+**`overrideWithValue` Pattern-i:** `cacheServiceProvider`-in BAŞLANĞIC FUNKSİYASI QƏSDƏN `UnimplementedError` ATIR — çünki `CacheService.create()` ASİNXRONDUR (`SharedPreferences.getInstance()` `Future` qaytarır), Riverpod provider-ləri isə defolt olaraq SİNXRONDUR. Həll yolu, `main()` funksiyasında ƏVVƏLCƏ `await CacheService.create()` İLƏ NÜSXƏNİ YARATMAQ, SONRA `ProviderScope(overrides: [cacheServiceProvider.overrideWith((_) => cache)])` İLƏ PROVIDERİ "ƏVƏZ ETMƏK"DİR (bax `lib/main.dart`). Bu, **"Asinxron İnicializasiyanın Sinxron Provider-ə Körpülənməsi"** ÜÇÜN YAYĞIN BİR Riverpod PATTERN-İDİR.
+
+#### 4.5. `StateNotifierProvider.autoDispose.family` — Mürəkkəb Oyun Vəziyyəti
+
+> final gameProvider = StateNotifierProvider.autoDispose
+>     .family<GameNotifier, GameState, GameConfig>((ref, config) {
+>   return GameNotifier(config: config, ref: ref);
+> });
+
+Bu, LAYİHƏNİN ƏN MÜRƏKKƏB PROVIDERİDİR VƏ Bölmə 10-da ƏTRAFLI İZAH OLUNUB. Burada QISACA: `StateNotifierProvider` — `GameState` (20+ sahəli `@immutable` sinif) İLƏ `GameNotifier` (bütün oyun məntiqini idarə edən `StateNotifier<GameState>`) ARASINDA KÖRPÜ qurur.
+
+## 5. `.autoDispose` Modifikatoru
+
+> final currentUserProvider = StreamProvider.autoDispose<UserModel?>((ref) { ... });
+> final gameProvider = StateNotifierProvider.autoDispose.family<...>(...);
+
+`.autoDispose` — provider-in VƏZİYYƏTİNİN, ONU İZLƏYƏN **SON VİDJET DE AĞACDAN ÇIXARILDIQDA** AVTOMATIK OLARAQ TƏMİZLƏNMƏSİNİ TƏMİN EDİR. Bunun PRAKTİKİ ƏHƏMİYYƏTİ:
+
+- **`gameProvider`** üçün: istifadəçi OYUN EKRANINI TƏRK ETDİKDƏ, `GameNotifier.dispose()` ÇAĞIRILIR — BÜTÜN TAYMERLƏR (saat, disconnect-countdown), RTDB ABUNƏLİKLƏRİ DAYANDIRILIR. Əks halda, BU OBYEKTLƏR YADDAŞDA "ASILI QALAR" (memory leak) VƏ ARTIQ GÖRÜNMƏYƏN BİR OYUNUN SAATI ARXA FONDA İŞLƏMƏYƏ DAVAM EDƏRDİ.
+- **`currentUserProvider`** üçün: istifadəçi ÇIXIŞ ETDİKDƏ (logout), Firestore-A OLAN "WATCH" ABUNƏLİYİ LƏĞV EDİLİR — ARTIQ MÖVCUD OLMAYAN BİR İSTİFADƏÇİ SƏNƏDİNƏ DİNLƏMƏK DAVAM ETMİR.
+
+## 6. `.family` Modifikatoru — Parametrləşdirilmiş Provider-lər
+
+`.family<ReturnType, Param>` — EYNİ PROVIDER-İN MƏNTİQİNİ, FƏRQLİ PARAMETRLƏRLƏ, FƏRQLİ "NÜSXƏLƏR" KİMİ İŞLƏTMƏYƏ İMKAN VERİR. Riverpod, HƏR FƏRQLİ PARAMETR DƏYƏRİ ÜÇÜN AYRI BİR DAXİLİ KEŞ SAXLAYIR:
+
+> final _chatUnreadProvider = StreamProvider.family<int, String>((ref, uid) {
+>   // hər `uid` üçün ayrı bir "oxunmamış mesaj sayğacı" axını
+> });
+>
+> // İstifadə: ref.watch(_chatUnreadProvider('dost-uid-123'))
+
+Ev ekranında DOSTLAR SİYAHISI render edilərkən, HƏR DOST KARTI `_chatUnreadProvider(dostUid)`İ İZLƏYİR — Riverpod AVTOMATİK OLARAQ HƏR DOST ÜÇÜN AYRI BİR Firestore ABUNƏLİYİ YARADIR VƏ KEŞLƏYİR. `gameProvider`-dəki `GameConfig` parametri də EYNİ MƏNTİQLƏ İŞLƏYİR — fərq ondadır ki, parametr BURADA TƏK BİR `String` DEYİL, ONLARLA SAHƏDƏN İBARƏT BİR OBYEKTDİR (bax Hissə 8).
+
+## 7. Reaktiv Zəncirlər: `ref.watch` Asılılıq Qrafiki
+
+Riverpod-un ƏN GÜCLÜ XÜSUSİYYƏTLƏRİNDƏN BİRİ — PROVIDER-LƏRİN BİR-BİRİNİ `ref.watch()` İLƏ İZLƏYƏ BİLMƏSİ VƏ BUNUN NƏTİCƏSİNDƏ YARANAN AVTOMATİK "ASILILIQ QRAFİKİ" (dependency graph)dir:
+
+> authStateProvider (Firebase Auth User?)
+>        │  ref.watch
+>        ▼
+> currentUserProvider (Firestore UserModel?)
+>        │  ref.watch (UI-da)
+>        ▼
+> ProfileScreen, HomeScreen, LeaderboardScreen, ...
+
+`authStateProvider` DƏYİŞDİKDƏ (məsələn, istifadəçi GİRİŞ EDƏNDƏ), `currentUserProvider` AVTOMATIK OLARAQ YENİDƏN HESABLANIR (yeni `uid` ilə yeni Firestore axınına keçir), BU DA ÖZ NÖVBƏSİNDƏ ONU İZLƏYƏN BÜTÜN EKRANLARI YENİLƏYİR. BU ZƏNCİR, HEÇ BİR `setState()`, `EventBus`, VƏ YA ƏL İLƏ "BİLDİRİŞ" KODU OLMADAN İŞLƏYİR.
+
+#### 7.1. `ref.watch` vs `ref.read` vs `ref.listen`
+
+Layihə boyu BU ÜÇ METODUN DOĞRU YERDƏ İSTİFADƏSİ KRİTİK ƏHƏMİYYƏT DAŞIYIR:
+
+- **`ref.watch(provider)`** — `build()` METODU DAXİLİNDƏ istifadə olunur; provider DƏYİŞDİKDƏ widget AVTOMATIK YENİDƏN QURULUR. Məsələn, `ChessBoardWidget.build()` daxilində `ref.watch(gameProvider(config))` — lövhə HƏR GEDİŞDƏN SONRA YENİDƏN ÇƏKİLİR.
+- **`ref.read(provider)`** — BİR-DƏFƏLİK OXUMA və ya METOD ÇAĞIRIŞI üçün (adətən `onPressed` kimi HADİSƏ HANDLER-LƏRİNDƏ); widget-i YENİDƏN QURMUR. Məsələn, `ref.read(gameProvider(config).notifier).resign()`.
+- **`ref.listen(provider, (previous, next) { ... })`** — provider DƏYİŞDİKDƏ YAN-TƏSİR (side-effect) İCRA ETMƏK üçün (naviqasiya, dialoq göstərmək, bildiriş), AMMA widget-i YENİDƏN QURMADAN. Məsələn, `app_router.dart`-da `_RouterNotifier` konstruktorunda `ref.listen(authStateProvider, (_, __) => notifyListeners())`, və ya `main.dart`-da `ref.listen(authStateProvider, ...)` — YENİ GİRİŞ AŞKARLANDIQDA SESSİYA BƏRPA ETMƏK ÜÇÜN.
+
+## 8. `GameConfig`: Dəyər-Əsaslı Bərabərlik (Value Equality) Pattern-i
+
+> @immutable
+> class GameConfig {
+>   final GameMode mode;
+>   final TimeControl timeControl;
+>   final bool playerIsWhite;
+>   final String? gameId;
+>   // ... 10+ sahə daha
+>
+>   @override
+>   bool operator ==(Object other) =>
+>       other is GameConfig &&
+>       mode == other.mode &&
+>       timeControl == other.timeControl &&
+>       gameId == other.gameId && /* ... */;
+>
+>   @override
+>   int get hashCode => Object.hash(mode, timeControl, gameId, /* ... */);
+> }
+
+`.family` provider-lərinin İŞLƏMƏSİ ÜÇÜN, parametr tipinin (`GameConfig`) `==` VƏ `hashCode`-U DOĞRU İMPLEMENTASİYA ETMƏSİ ŞƏRTDİR — Riverpod, "EYNİ PARAMETRLƏ ÇAĞIRILIB-ÇAĞIRILMADIĞINI" MƏHZ BU OPERATORLAR VASİTƏSİLƏ YOXLAYIR. Əgər `==` İMPLEMENTASİYA EDİLMƏSƏYDİ, Dart DEFOLT OLARAQ "REFERENCE EQUALITY" (yaddaşdakı eyni obyekt olub-olmaması) İSTİFADƏ EDƏRDİ — VƏ HƏR `build()` ÇAĞIRIŞINDA YENİ BİR `GameConfig(...)` OBYEKTİ YARADILDIĞI ÜÇÜN, Riverpod HƏR DƏFƏ "FƏRQLİ PARAMETR" KİMİ QƏBUL EDƏR VƏ **YENİ BİR `GameNotifier` NÜSXƏSİ** (yeni saat, yeni RTDB abunəliyi) YARADARDI — bu, CİDDİ BİR XƏTAYA (hər frame-də yeni oyun başlamaq!) SƏBƏB OLARDI. `Object.hash(...)` — Dart-ın ÇOXLU SAHƏDƏN VAHİD BİR HASH DƏYƏRİ YARADAN STANDART METODUDUR.
+
+## 9. Digər Təkrarlanan Dizayn Pattern-ləri
+
+#### 9.1. Adapter / Facade Pattern — `ChessEngine`
+
+`lib/features/game/engine/chess_engine.dart` (bax Bölmə 7) — XARİCİ `chess` PAKETİNİN XAM API-sını TƏTBİQ-SPESİFİK, RAHAT BİR İNTERFEYSƏ ÇEVİRƏN bir FACADE-dir. Bu, "ÜÇÜNCÜ TƏRƏF KİTABXANASINI BİRBAŞA HƏR YERDƏ İSTİFADƏ ETMƏ, ONUN ƏTRAFINA ÖZ TƏBƏQƏNİ QUR" prinsipinin tətbiqidir — gələcəkdə `chess` PAKETİ DƏYİŞDİRİLSƏ BELƏ, YALNIZ `ChessEngine` SİNFİ YENİLƏNMƏLİDİR, QALAN KOD TOXUNULMAZ QALIR.
+
+#### 9.2. Sentinel Pattern — Null-Safe `copyWith()`
+
+`UserModel`, `GameState` kimi BÖYÜK IMMUTABLE SİNİFLƏRDƏ, `copyWith()` METODUNUN "BU SAHƏNİ DƏYİŞDİRMƏ" ilə "BU SAHƏNİ `null`-A TƏYİN ET" ARASINDAKI FƏRQİ AYIRD ETMƏSİ ÜÇÜN, `const _sentinel = Object()` DƏYİŞƏNİ İSTİFADƏ OLUNUR (ƏTRAFLI: Bölmə 5). Bu pattern XÜSUSİLƏ `GameState.copyWith({clearSelection, clearReview, clearPendingMove, clearPremove})` KİMİ "TƏMİZLƏMƏ BAYRAQLARI" İLƏ BİRLİKDƏ İŞLƏNİR.
+
+#### 9.3. Repository / Service Pattern
+
+`lib/core/services/` qovluğundakı HƏR SİNİF (`FirestoreService`, `RealtimeGameService`, `TournamentService`, `EloService`...) — KONKRET BİR "DOMEN SAHƏSİ"NİN (domain) BÜTÜN VERİLƏNLƏR ƏMƏLİYYATLARINI TƏK BİR YERDƏ TOPLAYIR. UI VƏ ya STATE NOTIFIER-LƏR HEÇ VAXT `FirebaseFirestore.instance.collection(...)` KİMİ XAM ÇAĞIRIŞLAR ETMİR — HƏMİŞƏ BU SERVİSLƏR VASİTƏSİLƏ.
+
+#### 9.4. `@immutable` Vəziyyət Sinifləri
+
+`GameState`, `GameConfig`, `UserModel`, `GameModel`, `TournamentModel` — HAMISI `@immutable` OLARAQ İŞARƏLƏNİB. Bu, FLUTTER-İN ƏSAS PRİNSİPİ İLƏ UYĞUNDUR: VƏZİYYƏT DƏYİŞDİKDƏ, MÖVCUD OBYEKT MUTASİYA EDİLMİR (`state.foo = bar` YAZILMIR) — ƏVƏZİNƏ `copyWith()` İLƏ **YENİ BİR OBYEKT** yaradılır VƏ `state = newObject` İLƏ ƏVƏZ OLUNUR. Bu, Riverpod-un "DƏYƏR DƏYİŞİBMİ?" YOXLAMASINI SADƏLƏŞDİRİR VƏ "TƏSADÜFİ MUTASİYA" SİNFİNDƏN BAŞ VERƏ BİLƏCƏK XƏTALARIN QARŞISINI ALIR.
+
+## 10. ConsumerWidget vs ConsumerStatefulWidget
+
+- **`ConsumerWidget`** — `StatelessWidget`-in Riverpod versiyası; `build(context, ref)` SİQNATURASI İLƏ. EKRANIN ÖZ-DAXİLİ (local) VƏZİYYƏTİ OLMADIQDA istifadə olunur (yalnız provider-lərə əsaslanır).
+- **`ConsumerStatefulWidget`** + **`ConsumerState`** — `StatefulWidget`-in Riverpod versiyası; `TextEditingController`, `AnimationController`, `Timer` KİMİ EKRAN-DAXİLİ, RIVERPOD-A AİD OLMAYAN VƏZİYYƏTLƏR OLDUQDA istifadə olunur (məsələn, `MatchmakingScreen` — axtarış taymerini `State` daxilində saxlayır, AMMA reytinq/növbə MƏLUMATLARINI Riverpod PROVIDER-LƏRİ vasitəsilə əldə edir).
+
+## 11. Nəticə
+
+Bu bölmədə nəzərdən keçirilən PATTERN-LƏR — Feature-First qovluq strukturu, Riverpod-un 5 fərqli provider növünün MƏQSƏDƏUYĞUN SEÇİMİ, `.autoDispose`/`.family` modifikatorları, REAKTİV ASILILIQ ZƏNCİRLƏRİ, VƏ Sentinel/Adapter/Repository kimi ÜMUMİ DİZAYN PATTERN-LƏRİ — "Grandmaster" layihəsinin 30-DAN ÇOX EKRANDAN VƏ ONLARLA SERVİSDƏN İBARƏT KOD BAZASINI **NİZAMLI, PROQNOZLAŞDIRILA BİLƏN VƏ GENİŞLƏNƏ BİLƏN** SAXLAYIR. Sonrakı bölmələrdə, bu pattern-lərin HƏR BİR KONKRET MODULDA NECƏ TƏTBİQ OLUNDUĞU GÖRSƏNƏCƏK.

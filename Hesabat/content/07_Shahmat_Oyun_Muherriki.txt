@@ -1,0 +1,191 @@
+# 7. Şahmat Oyun Mühərriki
+
+## 1. Giriş və Məqsəd
+
+Şahmat, "Grandmaster" tətbiqinin əsas və ən mürəkkəb modulu olduğundan, onun "beyni" sayılan oyun mühərriki (chess engine) xüsusi diqqətlə layihələndirilmişdir. Oyun mühərrikinin vəzifəsi — şahmat lövhəsinin cari vəziyyətini saxlamaq, gedişlərin qanuniliyini yoxlamaq, xüsusi qaydaları (rokirovka, en passant, piyada yüksəlişi) tətbiq etmək, oyunun bitmə şərtlərini (mat, pat, bərabərlik) aşkarlamaq və bütün bunları UI qatına rahat şəkildə təqdim etməkdir.
+
+**Fayl:** `lib/features/game/engine/chess_engine.dart`
+
+Layihədə şahmat qaydalarını "sıfırdan" yazmaq əvəzinə, sınaqdan keçmiş, geniş istifadə olunan açıq mənbəli `chess` Dart paketindən (pubspec.yaml-da `chess: ^0.8.1`) istifadə edilmişdir. Lakin bu paket aşağı səviyyəli (low-level) API təqdim etdiyi üçün, onun üzərində `ChessEngine` adlı YÜKSƏK SƏVİYYƏLİ BİR "WRAPPER" (sarğı) sinfi yaradılmışdır. Bu, proqram təminatı mühəndisliyində geniş istifadə olunan "Adapter" və ya "Facade" dizayn nümunəsinin tətbiqidir — UI qatı mürəkkəb `chess` paketinin daxili API-si ilə birbaşa işləmək əvəzinə, layihənin öz ehtiyaclarına uyğunlaşdırılmış, sadə və səlis `ChessEngine` interfeysi ilə işləyir.
+
+## 2. İstifadə Olunan Texnologiyalar
+
+- **`chess` paketi (v0.8.1)** — FEN/PGN parsing, gediş generasiyası, mat/pat/bərabərlik aşkarlanması kimi əsas şahmat qaydalarının "mühərrik nüvəsi".
+- **Dart Records (`({String from, String to, String san})`)** — gedişlərin "verbose" (ətraflı) tarixini saxlamaq üçün yüngül, dəyişməz (immutable) tuple strukturu.
+- **`@immutable` annotasiyası** — `PieceInfo` data sinfi üçün, dəyişməzliyi (immutability) statik analiz səviyyəsində təmin etmək məqsədilə.
+- **Keşləmə (caching) nümunəsi** — `_boardCache` sahəsi, lövhənin son hesablanmış vəziyyətini saxlayır və yalnız gediş edildikdə/geri qaytarıldıqda etibarsızlaşdırılır (`_boardCache = null`).
+- **Switch-expression (Dart 3)** — fiqur dəyərlərinin (`pieceValue`) və simvolların (`PieceInfo.symbol`) qısa, oxunaqlı şəkildə müəyyən edilməsi üçün.
+
+## 3. ChessEngine Sinfinin Əsas Strukturu
+
+> class ChessEngine {
+>   late ch.Chess _chess;
+>   final List<String> _moveHistory = [];
+>   final List<String> _fenHistory = [];
+>   final List<({String from, String to, String san})> _verboseHistory = [];
+>   Map<String, PieceInfo>? _boardCache;
+>
+>   ChessEngine() { _chess = ch.Chess(); }
+>   ChessEngine.fromFen(String fen) { _chess = ch.Chess.fromFEN(fen); }
+> }
+>
+> enum PieceType { pawn, knight, bishop, rook, queen, king }
+
+Sinif iki konstruktora malikdir: standart başlanğıc mövqeyi üçün defolt konstruktor, və ixtiyari bir mövqedən (FEN sətri vasitəsilə) başlamaq üçün `ChessEngine.fromFen()`. İkinci konstruktor xüsusilə "Oyun Nəzərdən Keçirmə" (Game Review) rejimində vacibdir (bax bölmə 8).
+
+## 4. Vəziyyət Sahələri (Getterlər)
+
+`ChessEngine` bir sıra "getter" vasitəsilə daxili `chess` obyektinin vəziyyətini xaricə açır:
+
+> bool get isWhiteTurn => _chess.turn == ch.Color.WHITE;
+> bool get isCheck      => _chess.in_check;
+> bool get isCheckmate  => _chess.in_checkmate;
+> bool get isStalemate  => _chess.in_stalemate;
+> bool get isDraw       => _chess.in_draw;
+> bool get isGameOver   => _chess.game_over;
+> String get fen        => _chess.fen;
+> String get pgn        => _chess.pgn();
+
+Bu yanaşma "Demeter Qanunu"na (Law of Demeter) uyğundur — UI qatı `_chess` obyektinin daxili strukturunu bilməli deyil, sadəcə `engine.isCheckmate` kimi aydın adlandırılmış sahələrdən istifadə edir.
+
+## 5. Gediş Etmə və Validasiya
+
+#### 5.1. makeMove() — Əsas Gediş Metodu
+
+> bool makeMove(String from, String to, {String? promotion}) {
+>   final moveMap = {'from': from, 'to': to};
+>   if (promotion != null) moveMap['promotion'] = promotion;
+>   if (_chess.move(moveMap) == true) {
+>     final history = _chess.getHistory({'verbose': true});
+>     String san = history.isNotEmpty
+>         ? (history.last as Map)['san'] as String
+>         : '$from$to';
+>     _moveHistory.add(san);
+>     _verboseHistory.add((from: from, to: to, san: san));
+>     _fenHistory.add(_chess.fen);
+>     _boardCache = null;
+>     return true;
+>   }
+>   return false;
+> }
+
+Bu metod, `chess` paketinin `move()` funksiyasını çağırır. Əgər gediş QANUNİDİRSƏ, üç ayrı tarix strukturu EYNİ ANDA yenilənir: SAN notasiyası (`_moveHistory`, məsələn "Nf3"), tam gediş məlumatı (`_verboseHistory`, "from/to/san" üçlüyü), və FEN "şəkili" (`_fenHistory`, hər gedişdən sonrakı tam lövhə vəziyyəti). Bu üç tarixin AYRI-AYRI saxlanılması, fərqli UI ehtiyaclarına (gediş siyahısı göstərmək, "geri al" funksiyası, oyunu nəzərdən keçirmək) sürətli və səmərəli cavab verməyə imkan yaradır.
+
+#### 5.2. legalMovesFrom() — Qanuni Gedişlərin Generasiyası
+
+> List<String> legalMovesFrom(String square) {
+>   final moves = _chess.moves({'square': square, 'verbose': true});
+>   return moves.map((m) => (m as Map)['to'] as String).toList();
+> }
+
+İstifadəçi lövhədə bir fiqura toxunduqda, bu metod o fiqurun gedə biləcəyi BÜTÜN xanaların siyahısını qaytarır. UI qatı bu siyahını alıb, lövhə üzərində YAŞIL NÖQTƏLƏR/HALQALAR şəklində vizuallaşdırır (bax Hissə 8).
+
+#### 5.3. needsPromotion() — Piyada Yüksəlişinin Aşkarlanması
+
+> bool needsPromotion(String from, String to) {
+>   final piece = _chess.get(from);
+>   if (piece == null || piece.type != ch.PieceType.PAWN) return false;
+>   return (piece.color == ch.Color.WHITE && to[1] == '8') ||
+>          (piece.color == ch.Color.BLACK && to[1] == '1');
+> }
+
+Bu metod, gediş icra edilməzdən ƏVVƏL çağırılır. Əgər `true` qaytarırsa, UI istifadəçiyə "Hansı fiqura çevrilsin?" dialoqunu göstərir və seçilmiş fiqur (`q`/`r`/`b`/`n`) `makeMove()`-un `promotion` parametri kimi ötürülür.
+
+## 6. Xüsusi Gedişlər
+
+`ChessEngine`, şahmatın üç mürəkkəb xüsusi qaydasını DOĞRUDAN-DOĞRUYA `chess` paketinə HƏVALƏ EDİR, bunları yenidən tətbiq etmir:
+
+- **Rokirovka (Castling):** İstifadəçi şahı iki xana yana sürüşdürdükdə (`e1g1` və ya `e1c1`), `chess` paketi avtomatik olaraq bunu rokirovka kimi tanıyır və qalanı da köçürür — bu şərtlər (şah/qala hərəkət etməyib, aralarında fiqur yoxdur, şah şahmatda deyil) paketin daxilində yoxlanılır.
+- **En Passant:** Paket avtomatik olaraq "keçərkən almaq" kvadratını izləyir və müvafiq gedişi qanuni siyahıya daxil edir.
+- **Piyada Yüksəlişi (Promotion):** `promotion` parametri ilə `'q'`, `'r'`, `'b'`, `'n'` dəyərlərindən biri ötürülə bilər.
+
+## 7. Tarixçə İdarəetməsi: Undo və lastMove
+
+#### 7.1. undo() — Gedişi Geri Almaq
+
+> bool undo() {
+>   final result = _chess.undo();
+>   if (result != null && _moveHistory.isNotEmpty) {
+>     _moveHistory.removeLast();
+>     _fenHistory.removeLast();
+>     _verboseHistory.removeLast();
+>     _boardCache = null;
+>     return true;
+>   }
+>   return false;
+> }
+
+#### 7.2. lastMove — O(1) Sürətli Sorğu
+
+> ({String from, String to})? get lastMove {
+>   if (_verboseHistory.isEmpty) return null;
+>   final last = _verboseHistory.last;
+>   return (from: last.from, to: last.to);
+> }
+
+Diqqət ediləsi məqam: bu getter `_chess.getHistory()` kimi BAHALI (expensive) bir çağırış ETMİR — sadəcə artıq yaddaşda saxlanılan `_verboseHistory` siyahısının SON elementinə birbaşa müraciət edir. Bu, lövhədə "son gediş vurğulanması" (last-move highlight) hər frame-də (UI yenidən qurulanda) çağırıla biləcəyi üçün, performans baxımından vacib bir optimallaşdırmadır.
+
+## 8. Oyun Nəzərdən Keçirmə (Review Mode): snapshotAt()
+
+> ChessEngine snapshotAt(int n) {
+>   if (n <= 0) return ChessEngine();               // Başlanğıc mövqeyi
+>   if (n - 1 >= _fenHistory.length) return this;   // Sərhəddən kənar
+>   return ChessEngine.fromFen(_fenHistory[n - 1]);
+> }
+
+Oyun bitdikdən sonra, istifadəçi "Gedişləri nəzərdən keçir" funksiyasından istifadə edərək, ◀️/▶️ düymələri ilə istənilən gediş nömrəsinə "səyahət edə" bilər. Hər çağırışda `snapshotAt(n)` saxlanılmış FEN tarixindən YENİ, MÜSTƏQİL bir `ChessEngine` nüsxəsi yaradır — bu o deməkdir ki, nəzərdən keçirmə zamanı ƏSL OYUN VƏZİYYƏTİ HEÇ VAXT DƏYİŞDİRİLMİR, sadəcə "tarixi anların" salnaməsi göstərilir.
+
+## 9. Material Hesablanması və Tutulan Fiqurlar
+
+> static int pieceValue(PieceType type) => switch (type) {
+>   PieceType.pawn   => 1,
+>   PieceType.knight => 3,
+>   PieceType.bishop => 3,
+>   PieceType.rook   => 5,
+>   PieceType.queen  => 9,
+>   PieceType.king   => 0,
+> };
+>
+> int materialAdvantageFor(bool forWhite) {
+>   final myCaptured    = forWhite ? capturedByWhite : capturedByBlack;
+>   final theirCaptured = forWhite ? capturedByBlack : capturedByWhite;
+>   return myCaptured.fold(0, (s, p) => s + pieceValue(p.type)) -
+>          theirCaptured.fold(0, (s, p) => s + pieceValue(p.type));
+> }
+
+`capturedByWhite`/`capturedByBlack` getterləri — cari lövhə vəziyyətini BAŞLANĞIC DÜZÜLÜŞLƏ MÜQAYİSƏ EDƏRƏK, hansı fiqurların artıq lövhədə olmadığını (deməli, tutulduğunu) müəyyən edir. `materialAdvantageFor()` isə bu məlumatdan istifadə edərək, oyun ekranında "+3" kimi göstərilən material üstünlüyü göstəricisini hesablayır.
+
+## 10. King-in-Check Göstəricisi
+
+> String? get kingInCheckSquare {
+>   if (!_chess.in_check) return null;
+>   final color = _chess.turn;
+>   for (final entry in ch.Chess.SQUARES.entries) {
+>     final piece = _chess.get(entry.key as String);
+>     if (piece?.type == ch.PieceType.KING && piece?.color == color) {
+>       return entry.key as String;
+>     }
+>   }
+>   return null;
+> }
+
+Bu metod, şah təhlükə altında olduqda, dəqiq HANSI XANADA olduğunu tapır ki, lövhə üzərində QIRMIZI İŞIQLANMA effekti həmin xanaya tətbiq edilsin (bax Hissə 8.5).
+
+## 11. PieceInfo Data Sinfi
+
+> @immutable
+> class PieceInfo {
+>   final PieceType type;
+>   final bool isWhite;
+>   String get symbol => switch (type) {
+>     PieceType.pawn   => isWhite ? '♙' : '♟',
+>     PieceType.knight => isWhite ? '♘' : '♞',
+>     // ...
+>   };
+> }
+
+`@immutable` annotasiyası ilə işarələnmiş bu kiçik sinif, lövhədəki HƏR BİR fiqurun növünü və rəngini təmsil edir və UI qatına `board` getteri vasitəsilə `Map<String, PieceInfo>` formatında ötürülür (açar — "e4" kimi xana adı, dəyər — o xanadakı fiqur).
+
+## 12. Nəticə
+
+`ChessEngine` sinfi, "Adapter" dizayn nümunəsinin praktiki, real-dünya tətbiqinin gözəl nümunəsidir: o, sınanmış `chess` paketinin gücündən (qanuni gediş generasiyası, FEN/PGN dəstəyi, mat/pat aşkarlanması) istifadə edərkən, layihənin spesifik ehtiyaclarına (performanslı tarix izləmə, oyun nəzərdən keçirmə, material hesablanması, keşlənmiş lövhə təqdimatı) uyğun TƏMİZ VƏ SƏLİS bir interfeys təqdim edir. Bu memarlıq qərarı, UI qatının (bax Hissə 8) şahmat qaydalarının daxili mürəkkəbliyindən TAM İZOLYASIYA olunmasını təmin edir.

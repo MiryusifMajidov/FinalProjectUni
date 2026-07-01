@@ -1,0 +1,184 @@
+# 11. Dama (Checkers) Oyun Modulu
+
+## 1. Giriş və Modulun Məqsədi
+
+"Grandmaster" tətbiqinin əsas oyun rejimi şahmat olsa da, tətbiqin oyunçu auditoriyasını genişləndirmək və istifadəçilərə alternativ strateji oyun təcrübələri təqdim etmək məqsədilə tətbiqə əlavə oyun modulları inteqrasiya edilmişdir. Bu modullardan biri də ümumiyyətlə "Dama" (ingiliscə Checkers/Draughts) adlanan, dünya üzrə bir neçə fərqli qaydalar toplusu (variant) ilə oynanılan klassik lövhə oyunudur.
+
+Dama modulu tətbiqin "features" qovluğunun "checkers" alt-bölməsində yerləşdirilmişdir və bu, layihənin ümumi "feature-based" (funksionallığa əsaslanan) arxitektura prinsipinə tam uyğundur. Modul üç əsas qatdan ibarətdir:
+
+- Oyun mühərriki (Engine) — `checkers_engine.dart`
+- Oyun ekranı (Screen) — `checkers_game_screen.dart`
+- Lövhə vidjeti (Widget) — `checkers_board_widget.dart`
+- Bot ilə oyun üçün ilkin tənzimləmə ekranı — `checkers_bot_setup_screen.dart`
+
+Bu sənəddə hər bir komponentin daxili strukturu, istifadə olunan alqoritmlər, dama oyununun riyazi və məntiqi modelləşdirilməsi, həmçinin süni intellektin (botun) necə qərar verdiyi ətraflı izah olunacaqdır.
+
+## 2. İstifadə Olunan Texnologiyalar və Dil Xüsusiyyətləri
+
+Dama modulu tamamilə Dart proqramlaşdırma dilində, xarici kitabxanalardan asılı olmadan, "saf" (pure) məntiq kodu kimi yazılmışdır. Bu, modulun həm performanslı, həm də platformdan asılı olmayaraq (Android, iOS, Web) işləməsini təmin edir. Aşağıdakı Dart dil xüsusiyyətlərindən fəal şəkildə istifadə edilmişdir:
+
+- Enum-lar (sadalama tipləri) — oyunun vəziyyətini, daşların növünü və oyunçuları təmsil etmək üçün.
+- Records (tuple tipləri) — `(int, int)` formatında istiqamət vektorlarını saxlamaq üçün, məsələn `(-1, -1)` kimi diaqonal sürüşmə istiqamətləri.
+- Switch-expression (`switch` ifadələri) — variant qaydalarının seçilməsi üçün `VariantRules.fromVariant()` metodunda.
+- Late təyinatlı sahələr (`late final`) — obyekt yaradılarkən konstruktor daxilində hesablanan, lakin "final" olan dəyərlər üçün.
+- Rekursiya — çoxlu tutma (multi-jump capture) zəncirlərinin hesablanması üçün `_captureMovesFrom` metodunda dərin rekursiv axtarış.
+- `dart:math` kitabxanası — `max`, `sqrt`, `log` kimi riyazi funksiyalar bot alqoritmində istifadə olunur.
+
+UI səviyyəsində isə `flutter_animate` (animasiyalar), `google_fonts` (Fraunces, Inter, JetBrains Mono şriftləri) və `phosphor_flutter` (ikon dəsti) paketlərindən istifadə edilir ki, bu da tətbiqin digər modulları (şahmat, domino) ilə vizual tutarlılığı təmin edir.
+
+## 3. Dama Variantları və Qaydalar Modeli (VariantRules)
+
+Layihənin ən maraqlı memarlıq qərarlarından biri ondan ibarətdir ki, dama oyununun YALNIZ bir növü deyil, dünya üzrə tanınan DÖRD fərqli variantı dəstəklənir. Bunun üçün `VariantRules` adlı sabit (immutable) konfiqurasiya sinfi yaradılmışdır:
+
+> class VariantRules {
+>   final int boardSize;
+>   final int piecesPerSide;
+>   final bool diagonal;
+>   final bool menCaptureBack;
+>   final bool flyingKings;
+>   final bool maxCapture;
+> }
+
+Bu sinif vasitəsilə dörd variant aşağıdakı kimi modelləşdirilmişdir:
+
+#### 3.1. Standart (Amerika) — 8x8
+
+Ən geniş yayılmış dama növüdür. Lövhə 8x8, hər tərəfdə 12 daş var. Hərəkət yalnız diaqonal istiqamətdədir, adi daşlar yalnız irəliyə tuta bilər, və krallar (dama) yalnız bir xana sürüşə bilər (flying king yoxdur).
+
+#### 3.2. Beynəlxalq (International/Polish) — 10x10
+
+Daha böyük 10x10 lövhədə, hər tərəfdə 20 daşla oynanılır. Bu variantda adi daşlar GERİYƏ də tuta bilər (`menCaptureBack: true`), krallar istənilən məsafəyə "uça" bilər (`flyingKings: true`) və "maksimum tutma" qaydası tətbiq olunur (`maxCapture: true`) — yəni oyunçu mütləq ən uzun tutma zəncirini seçməlidir.
+
+#### 3.3. Türk Daması — 8x8
+
+Bu variant digərlərindən köklü şəkildə fərqlənir, çünki hərəkət DİAQONAL deyil, ORTOQONAL (üfüqi/şaquli) istiqamətdədir (`diagonal: false`). Başlanğıc düzülüş də fərqlidir — daşlar lövhənin 2-ci və 3-cü (qara üçün) və 6-cı və 7-ci (ağ üçün) cərgələrində, bütün sütunlarda yerləşir (diaqonal naxışda deyil). Hər tərəfdə 16 daş olur. Krallar uça bilər və maksimum tutma qaydası mövcuddur.
+
+#### 3.4. Braziliya Daması — 8x8
+
+8x8 lövhədə, lakin Beynəlxalq qaydaların tətbiqi ilə (geriyə tutma, uçan krallar, maksimum tutma) oynanılır. Mahiyyətcə Beynəlxalq damanın kiçik lövhə versiyasıdır.
+
+Bu yanaşmanın üstünlüyü ondadır ki, `CheckersEngine` sinfinin əsas məntiqi (`legalMoves`, `makeMove`, bot AI) BÜTÜN variantlar üçün eynidir — yalnız `VariantRules` obyektindəki bayraqlar (flag) əsasında davranış dəyişir. Bu, "Strategy Pattern"in konfiqurasiya-yönümlü formada tətbiqinə nümunədir və kod təkrarının qarşısını alır.
+
+## 4. Lövhənin Təmsili və Koordinat Sistemi
+
+Lövhə Dart-da bir ölçülü (1D) `List<CheckersPiece>` massivi kimi saxlanılır, ölçüsü `boardSize * boardSize` (8x8=64 və ya 10x10=100). Bu, 2D massivlərə nisbətən performans baxımından üstünlük verir, çünki klonlama (kopyalama) əməliyyatları zamanı tək bir `List.of()` çağırışı kifayət edir.
+
+Koordinatların id-yə çevrilməsi üçün köməkçi funksiyalar mövcuddur:
+
+> int idx(int row, int col) => row * boardSize + col;
+> int row(int i) => i ~/ boardSize;
+> int col(int i) => i % boardSize;
+
+`CheckersPiece` enum-u beş vəziyyəti təmsil edir: `empty`, `white`, `black`, `whiteKing`, `blackKing`. Bu enum üzərində `CheckersPieceX` adlı bir "extension" (genişləndirmə) yazılmışdır ki, bu da `isWhite`, `isBlack`, `isKing`, `isEmpty`, `belongsTo(player)` və `promoted()` kimi praktik köməkçi getter/metodları təmin edir. Bu yanaşma, əsas enum tipini "çirkləndirmədən" ona əlavə davranış qoşmağa imkan verən təmiz Dart praktikasıdır.
+
+Başlanğıc lövhə düzülüşü `_initialBoard()` metodunda qurulur və iki fərqli alqoritmə ayrılır: diaqonal variantlar üçün "tünd xanalar" prinsipi ((sətir+sütun) cüt ədəd olduqda), Türk variantı üçün isə bütün xanaların doldurulduğu sıra-əsaslı düzülüş.
+
+## 5. Gedişlərin Generasiyası: Adi Addımlar və Tutmalar
+
+Oyun mühərrikinin ən mürəkkəb hissəsi `legalMoves()` metodudur. Bu metod hər bir növbədə oyunçunun bütün mümkün qanuni gedişlərini hesablayır və dama oyununun ƏN VACİB qaydasını tətbiq edir: ƏGƏR TUTMA (CAPTURE) MÜMKÜNDÜRSƏ, OYUNÇU MÜTLƏQ TUTMALIDIR (Forced Capture Rule).
+
+> List<CheckersMove> legalMoves() {
+>   final captures = <CheckersMove>[];
+>   final steps = <CheckersMove>[];
+>   for (int i = 0; i < totalCells; i++) {
+>     if (!board[i].belongsTo(turn)) continue;
+>     captures.addAll(_captureMovesFrom(i, board, board[i], [i], [], {}));
+>     if (captures.isEmpty) steps.addAll(_stepMovesFrom(i));
+>   }
+>   if (captures.isNotEmpty) {
+>     if (rules.maxCapture && captures.length > 1) {
+>       final maxLen = captures.map((m) => m.captured.length).reduce(max);
+>       captures.removeWhere((m) => m.captured.length < maxLen);
+>     }
+>     return captures;
+>   }
+>   return steps;
+> }
+
+Adi addımlar (`_stepMovesFrom`) üçün iki rejim var: əgər daş kraldırsa və variant "uçan kral" qaydasına malikdirsə, daş boş xanalar boyunca istənilən məsafəyə sürüşə bilər (`while` dövrü ilə). Əks halda, daş yalnız bir xana hərəkət edə bilər.
+
+Tutma gedişlərinin hesablanması (`_captureMovesFrom`) isə REKURSİV alqoritmdir, çünki dama qaydalarında bir daş ardıcıl olaraq bir neçə rəqib daşı eyni gedişdə tuta bilər (zəncirvari tutma). Funksiya hər mümkün tutma istiqamətini yoxlayır, tutmadan sonra YENİ lövhə vəziyyəti yaradır (rəqib daş silinmiş, öz daşı yeni mövqedə) və həmin yeni vəziyyətdən YENİDƏN tutma axtarır. Əgər davam edən tutma yoxdursa, zəncir orada bitir və nəticə "budaq" (branch) kimi qeydə alınır. Bu, dərinlik-üstün axtarışın (DFS) klassik nümunəsidir və nəticədə mümkün BÜTÜN tutma zəncirlərinin siyahısı yaranır.
+
+"Uçan kral" tutması (Beynəlxalq, Türk, Braziliya variantları üçün) daha mürəkkəbdir: kral diaqonal/ortoqonal xətt boyunca rəqib daşı "axtarır", onu aşaraq, arxasındakı İSTƏNİLƏN boş xanaya enə bilər — bu da kodda `enemyIdx` tapıldıqdan sonra ikinci bir `while` dövrü ilə həyata keçirilir.
+
+## 6. Gedişin İcrası və Oyun Sonu Şərtləri
+
+`makeMove(CheckersMove move)` metodu — istifadəçinin (və ya botun) seçdiyi gedişi `legalMoves()` siyahısı ilə yoxlayır, uyğun gəlirsə icra edir: tutulan daşlar lövhədən silinir, daş yeni mövqeyə köçürülür, və ƏGƏR daş qarşı tərəfin son cərgəsinə çatıbsa, `promoted()` vasitəsilə KRALA çevrilir.
+
+`halfMoveClock` adlı sayğac — tutma və ya yüksəlmə (promotion) olmadan keçən gediş sayını izləyir. Əgər bu say 80-ə çatarsa, oyun BƏRABƏRƏ (draw) elan olunur — bu, real dama oyunlarında "sonsuz dövr" (infinite loop) vəziyyətlərinin qarşısını almaq üçün standart bir həldir.
+
+`_checkResult()` metodu hər gedişdən sonra çağırılır: əgər növbədəki oyunçunun HEÇ BİR qanuni gedişi yoxdursa (nə tutma, nə addım), həmin oyunçu MƏĞLUB elan olunur — bu, dama qaydalarına uyğundur (şahmatdan fərqli olaraq, "pat" (stalemate) burada məğlubiyyət deməkdir, bərabərlik deyil).
+
+## 7. Süni İntellekt: Negamax + Alpha-Beta + Transposition Table
+
+Dama botunun "beyni" `bestBotMove({int depth})` metodudur və bu, kompüter şahmatından tanınan klassik axtarış alqoritmlərinin sintezidir:
+
+#### 7.1. Iterative Deepening (Tədricən Dərinləşən Axtarış)
+
+Bot, tələb olunan dərinliyə (`depth`, məs. 1-6) birbaşa getmək əvəzinə, dərinliyi 1-dən başlayaraq tədricən artırır (`for (int d = 1; d <= depth; d++)`). Hər dərinlikdə tapılan ən yaxşı gediş, NÖVBƏTİ dərinlikdəki axtarışın başında yoxlanılır — bu, "move ordering" (gedişlərin sıralanması) vasitəsilə Alpha-Beta budamasının səmərəliliyini xeyli artırır. Əlavə olaraq, əgər hər hansı dərinlikdə "məcburi qələbə" qiyməti (≥900) tapılarsa, axtarış vaxtından əvvəl dayandırılır.
+
+#### 7.2. Negamax + Alpha-Beta Budama
+
+`_negamax(depth, alpha, beta, ply)` — minimax alqoritminin "negamax" forması, yəni hər iki oyunçu üçün eyni qiymətləndirmə funksiyasından istifadə edilir, sadəcə işarə (`-`) tərsinə çevrilir:
+
+> final score = -sim._negamax(depth - 1, -beta, -alpha, ply + 1);
+
+Alpha-Beta budama (`if (alpha >= beta) break;`) — artıq daha yaxşı variant tapılmış budaqların araşdırılmasının qarşısını alaraq, axtarış ağacının ölçüsünü eksponensial şəkildə azaldır.
+
+#### 7.3. Transposition Table (TT)
+
+`_tt` adlı `Map<int, _TTEntry>` strukturu — eyni lövhə vəziyyətinə (mövqeyə) müxtəlif gediş ardıcıllıqları ilə təkrar gəlindikdə, artıq hesablanmış nəticəni YENİDƏN HESABLAMADAN əldə etməyə imkan verir. Mövqenin "hash"i `_boardHash()` metodu ilə hesablanır (sadə polinomial hash: `hash = hash * 31 + i * 5 + piece.index`). Hər TT girişi `depth`, `score` və `flag` (exact/lower-bound/upper-bound) saxlayır ki, bu da düzgün Alpha-Beta inteqrasiyası üçün vacibdir.
+
+#### 7.4. Killer Moves Evristikası
+
+`_killers` adlı Map — hər axtarış səviyyəsində (ply) Alpha-Beta "kəsməsinə" (cutoff) səbəb olan gedişləri yadda saxlayır və `_orderMoves()` zamanı bu gedişləri prioritetləşdirir. Bu, şahmat mühərriklərində geniş istifadə olunan, sübut edilmiş bir performans optimallaşdırmasıdır.
+
+#### 7.5. Qiymətləndirmə Funksiyası (Evaluation Function)
+
+`_evaluate()` metodu mövqeni ədədi qiymətə çevirir və aşağıdakı amilləri nəzərə alır:
+
+- Material: adi daş = 1.5 xal, kral = 4.0 xal
+- İrəliləyiş bonusu: adi daşların promosiyaya yaxınlığı (`advance * 0.12`)
+- Arxa cərgə müdafiə bonusu: öz arxa cərgəsində qalan daşlar +0.3 (yeni kralların qarşısının alınması üçün strateji əhəmiyyət daşıyır)
+- Mərkəz nəzarəti: lövhənin mərkəzinə yaxınlıq bonusu
+- Kral kənar cəzası: kralların lövhənin kənarında olması -0.2 (kral mərkəzdə daha güclüdür)
+- Mobillik bonusu: mövcud qanuni gedişlərin sayı (`mobility * 0.04`)
+- Material üstünlüyü bonusu: daş sayında üstünlük varsa, əlavə bonus
+- Endşpil kral üstünlüyü: ümumi daş sayı 8 və ya az olduqda, kral fərqi 1.5 əmsalla çarpılır (endşpildə kralların həlledici rolu modelləşdirilir)
+
+Bu çoxfaktorlu qiymətləndirmə funksiyası botun yalnız material hesabına deyil, həm də mövqe keyfiyyətinə (pozisiyaya) əsaslanaraq qərar verməsini təmin edir, nəticədə daha "insana bənzər" və strateji oyun tərzi yaranır.
+
+## 8. Bot Çətinlik Səviyyələri
+
+`checkers_bot_setup_screen.dart` ekranında istifadəçi botla oynamazdan əvvəl 6 fərqli çətinlik səviyyəsindən birini seçə bilər:
+
+> Novice   — ~600 ELO  — axtarış dərinliyi 1
+> Club     — ~1000 ELO — axtarış dərinliyi 2
+> Skilled  — ~1400 ELO — axtarış dərinliyi 3
+> Sharp    — ~1700 ELO — axtarış dərinliyi 4
+> Master   — ~2000 ELO — axtarış dərinliyi 5
+> Champion — ~2300 ELO — axtarış dərinliyi 6
+
+Göründüyü kimi, çətinlik səviyyəsi birbaşa Negamax axtarışının dərinliyi ilə əlaqələndirilmişdir — dərinlik nə qədər çoxdursa, bot o qədər irəlini "görür" və bir o qədər güclü oynayır. Bu interfeys həmçinin oyunçunun rəng seçimini (Ağ/Qara) və OYUN VARİANTINI (Standard/International/Turkish/Brazilian) seçməsinə imkan verir — seçilmiş parametrlər `context.push()` vasitəsilə `/checkers-game/:gameId` marşrutuna `extra` map-i kimi ötürülür.
+
+## 9. İstifadəçi İnterfeysi: Lövhə Vidjeti
+
+`checkers_board_widget.dart` — lövhənin vizual təqdimatına cavabdehdir. Hər bir xana `_buildCell()` metodu ilə qurulur və aşağıdakı vizual vəziyyətləri dəstəkləyir:
+
+- Adi xana (açıq/tünd rəng, lövhə mövqeyinə görə)
+- Seçilmiş daş (oyunçunun toxunduğu daş)
+- Mümkün gediş hədəfləri (yaşıl/işıqlı nöqtə ilə vurğulanma)
+- Mümkün tutma hədəfləri (fərqli rənglə vurğulanma)
+- Kral statusu üçün vizual işarə (məsələn, tac ikonu və ya əlavə halqa)
+
+Lövhə ölçüsü dinamikdir — `boardSize` dəyərinə (8 və ya 10) əsasən lövhə avtomatik 8x8 və ya 10x10 grid kimi qurulur, bu da `GridView` və ya bənzər responsiv layout vasitəsilə həyata keçirilir.
+
+## 10. Oyun Ekranı: Rejimlər və Vəziyyət İdarəetməsi
+
+`checkers_game_screen.dart` — `StatefulWidget` olaraq, oyunun bütün həyat dövrünü idarə edir. Ekran dörd rejimi dəstəkləyir: `bot`, `local` (eyni cihazda iki nəfər), `online` (real-vaxt rəqib) və `campaign` (kampaniya missiyası). Rejim, `mode` parametri vasitəsilə ekrana ötürülür və `_vsBot`, `_isHumanTurn` kimi dəyişənlər bu rejimə əsasən təyin olunur ki, interfeysin hansı tərəfin gedişlərinə icazə verəcəyi müəyyənləşsin.
+
+Oyun bitdikdə `_saveGame()` metodu çağırılır — bu metod `checkersStats` adlı Firestore sahəsini yeniləyir (qələbə/məğlubiyyət/heç-heçə statistikası), reytinq dəyişikliyini hesablayır və əgər oyun kampaniya missiyasıdırsa, müvafiq fəslin (chapter) irəliləyiş məlumatını yeniləyir. Təslim olma (`_handleResign`) funksiyası təsdiq dialoqu göstərdikdən sonra oyunu nəticələndirir.
+
+## 11. Nəticə
+
+Dama modulu, layihənin "bir mühərrik — çoxlu variant" memarlıq fəlsəfəsinin əyani nümunəsidir. Dörd fərqli beynəlxalq dama qaydaları toplusu vahid `CheckersEngine` sinfi və konfiqurasiya-əsaslı `VariantRules` modeli ilə dəstəklənir. Süni intellekt tərəfi isə Iterative Deepening, Negamax, Alpha-Beta budama, Transposition Table və Killer Moves kimi kompüter elmləri üzrə klassik axtarış alqoritmlərinin praktiki tətbiqini nümayiş etdirir. UI qatı isə Flutter-in deklarativ widget modelindən istifadə edərək, dinamik lövhə ölçüləri və interaktiv vurğulama ilə istifadəçi təcrübəsini tamamlayır.

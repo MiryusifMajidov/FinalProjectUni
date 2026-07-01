@@ -1,0 +1,200 @@
+# 13. Reytinq Sistemi (ELO) və Liderlər Lövhəsi
+
+## 1. Giriş və Məqsəd
+
+Rəqabətli oyun platformalarının ürəyində OBYEKTİV BACARIQ ÖLÇÜSÜ dayanır — istifadəçilərin nisbi gücünü ədədi şəkildə ifadə edən bir sistem. "Grandmaster" tətbiqi bu məqsədlə şahmat dünyasında onilliklərdir sınaqdan keçmiş **ELO reytinq sistemini** tətbiq edir. Bu sənəd reytinq hesablama alqoritmini (`EloService`), onun məlumat modelini (`RatingStats`) və bu reytinqlərin istifadəçilərə təqdim edildiyi **Liderlər Lövhəsi** (Leaderboard) və **Profil** ekranlarını əhatə edir.
+
+**Fayllar:**
+- `lib/core/services/elo_service.dart`
+- `lib/core/models/user_model.dart` (RatingStats sinfi)
+- `lib/features/leaderboard/screens/leaderboard_screen.dart`
+- `lib/features/profile/screens/profile_screen.dart` (reytinq tarixçəsi hissəsi)
+
+## 2. İstifadə Olunan Texnologiyalar
+
+- **Riyazi düstur (ELO Rating System)** — Arpad Elo tərəfindən hazırlanmış, FIDE və bütün böyük şahmat platformalarının (Lichess, Chess.com) istifadə etdiyi standart sistem.
+- **`cloud_firestore` `StreamProvider`** — liderlər lövhəsinin REAL-VAXT yenilənməsi üçün.
+- **`Riverpod` `family` provayderlər** — hər oyun növü (chess/checkers/domino) və hər kateqoriya (bullet/blitz/rapid) üçün ayrı sorğu axınları.
+- **`CustomPainter`** — profil ekranındakı reytinq qrafiki (line chart) və dairəvi diaqramların (donut chart) çəkilməsi üçün.
+- **Firestore composite query** (`orderBy` + `limit`) — top-100 oyunçuların effektiv sıralanması.
+
+## 3. ELO Düsturunun Riyazi Əsası
+
+ELO sisteminin nüvəsi — iki oyunçu arasındakı GÖZLƏNİLƏN NƏTİCƏNİ (expected score) hesablamaqdır:
+
+> E_A = 1 / (1 + 10^((R_B - R_A) / 400))
+
+Burada `R_A` və `R_B` müvafiq olaraq A və B oyunçularının reytinqləridir. `E_A` dəyəri 0 ilə 1 arasında dəyişir və A oyunçusunun B-yə qarşı QAZANMA EHTİMALINI təmsil edir. Məsələn, əgər A-nın reytinqi 1600, B-nin reytinqi 1400-dürsə, `E_A ≈ 0.76` olacaq — yəni A-nın B-ni məğlub etmə "gözləntisi" 76%-dir.
+
+Oyun bitdikdən sonra, real nəticə (`S_A`: qələbə=1.0, bərabərlik=0.5, məğlubiyyət=0.0) ilə gözlənilən nəticə (`E_A`) arasındakı FƏRQ, yeni reytinqi müəyyən edir:
+
+> R_A_yeni = R_A + K × (S_A - E_A)
+
+`K` əmsalı — reytinqin "nə qədər sürətlə dəyişəcəyini" tənzimləyir.
+
+## 4. EloService Sinfi: Tətbiqi Kod
+
+> class EloService {
+>   static double _expectedScore(int myRating, int oppRating) {
+>     return 1.0 / (1.0 + math.pow(10, (oppRating - myRating) / 400.0));
+>   }
+>
+>   static int _kFactor(int games, int rating) {
+>     if (games < 30) return 40;        // Provisional (yeni oyunçu)
+>     if (rating >= 2400) return 16;    // Elit səviyyə — sabit reytinq
+>     if (rating >= 2000) return 24;    // Yüksək səviyyə
+>     return 32;                        // Standart
+>   }
+>
+>   static (int, int, int, int) calculate({
+>     required int whiteRating,
+>     required int blackRating,
+>     required GameResult result,
+>     int whiteGames = 999,
+>     int blackGames = 999,
+>   }) {
+>     final eW = _expectedScore(whiteRating, blackRating);
+>     final eB = _expectedScore(blackRating, whiteRating);
+>     final sW = switch (result) {
+>       GameResult.white => 1.0,
+>       GameResult.black => 0.0,
+>       GameResult.draw  => 0.5,
+>       _ => 0.5,
+>     };
+>     final sB = 1.0 - sW;
+>     final kW = _kFactor(whiteGames, whiteRating);
+>     final kB = _kFactor(blackGames, blackRating);
+>     final newW = (whiteRating + kW * (sW - eW)).round().clamp(100, 3200);
+>     final newB = (blackRating + kB * (sB - eB)).round().clamp(100, 3200);
+>     return (newW, newB, newW - whiteRating, newB - blackRating);
+>   }
+> }
+
+#### 4.1. K-Əmsalının Pilləli Strukturu
+
+`_kFactor()` metodunun məntiqi ÇOX VACİBDİR, çünki o, reytinq sisteminin "ədalətliliyini" təmin edir:
+
+- **`games < 30` → K=40 (Provisional):** Yeni qeydiyyatdan keçmiş istifadəçilərin reytinqi HƏLƏ ETİBARLI DEYİL — ona görə hər oyun reytinqi BÖYÜK MİQDARDA dəyişdirə bilər ki, real bacarıq səviyyəsinə tez "yaxınlaşsın".
+- **`rating >= 2400` → K=16:** Ən yüksək səviyyəli oyunçular üçün reytinq DAHA SABİT olmalıdır — bir təsadüfi məğlubiyyət onların statusunu kəskin dəyişdirməməlidir (FIDE-nin "Elite" oyunçular üçün K=10-16 tətbiqinə bənzər).
+- **`rating >= 2000` → K=24:** Orta-yüksək səviyyə üçün aralıq dəyər.
+- **Defolt → K=32:** Əksər rəqabətli oyunçular üçün standart "həssaslıq" səviyyəsi.
+
+#### 4.2. Reytinqin Sərhədlənməsi (Clamping)
+
+`clamp(100, 3200)` — reytinqin HEÇ VAXT 100-dən aşağı və ya 3200-dən yuxarı olmamasını təmin edir. Bu, riyazi olaraq mənasız (mənfi) və ya real-dünyada mövcud olmayan (3200-dən yuxarı insan reytinqi yoxdur) dəyərlərin qarşısını alır.
+
+#### 4.3. Record Tipi ilə Qaytarılan Dəyər
+
+Funksiya Dart-ın `(int, int, int, int)` RECORD TİPİNDƏN istifadə edərək DÖRD dəyəri BİR DƏFƏYƏ qaytarır: yeni ağ reytinq, yeni qara reytinq, ağın reytinq DƏYİŞİMİ (delta) və qaranın reytinq dəyişimi. Bu deltalar `GameModel.whiteRatingChange`/`blackRatingChange` sahələrində saxlanılır və profil ekranında "+12" / "-8" formatında göstərilir.
+
+## 5. updatedStats() — Statistikanın Yenilənməsi
+
+> static RatingStats updatedStats({
+>   required RatingStats stats,
+>   required int newRating,
+>   required GameResult result,
+>   required bool isWhite,
+> }) {
+>   final won  = (isWhite && result == GameResult.white) ||
+>                (!isWhite && result == GameResult.black);
+>   final draw = result == GameResult.draw;
+>   return stats.copyWith(
+>     rating: newRating,
+>     wins:   stats.wins   + (won ? 1 : 0),
+>     draws:  stats.draws  + (draw ? 1 : 0),
+>     losses: stats.losses + (!won && !draw ? 1 : 0),
+>   );
+> }
+
+Bu metod, hər oyundan sonra `RatingStats` obyektinin (rating + wins/draws/losses) `copyWith()` vasitəsilə YENİ, DƏYİŞMƏZ (immutable) bir nüsxəsini yaradır. `isWhite` parametri əsasında, "qələbə" termininin AĞ üçün `result==white`, QARA üçün isə `result==black` mənasına gəldiyini düzgün təyin edir.
+
+## 6. RatingStats Modeli
+
+> class RatingStats {
+>   final int rating;   // default 1200
+>   final int wins;
+>   final int draws;
+>   final int losses;
+>   int get games => wins + draws + losses;
+>   Map<String, dynamic> toMap() => {...};
+>   factory RatingStats.fromMap(Map<String, dynamic> map) => ...;
+>   RatingStats copyWith({...}) => ...;
+> }
+
+Hər istifadəçi BEŞ AYRI `RatingStats` instansına malikdir: `bulletStats`, `blitzStats`, `rapidStats` (şahmat üçün, başlanğıc dəyəri istifadəçinin seçdiyi `skillLevel`-ə əsaslanır), `checkersStats` və `dominoStats` (defolt 1200/300 — qeydiyyat metoduna görə dəyişir, bax Hissə 4-cü fayl). `games` getteri HESABLANIR (saxlanılmır) — bu, məlumat təkrarlanmasının (data duplication) qarşısını alan klassik normallaşdırma prinsipidir.
+
+## 7. UserModel.overallRating — Çoxformatlı Reytinqin Birləşdirilməsi
+
+> int get overallRating {
+>   final pairs = [
+>     (bulletStats.rating, bulletStats.games),
+>     (blitzStats.rating,  blitzStats.games),
+>     (rapidStats.rating,  rapidStats.games),
+>   ];
+>   final played = pairs.where((p) => p.$2 > 0);
+>   if (played.isEmpty) return 1200;
+>   final sum = played.fold(0, (s, p) => s + p.$1);
+>   return (sum / played.length).round();
+> }
+
+Bu getter, istifadəçinin "ümumi" reytinqini hesablayarkən YALNIZ OYNADIĞI formatların (`games > 0`) reytinqlərinin ORTA DƏYƏRİNİ alır. Məsələn, əgər istifadəçi yalnız Bullet (1500) və Rapid (1300) oynayıbsa, Blitz isə heç vaxt oynamayıbsa, `overallRating = (1500+1300)/2 = 1400` olacaq — Blitz-in defolt 1200 dəyəri HESABLAMAYA TƏSİR ETMİR. Bu, hələ heç bir formatda oynamamış istifadəçilərin "süni şəkildə aşağı" ümumi reytinqlə göstərilməsinin qarşısını alır.
+
+## 8. Liderlər Lövhəsi Ekranı (LeaderboardScreen)
+
+#### 8.1. Şahmat: 3 Tab + Server-Side Sıralama
+
+> final chessLeaderboardProvider = StreamProvider.family<List<UserModel>, String>((ref, category) {
+>   return FirebaseFirestore.instance
+>     .collection('users')
+>     .orderBy('${category}Stats.rating', descending: true)
+>     .limit(100)
+>     .snapshots()
+>     .map((snap) => snap.docs.map((d) => UserModel.fromMap(d.data())).toList());
+> });
+
+Şahmat üçün, "Bullet", "Blitz" və "Rapid" tabları MÜSTƏQİL Firestore sorğularıdır — server SƏVİYYƏSİNDƏ `orderBy` ilə sıralanır və yalnız ilk 100 nəticə yüklənir. Bu, "index" tələb edən, lakin böyük istifadəçi bazalarında DA SÜRƏTLİ işləyən bir yanaşmadır.
+
+#### 8.2. Dama/Domino: Client-Side Sıralama
+
+> final checkersLeaderboardProvider = StreamProvider((ref) {
+>   return FirebaseFirestore.instance
+>     .collection('users')
+>     .limit(200)
+>     .snapshots()
+>     .map((snap) {
+>       final users = snap.docs.map((d) => UserModel.fromMap(d.data())).toList();
+>       users.sort((a, b) => b.checkersStats.rating.compareTo(a.checkersStats.rating));
+>       return users.take(100).toList();
+>     });
+> });
+
+Dama və Domino üçün FƏRQLİ YANAŞMA tətbiq olunur: 200 istifadəçi yüklənir və KLİENT TƏRƏFDƏ (Dart kodunda) `checkersStats.rating`/`dominoStats.rating` görə sıralanıb ilk 100-ü götürülür. Bunun səbəbi — Dama/Domino Firestore-da NİSBƏTƏN YENİ sahələrdir və köhnə hesablarda bu sahə HEÇ MÖVCUD OLMAYA BİLƏR (`orderBy` belə sənədləri sorğu nəticəsindən TAMAMILƏ ÇIXARARDI). Client-side sıralama isə `RatingStats.fromMap()`-in defolt dəyər (1200) təmin etməsi sayəsində, BÜTÜN istifadəçiləri əhatə edir.
+
+#### 8.3. Vizual Strukturu: Top-3 Podium
+
+Liderlər lövhəsinin yuxarı hissəsində 1-ci, 2-ci və 3-cü yerlər "PODIUM" formatında göstərilir — qızıl (`#FFD700`-ə yaxın gradient), gümüş və bürünc rəng sxemləri ilə, mərkəzi mövqedə BÖYÜK ölçülü 1-ci yer. Qalan iştirakçılar isə standart sıra şəklində (rütbə nömrəsi, avatar, istifadəçi adı + ölkə bayrağı, reytinq) göstərilir.
+
+#### 8.4. "Sticky" Şəxsi Sıra Paneli
+
+Əgər cari istifadəçi top-100-də deyilsə, ekranın ALT HİSSƏSİNDƏ SABİT (sticky) bir panel onun ÖZ rütbəsini və reytinqini göstərir — bu, istifadəçinin "harada dayandığını" həmişə bilməsini təmin edir, hətta o, ilk 100 sırada olmasa belə.
+
+## 9. Profil Ekranında Reytinq Tarixçəsi Qrafiki
+
+`ProfileScreen`-in `_buildHistory()` metodu, istifadəçinin son 50 onlayn, REYTİNQLİ oyununu xronoloji ardıcıllıqla araşdıraraq, reytinqin VAXTLA NECƏ DƏYİŞDİYİNİ əks etdirən bir XƏTT QRAFİKİ üçün data nöqtələri yaradır:
+
+> for (final game in recentRatedGames) {
+>   final isWhite = game.whiteUid == myUid;
+>   final before = isWhite ? game.whiteRatingBefore : game.blackRatingBefore;
+>   final change = isWhite ? game.whiteRatingChange : game.blackRatingChange;
+>   if (before != null && change != null) {
+>     points.add(before + change);
+>   }
+> }
+
+**Köhnə Məlumatların "Geriyə Doldurulması" (Legacy Backfill):** Əgər `whiteRatingBefore`/`whiteRatingChange` sahələri `null`-dursa (yəni oyun, bu sahələr əlavə edilməzdən ƏVVƏL oynanılıb), sistem `overallRating - effectiveChange` HESABLAMASI ilə təxmini tarixi bərpa edir — beləliklə, ən qədim istifadəçilər üçün belə qrafik "boş" görünmür.
+
+Qrafik özü `CustomPainter` ilə çəkilir: X oxu — XRONOLOJİ OYUN SIRASI, Y oxu — REYTİNQ DƏYƏRİ, və son nöqtə cari reytinqi göstərən vurğulanmış dairə ilə işarələnir.
+
+## 10. Nəticə
+
+"Grandmaster"-in reytinq sistemi, akademik ədəbiyyatda və sənaye standartlarında geniş qəbul edilmiş ELO alqoritminin DOĞRU VƏ NÜANSLI tətbiqidir. Pilləli K-əmsalı (yeni oyunçular üçün sürətli kalibrasiya, elit oyunçular üçün sabitlik), reytinqin sərhədlənməsi və çoxformatlı "ümumi reytinq" hesablanması — hamısı real-dünya rəqabətli platformalarının (Lichess, Chess.com) tətbiq etdiyi PRİNSİPLƏRƏ söykənir. Liderlər lövhəsindəki server/client sıralama HİBRİD STRATEGİYASI isə performans (server-side index) ilə MƏLUMAT TAMLIĞI (client-side defolt dəyərlər) arasında praktiki, düşünülmüş bir kompromisdir.

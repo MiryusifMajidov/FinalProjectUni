@@ -1,0 +1,295 @@
+# 16. Sosial Funksiyalar, Lokalizasiya və Dizayn Sistemi
+
+## Giriş
+
+Bu, hesabatın SON VƏ YEKUNLAŞDIRICI BÖLMƏSİDİR. Əvvəlki 15 bölmə "Grandmaster" tətbiqinin OYUN MƏNTİQİNƏ, SÜNİ İNTELLEKTİNƏ, BACKEND-İNƏ VƏ REAL-VAXT MULTİPLAYER SİSTEMİNƏ HƏSR OLUNMUŞDU. Bu bölmə isə tətbiqi "TƏK BAŞINA OYNANILAN BİR PROQRAM"DAN "SOSİAL BİR PLATFORMA"YA ÇEVİRƏN ÜÇ TAMAMLAYICI QATI əhatə edir: (A) **SOSİAL FUNKSİYALAR** — dostlar, söhbət, qruplar və dünya xəritəsi; (B) **LOKALİZASİYA** — 10 dildə tam tərcümə sistemi; (C) **DİZAYN SİSTEMİ** — rəng palitası, tipoqrafiya VƏ ÜÇ OYUNU (şahmat, dama, domino) VAHİD VİZUAL DİLDƏ BİRLƏŞDİRƏN `GameType` ABSTRAKSİYASI.
+
+---
+
+# HİSSƏ A: SOSİAL FUNKSİYALAR
+
+## 1. Dostlar Sistemi (Friends)
+
+#### 1.1. Firestore Strukturu
+
+Dostluq sistemi İKİ AYRI Firestore STRUKTURUNA əsaslanır:
+
+> /friendRequests/{toUid}/received/{fromUid}
+>   → { fromUid, fromUsername, toUid, status: 'pending'|'accepted'|'declined', createdAt }
+>
+> /users/{uid}/friends/{friendUid}
+>   → { uid, username, avatarId?, photoUrl?, rating, since, lastSeen? }
+
+Bu İKİ-STRUKTURLU DİZAYNIN MƏNTİQİ: "İSTƏK" (request) VƏ "TƏSDİQLƏNMİŞ DOSTLUQ" (friendship) FƏRQLİ HƏYAT DÖVRLƏRİNƏ malikdir — istəklər `pending`/`accepted`/`declined` STATUSLARI ARASINDA KEÇİR VƏ YALNIZ BİR TƏRƏFDƏ (`toUid`) SAXLANILIR, AMMA TƏSDİQLƏNMİŞ DOSTLUQ HƏR İKİ İSTİFADƏÇİNİN `friends` ALT-KOLLEKSİYASINA SİMMETRİK ŞƏKİLDƏ YAZILIR — bu da HƏR İKİ TƏRƏFİN ÖZ "Dostlar" SİYAHISINI SADƏ BİR `users/{uid}/friends` SORĞUSU İLƏ (heç bir mürəkkəb JOIN olmadan) ƏLDƏ ETMƏSİNƏ İMKAN VERİR.
+
+#### 1.2. Əsas Metodlar
+
+- **`sendRequest({fromUid, fromUsername, toUid})`** — ƏVVƏLCƏ ARTIQ DOST OLUB-OLMADIĞINI VƏ TƏKRAR İSTƏK GÖNDƏRİLİB-GÖNDƏRİLMƏDİYİNİ YOXLAYIR, sonra `friendRequests/{toUid}/received/{fromUid}` sənədini yaradır (bu, server tərəfdə `sendFriendRequestNotification` Cloud Function-unu TETİKLƏYİR).
+- **`acceptRequest({...})`** — istəyi `accepted` EDİR VƏ BIR `WriteBatch` İLƏ HƏR İKİ İSTİFADƏÇİNİN `friends` alt-kolleksiyasına QARŞILIQLI SƏNƏD ƏLAVƏ EDİR (`since` və CARİ `rating` saxlanılır).
+- **`declineRequest(toUid, fromUid)`** — statusu `declined`-ə dəyişir.
+- **`removeFriend(myUid, friendUid)`** — `WriteBatch` ilə HƏR İKİ TƏRƏFDƏN sənədi SİLİR.
+- **`watchFriends(uid)`** / **`watchIncomingRequests(uid)`** — `Stream` əsaslı, REAL-VAXT siyahılar.
+- **`areFriends(myUid, otherUid)`** — `users/{myUid}/friends/{otherUid}` sənədinin MÖVCUDLUĞUNU yoxlayır (digər privacy yoxlamaları üçün istifadə olunur).
+
+#### 1.3. FriendsScreen UI Strukturu
+
+`FriendsScreen` İKİ-TAB-LI (tabbed) interfeysdir:
+
+- **"Dostlar" tabı:** `watchFriends()` axınından dolur. Hər `_FriendTile` — AVATAR (+ ONLAYN GÖSTƏRİCİSİ), istifadəçi adı, ELO/Xal, "Söhbət" düyməsi (→ `/home/chat/:uid`) və "Tez Oyna" düyməsi (→ dəvət ekranı). UZUN BASMA (long-press) — "Dostu sil" təsdiq dialoqu açır.
+- **"İstəklər" tabı:** `watchIncomingRequests()` axınından dolur, BAŞLIQDA QIRMIZI BADGE İLƏ SAYI göstərilir. Hər `_RequestTile`-da YAŞIL "✓" (qəbul) VƏ QIRMIZI "✕" (rədd) düymələri var.
+- **"Tövsiyələr" bölməsi:** `getSuggestedFriends(myRating, excludeUids)` ƏSASINDA, MAKSIMUM 5 TƏKLİF göstərir (bax Bölmə 3 — `±300 ELO ARALIĞI` sorğusu).
+
+#### 1.4. Məxfilik (Privacy) Nəzarəti
+
+`UserModel.friendRequestPrivacy` (`'everyone' | 'friends' | 'nobody'`) VƏ `blockedUsers` SİYAHISI — `UserSearchScreen`-də AXTARIŞ NƏTİCƏLƏRİNDƏN, "nobody" seçən və ya QARŞILIQLI BLOK OLUNMUŞ İSTİFADƏÇİLƏRİ GİZLƏDİR. `FriendModel.isOnline` getter-i — `lastSeen != null && now.difference(lastSeen).inMinutes < 5` — yəni "ONLAYN" STATUSU 5-DƏQİQƏLİK BİR "PƏNCƏRƏ"YƏ ƏSASLANIR (presence sisteminin sadələşdirilmiş, Firestore-əsaslı versiyası).
+
+#### 1.5. UserSearchScreen
+
+İstifadəçi adı ÜZRƏ DƏQİQ AXTARIŞ aparır, NƏTİCƏLƏRİ MƏXFİLİK/BLOK QAYDALARINA görə FİLTRLƏYİR, ARTIQ DOST OLAN İSTİFADƏÇİLƏRƏ "Dostlar" BADGE-i göstərir, VƏ SON 5 AXTARIŞI (unikallaşdırılmış) `CacheService` vasitəsilə LOKAL YADDA SAXLAYIR.
+
+## 2. Birbaşa Söhbət (Chat) Sistemi
+
+#### 2.1. Firestore Strukturu və Determinə Edilmiş Chat ID
+
+> /chats/{chatId}
+>   → { participants: [uid1, uid2], lastMessage, lastMessageAt,
+>       unreadCount: {uid: int}, lastReadAt: {uid: ts}, lastDeliveredAt: {uid: ts},
+>       mutedBy: [uid], typing: {uid: bool} }
+>
+> /chats/{chatId}/messages/{messageId}
+>   → { senderUid, text (≤2000 simvol), createdAt, read,
+>       replyToId?, replyToText?, replyToSenderName?, deleted? }
+
+> static String chatId(String uid1, String uid2) {
+>   final sorted = [uid1, uid2]..sort();
+>   return '${sorted[0]}_${sorted[1]}';
+> }
+
+`chatId()` funksiyası — İKİ UID-i ƏLİFBA SIRASI İLƏ DÜZÜB BİRLƏŞDİRİR. Bunun NƏTİCƏSİ: HANSI İSTİFADƏÇİ HANSI TƏRƏFDƏN BAŞLASA DA (A→B və ya B→A), HƏMİŞƏ EYNİ `chatId` ALINIR — bu, "İKİ İSTİFADƏÇİ ARASINDA TƏKRAR-TƏKRAR YENİ SÖHBƏT SƏNƏDİ YARADILMASI" PROBLEMİNİN QARŞISINI ALAN, ÇOX YAYĞIN BİR DİZAYN HƏLLİDİR.
+
+#### 2.2. Əsas Metodlar (ChatService)
+
+- **`sendMessage({myUid, otherUid, text, replyTo...})`** — ƏVVƏLCƏ MƏTNİN UZUNLUĞUNU (≤2000) VƏ HƏDƏFİN `messagePrivacy` SAHƏSİNİ YOXLAYIR (`'nobody'` → xəta; `'friends'` → `areFriends()` yoxlanışı). `_sending` BAYRAĞI İLƏ SÜRƏTLİ-ÇOXLU-TIQLAMA ZAMANI DUBLİKAT MESAJLARIN qarşısı alınır. SONRA BIR `WriteBatch` İLƏ: (1) `chats/{chatId}` sənədini `merge:true` ilə YENİLƏYİR (`lastMessage`, `lastMessageAt`, `unreadCount[otherUid]++`), (2) YENİ MESAJ SƏNƏDİNİ ƏLAVƏ EDİR.
+- **`watchMessages(chatId)`** — son 30 mesajı EN-YENİDƏN-ƏN-KÖHNƏYƏ SIRADA STREAM EDİR; **`fetchOlderMessages(chatId, {before, limit:30})`** — CURSOR-ƏSASLI SƏHİFƏLƏMƏ (pagination) İLƏ DAHA ƏVVƏLKİ MESAJLARI YÜKLƏYİR (sonsuz scroll).
+- **`markAsRead()`** / **`markDelivered()`** — MÜVAFİQ OLARAQ `unreadCount[myUid]=0`+`lastReadAt[myUid]=now` VƏ `lastDeliveredAt[myUid]=now` YAZIR — bu İKİ AYRI VAXT DAMĞASI, "ÇATDIRILDI" (✓✓ boz) VƏ "OXUNDU" (✓✓ mavi) İNDİKATORLARININ AYRI-AYRI GÖSTƏRİLMƏSİNƏ İMKAN VERİR.
+- **`setTyping()`** / **`watchTyping()`** — "yazır..." indikatoru; KLİENT TƏRƏFDƏ 2 SANİYƏLİK SƏSSİZLİKDƏN SONRA AVTOMATIK `false`-A QAYIDIR.
+- **`watchTotalUnread(uid)`** — BÜTÜN SÖHBƏTLƏR ÜZRƏ CƏMİ OXUNMAMIŞ MESAJ SAYINI HESABLAYIR (Ev ekranı/Söhbət siyahısı başlığında göstərilir).
+- **`muteChat()`/`unmuteChat()`** — `mutedBy` массивinə UID ƏLAVƏ/ÇIXARMA.
+- **"Soft Delete":** `deleteMessage()` mesajı FİZİKİ OLARAQ SİLMİR — ƏVƏZİNƏ `text`-i "🗑 Bu mesaj silindi" PLEYSHOLDERİ İLƏ ƏVƏZ EDİR VƏ `deleted:true` YAZIR (söhbət tarixçəsinin STRUKTURUNU POZMADAN).
+
+#### 2.3. ChatScreen UI
+
+`ChatScreen` (1293 sətir) — MESAJ "BUBBLE"LARI (göndərən avatarı, vaxt damğası, CAVAB SİTATI varsa `replyToText`/`replyToSenderName`), UZUN-BASMA İLƏ "Cavabla" MENYUSU, AŞAĞI GİRİŞ SAHƏSİ (mətn + göndər düyməsi, cavab ÖNİZLƏMƏSİ + ləğv et), VƏ YAZMA İNDİKATORUNU EHTİVA EDİR. `initState()`-də OXUNMA/ÇATDIRILMA STATUSLARI YENİLƏNİR, `dispose()`-da BÜTÜN STREAM/TIMER-LƏR TƏMİZLƏNİR.
+
+## 3. Qruplar (Groups) Sistemi
+
+#### 3.1. Firestore Strukturu
+
+> /groups/{groupId}
+>   → { name, description?, avatarEmoji ('♛' default), privacy: 'public'|'private',
+>       adminId, adminUsername, adminIds: [uid], memberIds: [uid], memberCount,
+>       whoCanSend: 'everyone'|'admins', mutedBy: [uid], photoUrl?,
+>       lastMessage?, lastMessageAt?, unreadCounts: {uid:int}, lastReadAt: {uid:ts} }
+>
+> /groups/{groupId}/messages/{messageId}
+>   → { senderUid, senderUsername, text, createdAt, replyToId?, replyToText?, replyToSenderName? }
+
+#### 3.2. Əsas Metodlar (GroupService)
+
+- **`createGroup({...})`** — yeni qrup sənədi yaradır, ADMİNİ AVTOMATIK OLARAQ ÜZV SİYAHISINA (`memberIds:[adminId]`, `memberCount:1`) ƏLAVƏ EDİR, `whoCanSend:'everyone'` DEFOLT olaraq təyin edir.
+- **`joinGroup()`/`leaveGroup()`** — `memberIds` massivini VƏ `memberCount`-u (`FieldValue.increment`) yeniləyir.
+- **`sendMessage({...})`** — `WriteBatch` İLƏ: mesaj sənədini əlavə edir, `lastMessage`-i (80 simvoldan uzundursa "…" İLƏ KƏSİLMİŞ) VƏ `lastMessageAt`-i yeniləyir, VƏ **GÖNDƏRƏN İSTİSNA OLMAQLA** HƏR ÜZVÜN `unreadCounts[uid]`-İNİ ARTIRIR.
+- **`isAdmin(uid)`** → `adminIds.contains(uid) || uid == adminId` — BU YOXLAMA, `setWhoCanSend()`, `addAdmin()`/`removeAdmin()`, `addMember()`/`removeMember()`, `updateGroupInfo()` KİMİ ADMİN-YALNIZ ƏMƏLİYYATLARDA İSTİFADƏ OLUNUR.
+- **`watchPublicGroups()`** — `privacy=='public'` qrupları ÜZV SAYINA GÖRƏ AZALAN SIRADA (max 50) STREAM edir — "Kəşf et" funksionallığı üçün.
+- **`deleteGroup(groupId)`** — VACİB DETAL: Firestore ALT-KOLLEKSİYALARI AVTOMATİK SİLİNMİR, ona görə bu metod ƏVVƏLCƏ `messages` ALT-KOLLEKSİYASINI **500-LÜK PARÇALARLA (chunks)** SİLİR, SONRA ƏSAS QRUP SƏNƏDİNİ SİLİR — Firestore-un BIR BATCH-DA MAKSIMUM 500 ƏMƏLİYYAT MƏHDUDİYYƏTİNƏ UYĞUNLAŞDIRILMIŞ "CASCADE DELETE" REALİZASİYASI.
+
+#### 3.3. GroupScreen UI
+
+İKİ-TAB-LI: **"Mesajlar"** (reply dəstəkli qrup çatı, GÖNDƏRƏNİN AVATAR/AD/VAXT damğası ilə) VƏ **"Üzvlər"** (üzv siyahısı, ADMİNLƏR ÜÇÜN "Sil"/"Admin et" İDARƏETMƏ DÜYMƏLƏRİ İLƏ). Başlıqda QRUP ADI, ÜZV SAYI VƏ SƏSSİZƏ-ALMA DÜYMƏSİ yerləşir.
+
+## 4. Dünya Xəritəsi (Player Map)
+
+#### 4.1. Texnologiyalar və Verilənlər Modeli
+
+`flutter_map` (OpenStreetMap pleytaylları) + `geolocator` (cihazın GPS koordinatları) + `latlong2`. `UserModel`-də `latitude`/`longitude`/`showOnMap`/`lastSeen` sahələri.
+
+> Stream<List<UserModel>> watchMapUsers() =>
+>   _db.collection('users').where('showOnMap', isEqualTo: true).limit(300).snapshots()...
+
+#### 4.2. Opt-in (Razılıq) Axını
+
+İSTİFADƏÇİNİN KOORDİNATLARI YALNIZ `showOnMap == true` OLDUQDA paylaşılır (defolt: `false`, MƏXFİLİK-ÖNCƏLİKLİ DİZAYN). `_enableOnMap()` AXINI: (1) `updateMapSettings(uid, showOnMap:true)` — KOORDİNAT YAZMADAN ƏVVƏLCƏ İCAZƏNİ QEYDƏ ALIR; (2) `_requestAndUpdateLocation()` — CİHAZ İCAZƏSİNİ İSTƏYİR, `Geolocator.getCurrentPosition()` (orta dəqiqlik, 10s timeout) İLƏ KOORDİNATI ALIR VƏ `updateLocationOnly()` İLƏ YAZIR.
+
+#### 4.3. Filtrasiya Sistemi
+
+> class _MapFilters {
+>   final RangeValues ratingRange;   // 800–2400
+>   final bool onlineOnly;
+>   final double distanceKm;          // 0–50+
+> }
+
+`_applyFilters()` metodu DÖRD FİLTRİ ARDICIL (AND məntiqi ilə) TƏTBİQ EDİR: (1) SÜRƏTLİ ÇİP FİLTRLƏRİ ("Hamısı"/"Onlayn"/"1200–1600"/"Rapid" — sonuncusu `rapidElo > blitzElo && rapidElo > bulletElo` MÜQAYİSƏSİ İLƏ "Rapid ixtisaslaşmış" oyunçuları tapır), (2) REYTİNQ ARALIĞI, (3) ONLAYN-YALNIZ BAYRAĞI, (4) **MƏSAFƏ FİLTRİ** — `Geolocator.distanceBetween()` (Haversine düsturu) İLƏ CİHAZIN CARİ KOORDİNATI İLƏ HƏR OYUNÇUNUN KOORDİNATI ARASINDAKI MƏSAFƏ HESABLANIR VƏ `distanceKm * 1000` METRDƏN BÖYÜK OLANLAR ÇIXARILIR, (5) MƏTN AXTARIŞI (istifadəçi adı).
+
+#### 4.4. UI Komponentləri
+
+- **Xəritə görünüşü:** filtrlənmiş istifadəçilər üçün AVATAR+AD MARKER-LƏRİ.
+- **Üst overlay:** axtarış zolağı, sürətli filtr çipləri, "Daha çox filtr" düyməsi (→ aşağıdan-yuxarı modal: reytinq slider-i, onlayn-yalnız keçidi, məsafə slider-i).
+- **Sağ FAB-lar:** Map Search ekranına keçid VƏ "məni tap" (cari mövqeyə qayıt).
+- **Pin Card:** seçilmiş oyunçunun avatarı, reytinqi, "Profilə bax" və "Çağırış göndər" düymələri.
+- **Alt dock:** filtrlənmiş oyunçuların üfüqi siyahısı (ad, reytinq, məsafə).
+
+`MapSearchScreen` (996 sətir) — ÜÇ TAB: **Oyunçular** (380ms DEBOUNCE İLƏ `searchUsers()`), **Şəhərlər** (50+ şəhərlik STATİK SİYAHIDAN PREFİKS-UYĞUNLUQ AXTARIŞI), **Qruplar** (`watchPublicGroups()`); SON AXTARIŞLAR `CacheService.mapRecentSearches`-də (max 6) SAXLANILIR.
+
+`MapChallengeSentScreen` (380 sətir) — radial amber "glow" effekti, 3 PULSASİYA EDƏN HALQA (gecikmələr: 0/800/1600ms), VAXT NƏZARƏTİ/RƏNG/REYTİNQLİ STATUSU göstərən kart, VƏ **120-SANİYƏLİK AVTOMATİK-LƏĞV ETMƏ COUNTDOWN-U**.
+
+---
+
+# HİSSƏ B: LOKALİZASİYA (Çoxdilli Dəstək)
+
+## 5. easy_localization və 10 Dil
+
+`assets/translations/` qovluğunda **10 AYRI JSON FAYLI** mövcuddur — `en` (332 açar), `az` (332), `ru`/`tr` (328), `de`/`es`/`fr`/`hi`/`ur`/`zh` (310). Hər fayl SADƏ, DÜZ (flat) AÇAR-DƏYƏR STRUKTURUNDADIR:
+
+> {
+>   "app_name": "CheckMate",
+>   "settings": "Parametrlər",
+>   "play_bot": "Botla oyna",
+>   "checkmate": "Mat",
+>   ...
+> }
+
+`main.dart`-da `EasyLocalization` widget-i tətbiqi BÜRÜYÜR:
+
+> EasyLocalization(
+>   supportedLocales: const [Locale('en'), Locale('az'), Locale('tr'), Locale('ru'),
+>     Locale('hi'), Locale('ur'), Locale('zh'), Locale('de'), Locale('es'), Locale('fr')],
+>   path: 'assets/translations',
+>   fallbackLocale: const Locale('en'),
+>   startLocale: const Locale('en'),
+>   child: ProviderScope(...),
+> )
+
+Kodda İSTƏNİLƏN MƏTN `'açar_adı'.tr()` ÇAĞIRIŞI İLƏ TƏRCÜMƏ OLUNUR (`easy_localization`-ın `String` üzərindəki extension metodu). `fallbackLocale: en` — ƏGƏR HANSISA AÇAR SEÇİLMİŞ DİLDƏ ÇATIŞMIRSA, AVTOMATİK OLARAQ İNGİLİS DİLİNDƏKİ DƏYƏRƏ QAYIDILIR (boş mətn/xəta əvəzinə).
+
+## 6. Dil Dəyişdirmə Axını (LanguageScreen)
+
+`LanguageScreen` — 10 DİLİN HƏR BİRİ ÜÇÜN BİR SƏTİR göstərir: İKİ-HƏRFLİ KOD ("AZ", "RU"...), DİLİN ÖZ-ANA ADI ("Azərbaycan", "Русский", "中文"), VƏ İNGİLİSCƏ ADI ("Azerbaijani", "Russian", "Chinese"). Seçim:
+
+> onTap: () => context.setLocale(Locale(lang.code))
+
+`context.setLocale()` — `easy_localization`-ın METODUDUR, BÜTÜN TƏTBİQİN LOKALINI DƏYİŞİR VƏ `EasyLocalization` AĞACINI YENİDƏN QURUR. `main.dart`-dakı `MaterialApp.router`-ə verilən `key: ValueKey(context.locale.languageCode)` — DİL DƏYİŞDİKDƏ BÜTÜN WIDGET AĞACININ (push edilmiş səhifələr daxil) YENİDƏN TİKİLMƏSİNİ MƏCBUR EDİR, beləliklə ARTIQ AÇIQ OLAN EKRANLARDA DA YENİ DİL DƏRHAL ƏKS OLUNUR. Ekranın altındakı qeyddə VURĞULANIR: "Gediş notasiyası BÜTÜN DİLLƏRDƏ STANDART ALGEBRAİK NOTASİYADAN (SAN) İSTİFADƏ EDİR" — yəni "Nf3", "O-O" kimi şahmat termini TƏRCÜMƏ OLUNMUR (BEYNƏLXALQ ŞAHMAT KONVENSİYASI İLƏ UYĞUNLUQ).
+
+---
+
+# HİSSƏ C: DİZAYN SİSTEMİ
+
+## 7. Rəng Sistemi (`AppColors`)
+
+`lib/core/theme/app_colors.dart` — TƏTBİQİN VAHİD RƏNG MƏNBƏYİDİR (single source of truth). Əsas kateqoriyalar:
+
+- **Tünd Tema Səthləri:** `background` (#0A0A0B), `surface` (#131316), `card` (#1A1A1E), `cardElevated` (#202026) — DƏRİNLİK HİYERARXİYASI yaradan, getdikcə AÇILAN BOZ TONLAR.
+- **Əsas Aksent (Amber):** `amber` (#E8B960), `amberSoft`, `amberDeep`, `amberGlow` — ŞAHMAT MODULUNUN VƏ ÜMUMİ UI-IN ƏSAS VURĞU RƏNGİ.
+- **Oyuna-Xas Aksentlər:** `checkers` (#6FB4E0, mavi), `domino` (#5FD4A3, yaşıl) — bax Hissə 9, `GameIdentity`.
+- **Nəticə Rəngləri:** `win`/`winSoft` (yaşıl), `loss`/`lossSoft` (qırmızı), `draw`/`drawSoft` (boz-bej), `live` (canlı oyun göstəricisi üçün parlaq qırmızı).
+- **Mətn (`ink`) İyerarxiyası:** `ink` (#F5F3EF, əsas), `inkDim`, `inkMute`, `inkFaint` — AZALAN KONTRASTLA, İKİNCİ DƏRƏCƏLİ MƏTNLƏR ÜÇÜN.
+- **Taxta Temaları:** 6 fərqli açıq/tünd kvadrat cütü (`boardBrown`, `boardGreen`, `boardMarble`, `boardBlue`, `boardCream`, `boardRosewood`) — ƏTRAFLI Bölmə 8-də İZAH OLUNUB.
+- **"Legacy Alias" Strategiyası:** `primary = amber`, `success = win`, `textPrimary = ink` KİMİ KÖHNƏ ADLAR DA SAXLANILIB — bu, RƏNG PALİTRASI TƏKAMÜL EDƏRKƏN (refactor), KÖHNƏ KOD SƏTİRLƏRİNİN YENİDƏN YAZILMASINA EHTİYAC QALMADAN, YENİ VƏ KÖHNƏ ADLARIN PARALEL İŞLƏMƏSİNƏ İMKAN VERİR.
+
+## 8. Tipoqrafiya Sistemi (`AppTextStyles`)
+
+Tətbiq, `google_fonts` PAKETİ VASİTƏSİLƏ **ÜÇ FƏRQLİ ŞRİFT AİLƏSİNDƏN** İBARƏT BİR TİPOQRAFİK İYERARXİYA İSTİFADƏ EDİR:
+
+> Display / Headline  →  Fraunces (italik serif)
+> Body / Label / UI   →  Inter (geometrik sans-serif)
+> Rəqəmlər / Gedişlər →  JetBrains Mono (monospace)
+
+- **Fraunces (italik, qalın):** `displayLarge/Medium`, `headlineLarge/Medium/Small` — "Grandmaster" BRENDİNİN "ZƏRİF, KLASSİK ŞAHMAT KİTABI" HİSSİNİ verən, BAŞLIQLARDA istifadə olunan SERİF ŞRİFT. HƏR BİRİNİN `fontFamilyFallback: ['Georgia', 'serif']` TƏYİN OLUNUB — şrift YÜKLƏNMƏSƏ BELƏ, OXŞAR XARAKTERLİ EHTİYAT ŞRİFT göstərilir.
+- **Inter:** `titleLarge/Medium/Small`, `bodyLarge/Medium/Small`, `labelLarge/Medium/Small`, `buttonLarge/Medium` — ƏKSƏRİYYƏT UI MƏTNİ üçün TƏMİZ, OXUNAQLI GEOMETRİK ŞRİFT (`fallback: ['Roboto', 'sans-serif']`).
+- **JetBrains Mono:** `ratingLarge/Medium/Small`, `monoMove`, `monoSmall` — REYTİNQ RƏQƏMLƏRİ (məsələn, "1 847"), ELO BADGE-LƏRİ VƏ GEDİŞ SİYAHISI ("e4", "Nf3") ÜÇÜN — MONOSPACE ŞRİFT, RƏQƏMLƏRİN SÜTUN ŞƏKLİNDƏ DÜZÜLMƏSİNİ VƏ "TİTRƏMƏDƏN" YENİLƏNMƏSİNİ TƏMİN EDİR (bax Bölmə 8: `FontFeature.tabularFigures()` ilə əlaqəli).
+
+`main.dart`-da, TƏTBİQ AÇILIŞINDA `GoogleFonts.pendingFonts([fraunces(), inter(), jetBrainsMono()])` 5-SANİYƏLİK TIMEOUT İLƏ ÖNCƏDƏN YÜKLƏNİR — BU, İLK FRAME-DƏ ŞRİFTLƏRİN "SIÇRAMA" (FOUC — flash of unstyled content) EFFEKTİ OLMADAN GÖRÜNMƏSİNİ TƏMİN EDİR; YAVAŞ/OFLAYN ŞƏBƏKƏDƏ İSƏ TƏTBİQ KEŞLƏNMİŞ/SİSTEM ŞRİFTLƏRİNƏ KEÇİR (splash ekranını BLOKLAMIR).
+
+## 9. `GameType`: Üç Oyunu Birləşdirən Vahid İdentiklik Sistemi
+
+Layihənin ƏN YENİ VƏ ƏN MARAQLI DİZAYN ABSTRAKSİYALARINDAN BİRİ — `lib/core/models/game_type.dart` faylındakı `GameType` enum-u VƏ `GameIdentity` sinfidir. Bu fayl, "Grandmaster"in ŞAHMATDAN ƏLAVƏ DAMA VƏ DOMİNO OYUNLARINI DA DƏSTƏKLƏMƏSİ ÜÇÜN aparılan GENİŞLƏNDİRMƏNİN MƏRKƏZİ NÖQTƏSİDİR.
+
+#### 9.1. `GameIdentity` — Hər Oyunun "Vizual Pasportu"
+
+> const Map<GameType, GameIdentity> kGameIdentities = {
+>   GameType.chess:    GameIdentity(name:'Chess',    glyph:'♞', accent: AppColors.amber,
+>                         gradientColors:[#1f1709,#3d2410], questTitle:'Grandmaster Path', questChapters:100),
+>   GameType.checkers: GameIdentity(name:'Checkers', glyph:'⛀', accent: #6FB4E0,
+>                         gradientColors:[#0a1620,#102a3d], questTitle:'Diagonal Road',     questChapters:60),
+>   GameType.domino:   GameIdentity(name:'Domino',   glyph:'🁫', accent: #5FD4A3,
+>                         gradientColors:[#0a1f16,#0f3329], questTitle:'Bones Trail',       questChapters:40),
+> };
+
+HƏR OYUN NÖVÜ — ÖZ ADINA, SİMVOLUNA (glyph), AKSENT RƏNGİNƏ, FON QRADİENTİNƏ VƏ KAMPANİYA BAŞLIĞI/FƏSİL SAYINA malikdir. `GameTypeX` EXTENSION-U bu lüğətə RAHAT GİRİŞ TƏMİN EDİR (`type.accent`, `type.glyph`, `type.label`...) — BELƏLİKLƏ, İSTƏNİLƏN EKRAN (Ev, Profil, Liderlər Lövhəsi, Arena) "HANSI OYUN AKTİVDİR" SUALINA CAVAB OLARAQ AVTOMATİK DOĞRU RƏNGİ/SİMVOLU TƏTBİQ EDİR — HƏR EKRANDA AYRI-AYRI `if/switch` BLOKU YAZMAQ ƏVƏZİNƏ.
+
+#### 9.2. Xal Sistemi Fərqi: ELO vs Xal-Əsaslı (Point-Based)
+
+> bool get isPointBased => this != GameType.chess;
+> int get defaultScore => isPointBased ? 300 : 1200;
+> int get minScore => isPointBased ? 100 : 0;
+
+ŞAHMAT — Bölmə 13-də İZAH OLUNAN TAM ELO SİSTEMİNDƏN (1200 başlanğıc) İSTİFADƏ EDİR. DAMA VƏ DOMİNO İSƏ DAHA SADƏ, "XAL-ƏSASLI" (point-based) SİSTEMDƏN istifadə edir (300 başlanğıc, 100 minimum):
+
+> int calculatePointChange({required int myPoints, required int opponentPoints, required bool won, required bool lost}) {
+>   if (!won && !lost) {  // bərabərlik
+>     final diff = opponentPoints - myPoints;
+>     return (diff / 80).round().clamp(-5, 5);
+>   }
+>   final diff = opponentPoints - myPoints;
+>   final adjustment = (diff / 60).round().clamp(-8, 8);
+>   if (won) {
+>     var change = 25 + adjustment;       // 17–33 aralığı
+>     if (change < 10) change = 10;        // qələbədə minimum +10 təminatı
+>     return change;
+>   } else {
+>     var change = -20 + adjustment;       // -12 – -28 aralığı
+>     final projected = myPoints + change;
+>     if (projected < minScore) {           // mənfi xala düşmə qadağası
+>       change = myPoints <= minScore ? 0 : -(myPoints - minScore);
+>     }
+>     return change;
+>   }
+> }
+
+Bu ALQORİTM, ELO-NUN MƏRKƏZİ İDEYASINI ("zəif rəqibi məğlub etmək az xal verir, güclü rəqibi məğlub etmək çox xal verir") SAXLAYIR, AMMA ÇOX DAHA SADƏDİR: BAZA QİYMƏT (+25 qələbə / -20 məğlubiyyət) RƏQİB GÜCÜ FƏRQİNƏ GÖRƏ ±8 DÜZƏLİŞ ALIR. İKİ QORUYUCU QAYDA DİQQƏTƏ DƏYƏR: (1) **"Qələbədə minimum +10"** — HƏTTA ÇOX ZƏİF BİR RƏQİBƏ QARŞI BELƏ, QALİB OYUNÇU EN AZI 10 XAL QAZANIR (motivasiyanın saxlanması); (2) **"Mənfi xala düşmə qadağası"** — `minScore`-dan (100) AŞAĞI DÜŞMƏ RİYAZİ OLARAQ QEYRİ-MÜMKÜNDÜR, itki HƏMİŞƏ "QALAN MƏSAFƏYƏ" GÖRƏ KƏSİLİR (`-(myPoints - minScore)`), bu da YENİ OYUNÇULARIN "MƏNFİ REYTİNQ ÇUXURUNA" düşməsinin qarşısını alır.
+
+#### 9.3. `activeGameProvider` və `GameSwitch`
+
+> class ActiveGameNotifier extends StateNotifier<GameType> {
+>   ActiveGameNotifier() : super(GameType.chess);
+>   void select(GameType type) => state = type;
+> }
+> final activeGameProvider = StateNotifierProvider<ActiveGameNotifier, GameType>((ref) => ActiveGameNotifier());
+
+`activeGameProvider` — İSTİFADƏÇİNİN HAZIRDA "HANSI OYUNA BAXDIĞINI" (Şahmat/Dama/Domino) QLOBAL OLARAQ SAXLAYIR. `GameSwitch` VİDJETİ (Ev, Profil, Liderlər Lövhəsi, Arena Lobisi EKRANLARININ BAŞINDA YERLƏŞƏN ÜÇ-SEQMENTLİ KEÇİD) — `ref.watch(activeGameProvider)` İLƏ CARİ SEÇİMİ OXUYUR VƏ `ref.read(activeGameProvider.notifier).select(type)` İLƏ DƏYİŞİR. SEÇİLMİŞ SEQMENT, O OYUNUN `GameIdentity.accent` RƏNGİ İLƏ 200ms `AnimatedContainer` KEÇİDİ İLƏ VURĞULANIR. Bu PROVIDER HEÇ BİR `.family` VƏ YA `.autoDispose` İSTİFADƏ ETMİR — ÇÜNKİ "HANSI OYUN AKTİVDİR" SEÇİMİ TƏTBİQ SESSİYASI BOYU QALMALIDIR (bütün TAB-LAR ARASINDA PAYLAŞILAN, QLOBAL BİR UI VƏZİYYƏTİDİR).
+
+#### 9.4. Digər `GameType`-Spesifik Köməkçilər
+
+- **`fakeBotNames`** — HƏR OYUN ÜÇÜN 20 FƏRQLİ "İNSAN-KİMİ" BOT ADI (məsələn, şahmat üçün "NightRider88", dama üçün "JumpKing", domino üçün "BoneyardKing") — Bölmə 10-da İZAH EDİLƏN "GİZLİ BOT FALLBACK"İ ÜÇÜN.
+- **`gameRoute(gameId)`** / **`botSetupRoute`** — GoRouter MARŞRUTLARINI OYUN NÖVÜNƏ GÖRƏ QAYTARAN "SWITCH" İFADƏLƏRİ (`/game/:id` vs `/checkers-game/:id` vs `/domino-game/:id`).
+- **`checkersVariants`** (Standard/International/Türk/Brazil) VƏ **`dominoPlayerCounts`** (2/4 oyunçu) — MATÇMEYKİNQ KONFİQURASİYASI ÜÇÜN STATİK SİYAHILAR.
+- **`fromString(String?)`** — Firestore/RTDB-dən GƏLƏN XAM MƏTN DƏYƏRİNİ (`'checkers'`, `'domino'`, naməlum/`null`) `GameType` ENUM-UNA ÇEVİRİR, DEFOLT OLARAQ `chess`-ə QAYIDIR — XARİCİ VERİLƏNLƏRDƏKİ GÖZLƏNİLMƏZ DƏYƏRLƏRƏ QARŞI "TƏHLÜKƏSİZ" BIR PARSE STRATEGİYASI.
+
+## 10. Paylaşılan UI Komponentləri (`lib/core/widgets/`)
+
+- **`AppButton`** — VAHİD DÜYMƏ STİLİ (əsas/ikincil/destruktiv variantlar, yüklənmə spinneri dəstəyi).
+- **`AppTextField`** — VAHİD GİRİŞ SAHƏSİ STİLİ (border, fokus rəngi, xəta mesajı göstərimi).
+- **`GlassCard`** — YARI-ŞƏFFAF, BULANIQ FONLU (frosted-glass) KART KONTEYNERİ — modal və overlay-larda istifadə olunur.
+- **`ShimmerBox`** — `shimmer` PAKETİ ƏSASINDA, MƏLUMAT YÜKLƏNƏRKƏN GÖSTƏRİLƏN "skeleton" EFFEKTİ.
+- **`UserAvatar`** — istifadəçi profil şəklini (`cached_network_image` ilə KEŞLƏNMİŞ) VƏ YA YOXDURSA BAŞ HƏRFLİ DAİRƏVİ PLEYSHOLDERI göstərən, BÜTÜN TƏTBİQDƏ TƏKRAR İSTİFADƏ OLUNAN komponent.
+- **`OfflineBanner`** + **`connectivityProvider`** (`StreamProvider<bool>`, `connectivity_plus` ƏSASINDA) — İNTERNET BAĞLANTISI KƏSİLDİKDƏ EKRANIN ÜSTÜNDƏ XƏBƏRDARLIQ ZOLAĞI göstərir.
+- **`InviteListener`** — Bölmə 10-da ƏTRAFLI İZAH OLUNUB; TƏTBİQİN BÜTÜN NAVİQASİYA AĞACINI "SARAN", OYUN DƏVƏTLƏRİNİ QLOBAL ŞƏKİLDƏ DİNLƏYƏN VİDJET.
+
+## 11. Nəticə (Bölmə 16)
+
+"Grandmaster"in SOSİAL QATI — DOSTLAR, SÖHBƏT, QRUPLAR VƏ XƏRİTƏ — HƏR BİRİ ÖZ FIRESTORE STRUKTURUNA, MƏXFİLİK QAYDALARINA VƏ REAL-VAXT AXINLARINA MALİK OLAN, AMMA EYNİ ÜMUMİ PRİNSİPLƏRİ (BATCH ƏMƏLİYYATLAR, CLIENT-SIDE SIRALAMA, `Stream`-ƏSASLI REAKTİVLİK) PAYLAŞAN DÖRD ALT-SİSTEMDİR. 10-DİLLİ LOKALİZASİYA VƏ ÜÇ-FONTLU/RƏNG-KODLU DİZAYN SİSTEMİ İSƏ TƏTBİQİ QLOBAL AUDİTORİYA ÜÇÜN ƏLÇATAN EDƏRKƏN, `GameType` ABSTRAKSİYASI VASİTƏSİLƏ ŞAHMAT, DAMA VƏ DOMİNONU VAHİD, TANINA BİLƏN BİR VİZUAL DİL ALTINDA BİRLƏŞDİRİR.
+
+---
+
+# YEKUN NƏTİCƏ (Bütün Hesabat üzrə)
+
+Bu 16 bölmədən ibarət hesabat, "Grandmaster" Flutter tətbiqinin EN ÜST SƏVİYYƏ ARXİTEKTURADAN (Bölmə 1-2) TUTMUŞ, BACKEND İNFRASTRUKTURUNA (Bölmə 3-5), NAVİQASİYAYA (Bölmə 6), ÜÇ OYUN MÜHƏRRİKİNƏ VƏ ONLARIN SÜNİ İNTELLEKTİNƏ (Bölmə 7-9, 11-12), REAL-VAXT MULTİPLAYERƏ (Bölmə 10), REYTİNQ/TURNİR/KAMPANİYA SİSTEMLƏRİNƏ (Bölmə 13-15) VƏ NƏHAYƏT SOSİAL/DİZAYN QATINA (Bölmə 16) QƏDƏR — TƏTBİQİN HƏR BİR QATINI, KONKRET KOD NÜMUNƏLƏRİ VƏ ALQORİTMLƏRLƏ BİRLİKDƏ, SİSTEMLİ ŞƏKİLDƏ SƏNƏDLƏŞDİRMİŞDİR. Layihə, MÜASİR FLUTTER/FIREBASE EKOSİSTEMİNİN demək olar BÜTÜN ƏSAS KOMPONENTLƏRİNİ (Riverpod, GoRouter, Firestore, Realtime Database, Cloud Functions, FCM, Google Sign-In) VƏ MÜRƏKKƏB ALQORİTMİK SAHƏLƏRİ (Minimax/Alfa-Beta, Negamax, Monte Carlo Tree Search, ELO reytinqi) BİR ARAYA GƏTİRƏN, AKADEMİK SƏVİYYƏDƏ ƏHƏMİYYƏTLİ BİR PROQRAM TƏ'MİNATI MƏHSULUDUR.

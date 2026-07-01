@@ -1,0 +1,166 @@
+# 3. Backend İnfrastrukturu: Firebase Ekosistemi
+
+## 1. Giriş və Məqsəd
+
+"Grandmaster" tətbiqi — TƏK İSTİFADƏÇİLİK (offline) deyil, ÇOXİSTİFADƏÇİLİ, REAL-VAXT, REYTİNQLİ bir onlayn platformadır. Bu səviyyədə funksionallıq tələb edir ki, istifadəçi məlumatları, oyun vəziyyətləri, mesajlar və bildirişlər BULUDDA (cloud) saxlanılsın, SİNXRONLAŞDIRILSIN və TƏHLÜKƏSİZ ŞƏKİLDƏ idarə olunsun. Bu sənəd, tətbiqin BÜTÜN BACKEND İNFRASTRUKTURUNUN əsasını təşkil edən **Firebase** platformasının necə inteqrasiya edildiyini, Firestore məlumat bazası strukturunu və mərkəzi `FirestoreService` sinfini əhatə edir.
+
+**Əsas Fayllar:**
+- `lib/core/services/firestore_service.dart`
+- `lib/core/services/photo_service.dart`
+- `lib/core/services/notification_service.dart`
+- `lib/core/services/log_service.dart`
+
+## 2. İstifadə Olunan Texnologiyalar (Firebase Suite)
+
+Layihə `pubspec.yaml`-da Firebase-in ALTI ƏSAS MODULUNDAN istifadə edir:
+
+- **`cloud_firestore`** — əsas NoSQL sənəd-əsaslı (document-based) məlumat bazası. İstifadəçi profilləri, oyun yazıları, dostluq əlaqələri, qruplar, söhbətlər və s. üçün əsas saxlama yeri.
+- **`firebase_auth`** — istifadəçi qeydiyyatı/girişi (email-şifrə VƏ Google hesabı ilə), email təsdiqi, şifrə bərpası.
+- **`firebase_database` (Realtime Database)** — AŞAĞI GECİKMƏLİ (low-latency) ssenarilər üçün: oyun dəvətləri, turnir Arena sırası (queue), real-vaxt rəqib cütləşdirməsi.
+- **`firebase_storage`** — profil şəkilləri (`profile_photos/{uid}.jpg`) və qrup şəkillərinin (`group_photos/{groupId}.jpg`) saxlanılması.
+- **`cloud_functions`** — server tərəfində icra olunması lazım olan HƏSSAS əməliyyatlar (OTP generasiyası/yoxlanması, email göndərmə, push bildiriş paylanması).
+- **`firebase_messaging` (FCM)** — push bildirişlər (növbə bildirişi, dost sorğusu, mesaj, turnir başlanğıcı).
+
+Bu altı modulun BİRGƏ İSTİFADƏSİ — "Firebase-as-Backend" (BaaS — Backend as a Service) yanaşmasının TİPİK NÜMUNƏSİDİR: ayrıca server infrastrukturu (Node.js/Express, verilənlər bazası serveri) qurmaq və idarə etmək ƏVƏZİNƏ, Google-ın idarə etdiyi, AVTOMATIK MİQYASLANAN (auto-scaling) xidmətlərdən istifadə olunur.
+
+## 3. Firestore Kolleksiya Strukturu
+
+Aşağıdakı sxem, Firestore-da istifadə olunan ƏSAS KOLLEKSİYALARI və onların SƏNƏD STRUKTURUNU göstərir:
+
+> /users/{uid}                              → UserModel sənədi
+> /usernames/{lowercaseUsername}            → { uid: string }  (unikal istifadəçi adı indeksi)
+> /games/{gameId}                           → GameModel sənədi
+> /sessions/{uid}/devices/{sessionId}       → giriş sessiyası (cihaz məlumatı)
+> /gameInvites/{toUid}/pending/{autoId}     → gələn oyun dəvətləri
+> /feedback/{autoId}                        → istifadəçi rəyi/bildirişləri
+> /logs/{autoId}                            → analitika/audit qeydləri
+> /users/{uid}/friends/{friendUid}          → dostluq əlaqəsi (alt-kolleksiya)
+> /friendRequests/{toUid}/received/{fromUid}→ gələn dost sorğuları
+> /chats/{chatId}/messages/{messageId}      → şəxsi mesajlaşma
+> /groups/{groupId}/messages/{messageId}    → qrup mesajları
+> /tournaments/{id}/participants/{uid}      → turnir iştirakçıları
+> /games/{gameId}/chat/{messageId}          → oyun-daxili çat
+
+#### 3.1. Niyə `usernames` Ayrı Kolleksiyadır?
+
+Firestore-da, "istifadəçi adı UNİKALDIR" şərtini TƏMİN ETMƏK üçün BİRBAŞA SORĞU (`where('username', '==', x)`) kifayət ETMİR — çünki iki istifadəçi EYNİ ANDA eyni adı yoxlaya və hər ikisi "boşdur" nəticəsi ala bilər (TOCTOU — Time-Of-Check to Time-Of-Use problemi). Bunun ƏVƏZİNƏ, `usernames/{lowercaseUsername}` SƏNƏDİNİN MÖVCUDLUĞU özü "REZERVASIYA" rolunu oynayır — sənəd ID-si kimi istifadə edilən istifadəçi adı, Firestore-un DAXİLİ UNİKALLIQ TƏMİNATINDAN (eyni ID-li sənəd YALNIZ BİR DƏFƏ yaradıla bilər) İSTİFADƏ EDİR.
+
+## 4. FirestoreService: Əsas CRUD Əməliyyatları
+
+#### 4.1. Username Transaction (TOCTOU Qarşısının Alınması)
+
+> Future<void> changeUsername(String uid, String oldUsername, String newUsername) async {
+>   final newLower = newUsername.toLowerCase();
+>   final oldLower = oldUsername.toLowerCase();
+>   await _db.runTransaction((txn) async {
+>     final newRef = _db.collection('usernames').doc(newLower);
+>     final newSnap = await txn.get(newRef);
+>     if (newSnap.exists) {
+>       throw Exception('Username already taken');
+>     }
+>     txn.set(newRef, {'uid': uid});
+>     txn.delete(_db.collection('usernames').doc(oldLower));
+>     txn.update(_db.collection('users').doc(uid), {'username': newUsername});
+>   });
+> }
+
+Bu metod Firestore-un **Tranzaksiya (Transaction)** mexanizmindən istifadə edir — `txn.get()` ilə YOXLAMA və `txn.set()` ilə YAZMA ARASINDA, Firestore HƏMİN SƏNƏDİN BAŞQA BİR TRANZAKSİYA TƏRƏFİNDƏN DƏYİŞDİRİLMƏDİYİNİ TƏMİN EDİR (optimistic concurrency control). Əgər iki istifadəçi EYNİ ANDA eyni `newUsername`-ə dəyişmək istəsə, YALNIZ BİRİ UĞURLA BAŞA ÇATAR, digəri "Username already taken" xətası alar və YENİDƏN CƏHD EDƏ BİLƏR.
+
+#### 4.2. Atomik Sənəd Yaradılması: Batch Yazma
+
+> Future<void> createUser(UserModel user) async {
+>   final batch = _db.batch();
+>   batch.set(_db.collection('users').doc(user.uid), user.toMap());
+>   batch.set(_db.collection('usernames').doc(user.username.toLowerCase()), {'uid': user.uid});
+>   await batch.commit();
+> }
+
+`WriteBatch` istifadəsi — İKİ FƏRQLİ SƏNƏDİN (`users/{uid}` və `usernames/{username}`) EYNI ANDA, YA HƏR İKİSİ UĞURLA, YA DA HEÇ BİRİ YAZILMAMASINI (atomicity) təmin edir. Bu, "yarımçıq" istifadəçi qeydiyyatının (yəni `users` sənədi var, lakin `usernames` indeksi yoxdur) qarşısını alır.
+
+#### 4.3. addRecentGameId() — Sonlu Tarixçə Saxlanması
+
+> Future<void> addRecentGameId(String uid, String gameId) async {
+>   await _db.runTransaction((txn) async {
+>     final ref = _db.collection('users').doc(uid);
+>     final snap = await txn.get(ref);
+>     final ids = List<String>.from(snap.data()?['recentGameIds'] ?? []);
+>     ids.add(gameId);
+>     if (ids.length > 50) {
+>       ids.removeRange(0, ids.length - 50);
+>     }
+>     txn.update(ref, {'recentGameIds': ids});
+>   });
+> }
+
+Hər istifadəçinin SON 50 oyununun ID-si saxlanılır — `ids.length > 50` olduqda, `removeRange(0, ids.length - 50)` ilə ƏN KÖHNƏ ELEMENTLƏR siyahıdan ÇIXARILIR. Bu, Firestore SƏNƏDİNİN ÖLÇÜ MƏHDUDİYYƏTİNİN (1 MB) qarşısını alır və profil ekranında "son oyunlar" siyahısının HƏMİŞƏ MƏNALI (son 50) qalmasını təmin edir. Tranzaksiya istifadəsi — eyni anda BİRDƏN ÇOX OYUNUN BİTMƏSİ HALINDA YARIŞ VƏZİYYƏTİNİN (race condition) qarşısını alır.
+
+#### 4.4. saveGame() — "Merge" Strategiyası
+
+> Future<void> saveGame(GameModel game) async {
+>   await _db.collection('games').doc(game.id)
+>     .set(game.toMap(), SetOptions(merge: true));
+> }
+
+`SetOptions(merge: true)` — BU, ÇOX VACİB BİR DİZAYN QƏRARIDIR. Onlayn bir oyunda, HƏR İKİ OYUNÇUNUN CİHAZI MÜSTƏQİL ŞƏKİLDƏ `saveGame()` çağıra bilər (məsələn, hər gedişdən sonra). Əgər `merge: true` OLMASAYDI, İKİNCİ YAZMA BİRİNCİNİN YAZDIĞI SAHƏLƏRİ TAMAMILƏ ƏVƏZ EDƏRDİ (overwrite) — məsələn, ağ oyunçunun cihazı `pgn`-i yazarkən, qara oyunçunun cihazı `whiteRatingChange`-i YAZSA, `merge: true` OLMASA, BİRİ DİGƏRİNİN YAZDIĞINI "SİLƏRDİ". `merge: true` ISƏ YALNIZ GÖNDƏRİLƏN SAHƏLƏRİ YENİLƏYİR, QALAN SAHƏLƏRƏ TOXUNMUR.
+
+#### 4.5. searchUsers() — Prefiks Axtarışı
+
+> Future<List<UserModel>> searchUsers(String query) async {
+>   final lower = query.toLowerCase();
+>   final snap = await _db.collection('users')
+>     .orderBy(FieldPath.documentId)
+>     .startAt([lower])
+>     .endAt(['$lower'])
+>     .limit(20)
+>     .get();
+>   return snap.docs.map((d) => UserModel.fromMap(d.data())).toList();
+> }
+
+Firestore TAM-MƏTN AXTARIŞI (full-text search) DƏSTƏKLƏMİR, lakin `` SİMVOLU (Unicode-da ƏN YÜKSƏK ÖZƏL İSTİFADƏ SİMVOLU) vasitəsilə "PREFİKS AXTARIŞI" (prefix search) trükü tətbiq edilə bilər: `startAt(['ali'])` və `endAt(['ali'])` — "ali" ilə BAŞLAYAN VƏ "ali" İLƏ "ali"+SONSUZ SİMVOL ARASINDA YERLƏŞƏN BÜTÜN sənədləri (yəni "ali", "alice", "aliyev" və s.) qaytarır.
+
+#### 4.6. getSuggestedFriends() — Reytinqə Görə Tövsiyə
+
+> Future<List<UserModel>> getSuggestedFriends({
+>   required int myRating, required List<String> excludeUids, int limit = 10}) async {
+>   final snap = await _db.collection('users')
+>     .where('overallRatingCache', isGreaterThanOrEqualTo: myRating - 300)
+>     .where('overallRatingCache', isLessThanOrEqualTo: myRating + 300)
+>     .limit(limit + excludeUids.length)
+>     .get();
+>   return snap.docs
+>     .map((d) => UserModel.fromMap(d.data()))
+>     .where((u) => !excludeUids.contains(u.uid))
+>     .take(limit)
+>     .toList();
+> }
+
+İstifadəçilərə OXŞAR SƏVİYYƏDƏ (±300 ELO) RƏQİBLƏR/DOSTLAR TÖVSİYƏ EDİLİR — bu, "balanslı oyun" konsepsiyasını SOSİAL ƏLAQƏLƏRƏ DƏ TƏTBİQ EDİR. `excludeUids` (artıq dost olanlar, bloklananlar) NƏTİCƏDƏN ÇIXARILIR.
+
+#### 4.7. ensureGameFields() — Köhnə Məlumatların Tamamlanması (Legacy Patching)
+
+Tətbiqin İNKİŞAF TARİXİ boyu, `UserModel`-ə YENİ SAHƏLƏR (məsələn, `checkersStats`, `dominoStats`, `checkersCampaignProgress`) ƏLAVƏ EDİLİB. Lakin ARTIQ MÖVCUD OLAN istifadəçi sənədlərində bu sahələr YOXDUR. `ensureGameFields()` metodu istifadəçi sənədini OXUYARKƏN, ƏGƏR YENİ SAHƏLƏR MÖVCUD DEYİLSƏ, ONLARI DEFOLT DƏYƏRLƏRLƏ "YAMAQLAYIR" (patch) — bu, MİQRASİYA SKRİPTİ YAZMADAN, "lazy migration" (tələb olunduqca tədricən köçürmə) strategiyasının tətbiqidir.
+
+## 5. Köməkçi Xidmətlər
+
+#### 5.1. PhotoService
+
+`firebase_storage`-a `profile_photos/{uid}.jpg` (800x800px, 85% keyfiyyət) və `group_photos/{groupId}.jpg` yolları ilə şəkil yükləməsini idarə edir. Profil şəkli dəyişdikdə, istifadəçinin BÜTÜN DOSTLARININ "keşlənmiş" `photoUrl` sahəsi DƏ BATCH YENİLƏNİR (bu, dostlar siyahısında HƏR DƏFƏ AYRI-AYRI SORĞU ETMƏK ƏVƏZİNƏ, məlumatın "DENORMALLAŞDIRILMASI" — performans üçün təkrarlanması nümunəsidir). Veb platformada CORS məhdudiyyətləri səbəbindən bu xidmət YALNIZ MOBİL CİHAZLARDA aktivdir.
+
+#### 5.2. NotificationService
+
+Firebase Cloud Messaging (FCM) token idarəetməsi, ÖN PLANDA (foreground) bildirişlərin BASTIRILMASI (suppress) — istifadəçi artıq tətbiqdədirsə, sistem bildirişi ƏVƏZİNƏ DAXİLİ (in-app) bildiriş göstərilir. Hər bildiriş NÖVÜ ÜZRƏ (oyun dəvəti, növbə, mesaj, dost sorğusu, turnir) AYRI-AYRI AÇMA/BAĞLAMA seçimləri (`notifGameInvites`, `notifYourTurn` və s.) `UserModel`-də saxlanılır. "Narahat etmə" (Do Not Disturb) saat aralığı dəstəklənir. Android-də `"grandmaster_main"` adlı XÜSUSİ BİLDİRİŞ KANALI yaradılır.
+
+#### 5.3. LogService
+
+> Future<void> logEvent(String type, {Map<String, dynamic>? metadata}) async {
+>   _db.collection('logs').add({
+>     'uid': uid, 'username': username, 'type': type,
+>     'timestamp': FieldValue.serverTimestamp(), 'metadata': metadata ?? {},
+>   });  // fire-and-forget, await edilmir
+> }
+
+Bu xidmət "FIRE-AND-FORGET" (atıb-unut) modelindədir — `logEvent()` çağırışı NƏTİCƏNİ GÖZLƏMİR (`await` edilmir), beləliklə LOQLAMA ƏMƏLİYYATI HEÇ VAXT İSTİFADƏÇİ TƏCRÜBƏSİNİ (UI cavab vermə sürətini) LƏNGİTMİR. `FieldValue.serverTimestamp()` — KLİENT SAATININ YANLIŞ OLMASI HALINDA BELƏ, SERVER TƏRƏFİNDƏ DƏQİQ VAXT DAMĞASI YAZILMASINI təmin edir.
+
+## 6. Nəticə
+
+"Grandmaster"-in backend infrastrukturu, Firebase-in BaaS (Backend-as-a-Service) modelindən tam istifadə edərək, ƏNƏNƏVİ SERVER İNKİŞAFINA EHTİYAC OLMADAN miqyaslanan, real-vaxt bir platforma yaradır. `usernames` indeksi, tranzaksiyalar (`changeUsername`, `addRecentGameId`) və `merge: true` strategiyaları — HAMISI Firestore-un NoSQL təbiətindən qaynaqlanan POTENSİAL PROBLEMLƏRİN (TOCTOU, race condition, overwrite) DİQQƏTLİ ŞƏKİLDƏ HƏLL EDİLDİYİNİ göstərir. `ensureGameFields()` kimi "lazy migration" texnikaları isə tətbiqin UZUNMÜDDƏTLİ İNKİŞAFI ZAMANI MƏLUMAT SXEMİNİN TƏKAMÜLÜNÜ (schema evolution) İDARƏ ETMƏYİN PRAKTİKİ YOLUNU nümayiş etdirir.

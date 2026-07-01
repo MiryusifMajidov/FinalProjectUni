@@ -1,0 +1,115 @@
+{
+  "project_info": {
+    "project_number": "544347300592",
+    "firebase_url": "https://chess-ac4eb-default-rtdb.firebaseio.com",
+    "project_id": "chess-ac4eb",
+    "storage_bucket": "chess-ac4eb.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:544347300592:android:3fbbefee62a882139f1835",
+        "android_client_info": {
+          "package_name": "com.chessapp.chess_app"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "544347300592-6ru17d9akvt61t7ba7d9pftiv2e9dbs2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.chessapp.chess_app",
+            "certificate_hash": "768beb73a7006709fc029365636dabc058ba80b0"
+          }
+        },
+        {
+          "client_id": "544347300592-0t6d1801ugrmrp6lcqijhodi824itcnt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATIGXSCXd0FAHHNwtMsJGCUGzWjhQAaz4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "544347300592-0t6d1801ugrmrp6lcqijhodi824itcnt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "544347300592-j64i2cmo7a5bvjg7fjv36u1njse1cbjd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.chessapp.chessApp"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:544347300592:android:4cf2f1444401c6ec9f1835",
+        "android_client_info": {
+          "package_name": "com.ludodo.checkmate"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "544347300592-g1rtrlrrtji96q29kfgea597vup1ctqt.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ludodo.checkmate",
+            "certificate_hash": "a774b9c42d0603d6cc6b99f331b0c4529b22c37f"
+          }
+        },
+        {
+          "client_id": "544347300592-i5hg0h5h51p3cdqvp7do52ies4kun94s.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ludodo.checkmate",
+            "certificate_hash": "768beb73a7006709fc029365636dabc058ba80b0"
+          }
+        },
+        {
+          "client_id": "544347300592-v9bti7ut9gm1vu47eu584utrtbkfdmf3.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.ludodo.checkmate",
+            "certificate_hash": "2e862a3686938fd220e9f82493fe1e692a466944"
+          }
+        },
+        {
+          "client_id": "544347300592-0t6d1801ugrmrp6lcqijhodi824itcnt.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyATIGXSCXd0FAHHNwtMsJGCUGzWjhQAaz4"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "544347300592-0t6d1801ugrmrp6lcqijhodi824itcnt.apps.googleusercontent.com",
+              "client_type": 3
+            },
+            {
+              "client_id": "544347300592-j64i2cmo7a5bvjg7fjv36u1njse1cbjd.apps.googleusercontent.com",
+              "client_type": 2,
+              "ios_info": {
+                "bundle_id": "com.chessapp.chessApp"
+              }
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

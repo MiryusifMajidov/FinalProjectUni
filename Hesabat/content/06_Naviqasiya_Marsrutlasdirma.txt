@@ -1,0 +1,168 @@
+# 6. Naviqasiya və Marşrutlaşdırma (GoRouter)
+
+## 1. Giriş və Məqsəd
+
+Müasir mobil tətbiqlər ONLARLA ekrandan ibarətdir və bu ekranlar arasındakı keçidlər (navigation) tez-bir-tez MÜRƏKKƏB MƏNTIQ (autentifikasiya yoxlaması, dərin keçidlər/deep links, parametrlərin ötürülməsi) tələb edir. "Grandmaster" tətbiqi bu məqsədlə Flutter ekosistemində RƏSMİ OLARAQ TÖVSİYƏ EDİLƏN **GoRouter** (v14.6.2) paketindən istifadə edir. GoRouter, DEKLARATİV (declarative), URL-ƏSASLI marşrutlaşdırma təqdim edir — bu, həm mobil, həm də veb platformalarda EYNİ KODLA işləyən, BROWSER GERİ DÜYMƏSİ ilə UYĞUN gələn bir naviqasiya sistemi yaratmağa imkan verir.
+
+**Fayl:** `lib/core/router/app_router.dart`
+
+## 2. İstifadə Olunan Texnologiyalar
+
+- **`go_router` (v14.6.2)** — Flutter komandası tərəfindən rəsmən dəstəklənən, deklarativ marşrutlaşdırma paketi.
+- **`Riverpod` `Provider`** — `routerProvider` vasitəsilə `GoRouter` instansının asılılıq inyeksiyası (dependency injection).
+- **`ChangeNotifier` + `refreshListenable`** — autentifikasiya vəziyyəti dəyişdikdə MARŞRUTLAŞDIRMA QƏRARLARININ AVTOMATIK YENİDƏN HESABLANMASI üçün.
+- **`StatefulShellRoute`** (və ya bənzər "parent route" strukturu) — `/home` kimi ƏSAS NAVİQASİYA ÇƏRÇİVƏSİNİN (bottom nav bar) öz daxili marşrutlarını saxlaması üçün.
+- **`CustomTransitionPage`** — fərdi səhifə keçid animasiyaları (fade, slide) üçün.
+
+## 3. Router Provider və Avtomatik Yenidən Hesablama
+
+> final routerProvider = Provider<GoRouter>((ref) {
+>   final notifier = _RouterNotifier(ref);
+>   return GoRouter(
+>     initialLocation: '/splash',
+>     refreshListenable: notifier,
+>     redirect: notifier._redirect,
+>     routes: [...],
+>     errorBuilder: (context, state) =>
+>       Scaffold(body: Center(child: Text('Route not found: ${state.error}'))),
+>   );
+> });
+>
+> class _RouterNotifier extends ChangeNotifier {
+>   _RouterNotifier(this.ref) {
+>     ref.listen(authStateProvider, (_, __) => notifyListeners());
+>   }
+>   final Ref ref;
+>   FutureOr<String?> _redirect(BuildContext context, GoRouterState state) {
+>     final authState = ref.read(authStateProvider);
+>     // ... aşağıda ətraflı
+>   }
+> }
+
+`_RouterNotifier` sinfi `ChangeNotifier`-dan TÖRƏYİR və konstruktorunda `ref.listen(authStateProvider, ...)` vasitəsilə Firebase Auth vəziyyətinin DƏYİŞMƏLƏRİNƏ ABUNƏ OLUR. Hər dəfə istifadəçi GİRİŞ EDƏNDƏ və ya ÇIXIŞ EDƏNDƏ, `notifyListeners()` çağırılır — bu da GoRouter-ə "marşrut qaydalarını YENİDƏN YOXLA" siqnalı göndərir. Nəticədə, məsələn, istifadəçi PROFİL EKRANINDA İKƏN ÇIXIŞ EDƏRSƏ, tətbiq AVTOMATIK OLARAQ `/login` SƏHİFƏSİNƏ YÖNLƏNDİRİLİR — heç bir əlavə naviqasiya kodu yazmadan.
+
+## 4. Yönləndirmə (Redirect) Məntiqi
+
+> FutureOr<String?> _redirect(BuildContext context, GoRouterState state) {
+>   final authState = ref.read(authStateProvider);
+>   final loggedIn = authState.valueOrNull != null;
+>   final isLoading = authState.isLoading;
+>   final path = state.matchedLocation;
+>
+>   final onAuthPath = ['/login', '/register', '/email-verification']
+>       .any((p) => path.startsWith(p));
+>   final onPostRegPath = path.startsWith('/auth/');
+>
+>   if (isLoading) return '/splash';
+>   if (!loggedIn && !onAuthPath && !onPostRegPath) return '/login';
+>   if (loggedIn && onAuthPath && path != '/splash') return '/home';
+>   return null;  // dəyişiklik yoxdur, davam et
+> }
+
+Bu METODUN ÜÇ ƏSAS QAYDASI:
+
+1. **Yüklənmə zamanı → `/splash`:** Firebase Auth vəziyyəti HƏLƏ MÜƏYYƏN OLUNMAYIBSA (tətbiq açılışında bir neçə millisaniyə çəkə bilər), istifadəçi "Splash" ekranında saxlanılır — bu, "yanıb-sönən" (flicker) login ekranının qarşısını alır.
+2. **Giriş edilməyibsə → `/login`:** İstisnalar — istifadəçi artıq AUTH SƏHİFƏLƏRİNDƏDİRSƏ (`/login`, `/register`, `/email-verification`) və ya QEYDİYYATDAN SONRAKI MƏRHƏLƏDƏDİRSƏ (`/auth/skill-level`, `/auth/profile-photo`) — bu hallarda YÖNLƏNDİRMƏ ETMİR, çünki istifadəçi artıq DOĞRU YERDƏDİR.
+3. **Giriş edilibsə + Auth səhifəsindədirsə → `/home`:** Məsələn, artıq daxil olmuş istifadəçi yanlışlıqla `/login` URL-inə "geri qayıdarsa", AVTOMATIK OLARAQ `/home`-a yönləndirilir. `path != '/splash'` istisnası — splash ekranının ÖZ DAXİLİ MƏNTİQİNİN (bir neçə saniyəlik animasiya + sessiya yoxlaması) TAMAMLANMASINA İCAZƏ VERİR, vaxtından əvvəl kəsilmir.
+
+## 5. Tam Marşrut Cədvəli
+
+Aşağıdakı cədvəl tətbiqdəki bütün əsas marşrutları, onların parametrlərini və `extra` arqumentlərini ümumiləşdirir:
+
+#### 5.1. Autentifikasiya Axını
+- `/splash` — açılış ekranı, sessiya bərpası.
+- `/login` — giriş ekranı.
+  - `/login/2fa-verify` (`extra: String email`) — İKİ MƏRHƏLƏLİ DOĞRULAMA (2FA) kodu daxiletmə.
+- `/register` — qeydiyyat (2 addım: istifadəçi adı/email/şifrə/ölkə → bacarıq səviyyəsi).
+- `/email-verification` — email təsdiqi gözləmə ekranı.
+- `/auth/skill-level` — bacarıq səviyyəsi seçimi (6 kart, 400-2400 ELO).
+- `/auth/profile-photo` — profil şəkli yükləmə təklifi.
+
+#### 5.2. Əsas Naviqasiya (`/home` valideyn marşrutu)
+- `/home` — ana ekran (aktiv oyunlar, sürətli keçidlər).
+- `/home/profile/:uid` — istənilən istifadəçinin profili.
+- `/home/settings` — tənzimləmələr ana səhifəsi, ALT MARŞRUTLARLA:
+  - `account` (+ `2fa`, `sessions`)
+  - `privacy` (+ `blocked`)
+  - `feedback`, `about`, `appearance`, `game`, `sound`, `notifications`, `language`
+
+#### 5.3. Oyun Hazırlığı
+- `/home/bot-setup` — şahmat botu qarşı parametrlər.
+- `/home/local-setup` — lokal (eyni cihazda 2 nəfər) oyun.
+- `/home/matchmaking` — onlayn rəqib axtarışı parametrləri.
+- `/home/matchmaking-search` (`extra: {timeLabel, isRated, minElo, maxElo}`) — axtarış prosesi ekranı.
+- `/home/invite` (`extra: UserModel`) — dosta DƏVƏT GÖNDƏRMƏ.
+- `/home/invite-config` (`extra: opponent)`) — dəvət üçün oyun parametrləri.
+- `/home/checkers-bot-setup`, `/home/domino-bot-setup` — Dama/Domino bot parametrləri.
+
+#### 5.4. Xəritə, Kampaniya, Liderlər
+- `/home/map` (+ `search`, + `challenge-sent`) — Dünya Xəritəsi (yaxınlıqdakı oyunçular).
+- `/home/campaign` (+ `/:chapter`, 1-100 aralığında MƏHDUDLAŞDIRILIR/clamped) — kampaniya xəritəsi və fəsil ekranı.
+- `/home/leaderboard` — liderlər lövhəsi.
+
+#### 5.5. Sosial
+- `/home/friends` (+ `search`) — dostlar siyahısı və axtarış.
+- `/home/chat/:uid` — birbaşa söhbət.
+- `/home/groups` (+ `create`, + `/:groupId` [+ `settings`]) — qruplar.
+
+#### 5.6. Turnirlər
+- `/home/tournaments` (+ `create`, + `/:tournamentId`) — turnir siyahısı, yaratma, lobi.
+
+#### 5.7. Oyun Ekranları (valideyn marşrutdan KƏNAR — TAM EKRAN)
+- `/game/:gameId` — şahmat oyun ekranı.
+- `/checkers-game/:gameId` — dama oyun ekranı.
+- `/domino-game/:gameId` — domino oyun ekranı.
+- `/game-calm/:gameId` — "sakit" (animasiyasız/minimalist) rejim.
+- `/home/spectate/:gameId` (`extra: watchedUid`) — başqasının oyununa TAMAŞA ETMƏ.
+- `/home/game-replay/:gameId`, `/home/game-calm-replay/:gameId` — bitmiş oyunun TƏKRAR İZLƏNMƏSİ.
+
+## 6. `extra` Parametrinin Növləri
+
+GoRouter-də `extra` — marşrut keçidi zamanı ÖTÜRÜLƏ BİLƏN İXTİYARI, İSTƏNİLƏN TİPDƏ OBYEKTDİR (URL-də GÖRÜNMƜR). Layihədə üç fərqli `extra` nümunəsi istifadə olunur:
+
+1. **`String`** — sadə identifikatorlar (email, uid).
+2. **`UserModel`** — tam istifadəçi obyekti (məsələn, dəvət ekranına KEÇƏRKƏN, opponentin BÜTÜN MƏLUMATLARINI yenidən Firestore-dan YÜKLƏMƏMƏK üçün).
+3. **`Map<String, dynamic>`** — OYUN KONFİQURASİYASI üçün açar-dəyər lüğəti. Tipik açarlar: `mode`, `gameType`, `timeControl`, `playerIsWhite`, `botRating`, `gameId`, `myUsername`, `opponentUsername`, `opponentUid`, `timeLabel`, `isRated`, `minElo`, `maxElo`.
+
+`Map<String, dynamic>` yanaşmasının üstünlüyü — YENİ KONFİQURASİYA SAHƏSİ ƏLAVƏ ETMƏK üçün marşrut SİQNATURASINI (signature) DƏYİŞDİRMƏYƏ EHTİYAC YOXDUR, sadəcə lüğətə yeni açar əlavə olunur.
+
+## 7. Səhifə Keçid Animasiyaları
+
+#### 7.1. _fadeTransition (Login, Email Verification)
+
+> CustomTransitionPage(
+>   child: child,
+>   transitionsBuilder: (context, animation, _, child) =>
+>     FadeTransition(opacity: animation, child: child),
+> )
+
+Autentifikasiya səhifələri arasında YUMŞAQ, NEYTRAL fade effekti — bu səhifələr arasında keçid TEZ-TEZ baş VERMİR, ona görə "diqqəti çəkməyən" sadə animasiya seçilib.
+
+#### 7.2. _slideTransition (Əksər Digər Səhifələr)
+
+> CustomTransitionPage(
+>   child: child,
+>   transitionDuration: const Duration(milliseconds: 280),
+>   transitionsBuilder: (context, animation, _, child) {
+>     final tween = Tween(begin: const Offset(1, 0), end: Offset.zero)
+>         .chain(CurveTween(curve: Curves.easeOutCubic));
+>     return SlideTransition(position: animation.drive(tween), child: child);
+>   },
+> )
+
+Əksər ekranlar SAĞDAN-SOLA SÜRÜŞMƏ (slide from right) effekti ilə açılır — bu, iOS/Android-in NATIV NAVİQASİYA HİSSİNƏ yaxın bir təcrübə yaradır, istifadəçiyə "İRƏLİ getdiyini" hiss etdirir. 280ms müddəti və `easeOutCubic` əyrisi — nə "ağır/yavaş", nə də "kəskin/qəfil" hiss yaratmayan, BALANSLI bir sürətdir.
+
+## 8. Xəta İdarəetməsi
+
+> errorBuilder: (context, state) =>
+>   Scaffold(body: Center(child: Text('Route not found: ${state.error}')))
+
+Naməlum bir marşruta (məsələn, köhnə bir bildiriş linki vasitəsilə artıq mövcud olmayan bir `gameId`-ə) keçid CƏHDİ edildikdə, tətbiq ÇÖKMƏK (crash) ƏVƏZİNƏ, sadə bir "Marşrut tapılmadı" mesajı göstərir — bu, PRODUCTION mühitində İSTİFADƏÇİ TƏCRÜBƏSİNİN qorunması üçün vacib bir TƏHLÜKƏSİZLİK ŞƏBƏKƏSİDİR.
+
+## 9. Kampaniya Marşrutunun Validasiyası: `/:chapter` Clamping
+
+`/home/campaign/:chapter` marşrutu, `chapter` parametrini OXUYARKƏN onu 1-100 ARALIĞINA "CLAMP" edir (sıxışdırır). Bu, istifadəçi əl ilə (və ya köhnə bir keşlənmiş linklə) `/home/campaign/150` kimi BİR URL-Ə DAXİL OLMAĞA ÇALIŞSA BELƏ, tətbiqin `RangeError` ATMASININ və ya XƏTALI VƏZİYYƏTƏ DÜŞMƏSİNİN qarşısını alır — sadəcə ən yaxın keçərli fəslə (1 və ya 100) yönləndirilir.
+
+## 10. Nəticə
+
+GoRouter-ə əsaslanan marşrutlaşdırma sistemi, "Grandmaster" tətbiqinə üç böyük üstünlük gətirir: (1) **Deklarativ struktur** — bütün marşrutlar BİR YERDƏ, vahid bir ağac şəklində təyin olunur, bu da YENİ EKRAN ƏLAVƏ ETMƏYİ asanlaşdırır; (2) **Reaktiv yönləndirmə** — `refreshListenable` vasitəsilə autentifikasiya vəziyyəti İLƏ NAVİQASİYA AVTOMATIK SİNXRONLAŞIR, ƏL İLƏ "logout zamanı login-ə get" kodu yazmağa EHTİYAC QALMIR; (3) **Tip-təhlükəsiz parametr ötürülməsi** — `extra` vasitəsilə mürəkkəb obyektlər (UserModel, konfiqurasiya lüğətləri) BİRBAŞA, SERİALLAŞDIRMADAN ötürülür. Bu memarlıq, 30-dan çox ekrandan ibarət BÖYÜK BİR TƏTBİQİN naviqasiya mürəkkəbliyini İDARƏ OLUNA BİLƏN səviyyədə saxlayır.

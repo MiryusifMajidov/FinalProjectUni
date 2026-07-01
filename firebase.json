@@ -1,0 +1,43 @@
+{
+  "firestore": {
+    "rules": "firestore.rules",
+    "indexes": "firestore.indexes.json"
+  },
+  "database": {
+    "rules": "database.rules.json"
+  },
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "ignore": [
+        "node_modules",
+        ".git",
+        "firebase-debug.log",
+        "firebase-debug.*.log",
+        "*.local"
+      ]
+    }
+  ],
+  "flutter": {
+    "platforms": {
+      "android": {
+        "default": {
+          "projectId": "chess-ac4eb",
+          "appId": "1:544347300592:android:3fbbefee62a882139f1835",
+          "fileOutput": "android/app/google-services.json"
+        }
+      },
+      "dart": {
+        "lib/firebase_options.dart": {
+          "projectId": "chess-ac4eb",
+          "configurations": {
+            "android": "1:544347300592:android:3fbbefee62a882139f1835",
+            "ios": "1:544347300592:ios:9cacaa8632a5e8919f1835",
+            "web": "1:544347300592:web:836f257e00bcaf089f1835"
+          }
+        }
+      }
+    }
+  }
+}

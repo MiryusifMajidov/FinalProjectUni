@@ -1,0 +1,10 @@
+# .gitignore
+build/
+.dart_tool/
+.gradle/
+.idea/
+.vscode/
+*.apk
+*.aab
+*.zip
+.DS_Store

@@ -1,0 +1,206 @@
+# 5. Verilənlər Modelləri (Data Models)
+
+## 1. Giriş və Məqsəd
+
+Hər bir tətbiqin "skeleti" — onun MƏLUMAT MODELLƏRİDİR. "Grandmaster" tətbiqində bu modellər, Firestore-da saxlanılan SƏNƏDLƏR (documents) ilə Dart KODU ARASINDAKI "KÖRPÜ" rolunu oynayır: hər model sinfi `toMap()` (Dart obyektini Firestore-a yazıla bilən `Map<String, dynamic>`-ə çevirir) və `fromMap()` (əksinə) metodlarına malikdir. Bu sənəd tətbiqin İKİ ƏN MƏRKƏZİ MODELİNİ — `UserModel` və `GameModel` — və onların dəstəkçi köməkçi siniflərini ƏTRAFLI ŞƏKİLDƏ izah edir.
+
+**Əsas Fayl:** `lib/core/models/user_model.dart`, `lib/core/models/game_model.dart`
+
+## 2. İstifadə Olunan Texnologiyalar
+
+- **Dart `factory` konstruktorları** — `fromMap()` kimi alternativ obyekt yaradılma yollarının TƏMİZ ŞƏKİLDƏ ifadəsi üçün.
+- **"Sentinel Value" Dizayn Nümunəsi** — `copyWith()` metodlarında "DƏYİŞDİRİLMƏMİŞ DƏYƏR" ilə "AÇIQ ŞƏKİLDƏ NULL-A TƏYİN EDİLMİŞ" arasındakı FƏRQİ AYIRD ETMƏK üçün.
+- **Dart `enum`-lar** — `TimeControlCategory`, `GameResult`, `GameMode` kimi MƏHDUD DƏYƏR DƏSTLƏRİNİN TİP-TƏHLÜKƏSİZ TƏMSİLİ üçün.
+- **Unicode Regional Indicator Simvolları** — ölkə kodlarından (ISO 3166-1 alpha-2) BAYRAQ EMOJİLƏRİNİN PROQRAMATIK GENERASİYASI üçün.
+- **`@immutable`** annotasiyası — bütün model siniflərinin DƏYİŞMƏZ (immutable) olmasının təmin edilməsi.
+
+## 3. UserModel: Tam Sahə Strukturu
+
+`UserModel`, hər istifadəçi üçün `users/{uid}` sənədini təmsil edir və TƏTBİQDƏKİ ƏN BÖYÜK MODELDİR. Sahələri MƏNTİQİ KATEQORİYALARA BÖLMƏK OLAR:
+
+#### 3.1. Əsas Kimlik Məlumatları
+> final String uid;
+> final String username;
+> final String email;
+> final String avatarId;
+> final String? photoUrl;
+> final int skillLevel;
+> final String countryCode;
+
+#### 3.2. Coğrafi/Xəritə Məlumatları
+> final double? latitude;
+> final double? longitude;
+> final bool showOnMap;
+> final DateTime? lastSeen;
+
+`latitude`/`longitude` — istifadəçi "Dünya Xəritəsi" funksiyasını AKTİVLƏŞDİRDİKDƏ (bax Hissə 16-cı fayl), `geolocator` paketi vasitəsilə ƏLDƏ EDİLİR və `showOnMap=true` OLDUQDA DİGƏR İSTİFADƏÇİLƏRƏ GÖRÜNÜR.
+
+#### 3.3. Məxfilik Sahələri
+> final String profileVisibility;       // 'Public' | 'Friends' | 'Private'
+> final bool twoFactorEnabled;
+> final bool showOnlineStatus;
+> final bool invisibleMode;
+> final String friendRequestPrivacy;    // 'everyone' | 'friends' | 'nobody'
+> final String challengePrivacy;
+> final String messagePrivacy;
+> final List<String> blockedUsers;
+
+#### 3.4. Reytinq Sahələri (5 Format)
+> final RatingStats bulletStats;
+> final RatingStats blitzStats;
+> final RatingStats rapidStats;
+> final RatingStats checkersStats;
+> final RatingStats dominoStats;
+
+(`RatingStats`-ın daxili strukturu və `overallRating` hesablanması — bax Hissə 13-cü fayl, "Reytinq Sistemi".)
+
+#### 3.5. Kampaniya İrəliləyişi
+> final int campaignProgress;            // şahmat (0-100)
+> final int checkersCampaignProgress;    // dama (0-60)
+> final int dominoCampaignProgress;      // domino (0-40)
+
+#### 3.6. Oyun Vəziyyəti
+> final List<String> recentGameIds;      // maks. 50 element
+> final String? currentGameId;           // davam edən onlayn oyun (varsa)
+
+#### 3.7. Bildiriş Tənzimləmələri
+> final bool notifGameInvites;
+> final bool notifYourTurn;
+> final bool notifMessages;
+> final bool notifFriendRequests;
+> final bool notifTournaments;
+
+#### 3.8. Metaməlumat
+> final DateTime createdAt;
+
+## 4. overallRating Getteri
+
+Bu getter, beş fərqli `RatingStats`-dan (yalnız `games > 0` olanlardan) BİR ÜMUMİ REYTİNQ HESABLAYIR. Tam riyazi izah və kod nümunəsi Hissə 13-cü faylda ("Reytinq Sistemi və Liderlər Lövhəsi") verilmişdir — bu modeldə yalnız bir GETTER kimi mövcuddur, MƏLUMAT BAZASINDA AYRICA SAHƏ KİMİ SAXLANILMIR (hesablanan, "computed" dəyərdir).
+
+## 5. flagEmoji() — Ölkə Bayraqlarının Generasiyası
+
+> static String flagEmoji(String countryCode) {
+>   return countryCode.toUpperCase().codeUnits
+>     .map((c) => String.fromCharCode(0x1F1E6 - 0x41 + c))
+>     .join();
+> }
+
+Bu metod, ÇOX MARAQLI BİR UNICODE TRÜKÜNDƏN istifadə edir: Unicode-da hər ölkənin bayrağı, İKİ "REGIONAL INDICATOR SYMBOL" simvolunun (🇦-🇿 aralığı, `U+1F1E6`-`U+1F1FF`) BİRLƏŞMƏSİDİR. Məsələn, "AZ" (Azərbaycan) kodu üçün:
+- `'A'` = ASCII 65 (`0x41`) → `0x1F1E6 - 0x41 + 65 = 0x1F1E6` → 🇦
+- `'Z'` = ASCII 90 (`0x5A`) → `0x1F1E6 - 0x41 + 90 = 0x1F1FF` → 🇿
+- Birləşmə: 🇦🇿 = Azərbaycan bayrağı.
+
+Bu yanaşmanın üstünlüyü: **HEÇ BİR BAYRAQ ŞƏKİL FAYLI (PNG/SVG) TƏLƏB OLUNMUR** — istənilən 2-hərfli ISO ölkə kodu üçün BAYRAQ "ANINDA", RİYAZİ ƏMƏLİYYATLA generasiya olunur, bu da TƏTBİQİN ÖLÇÜSÜNÜ (APK ölçüsü) ƏHƏMİYYƏTLİ DƏRƏCƏDƏ AZALDIR (200+ ölkə üçün ayrı-ayrı şəkil olmadan).
+
+## 6. copyWith() — Sentinel Value Dizayn Nümunəsi
+
+Adi Dart `copyWith()` belə görünür: `copyWith({String? name}) => UserModel(name: name ?? this.name)`. Lakin bu yanaşmanın BÖYÜK BİR PROBLEMİ var: əgər `photoUrl` kimi `String?` (nullable) bir sahəni `null`-A TƏYİN ETMƏK İSTƏYİRSƏNİZSƏ (məsələn, istifadəçi profil şəklini SİLİRSƏ), `copyWith(photoUrl: null)` çağırışı `null ?? this.photoUrl` İFADƏSİNƏ GÖRƏ KÖHNƏ DƏYƏRİ SAXLAYACAQ — yəni `photoUrl`-U HEÇ VAXT NULL-A TƏYİN ETMƏK MÜMKÜN OLMAYACAQ!
+
+Bu problemi həll etmək üçün, `UserModel.copyWith()` bir "SENTİNEL DƏYƏR" (gözətçi dəyər) tətbiq edir:
+
+> const _sentinel = Object();
+>
+> UserModel copyWith({
+>   Object? photoUrl = _sentinel,
+>   Object? currentGameId = _sentinel,
+>   // ...
+> }) {
+>   return UserModel(
+>     photoUrl: photoUrl == _sentinel ? this.photoUrl : photoUrl as String?,
+>     currentGameId: currentGameId == _sentinel ? this.currentGameId : currentGameId as String?,
+>     // ...
+>   );
+> }
+
+Bununla, ÜÇ FƏRQLİ SSENARİ AYIRD EDİLƏ BİLİR:
+1. **Parametr ÖTÜRÜLMƏYİB** (`photoUrl` arqumenti verilmədi) → dəfolt dəyər `_sentinel`-dir → `photoUrl == _sentinel` true → KÖHNƏ DƏYƏR SAXLANILIR.
+2. **Parametr `null` kimi ötürülüb** (`copyWith(photoUrl: null)`) → `photoUrl == _sentinel` FALSE (çünki `null != _sentinel`) → YENİ DƏYƏR (`null`) TƏTBİQ OLUNUR, sahə TƏMİZLƏNİR.
+3. **Parametr KONKRET DƏYƏRLƏ ötürülüb** (`copyWith(photoUrl: 'https://...')`) → eynilə yeni dəyər tətbiq olunur.
+
+Bu, Flutter/Dart icmasında "FREEZED" kimi kod-generasiya kitabxanalarının HƏLL ETDİYİ PROBLEMİ, ƏLAVƏ ASILILIQ (dependency) ƏLAVƏ ETMƏDƏN, TƏMİZ DART İLƏ HƏLL EDƏN ZƏRİF BİR HƏLLDİR.
+
+## 7. GameModel: Oyun Sənədinin Strukturu
+
+#### 7.1. Enum-lar
+
+> enum TimeControlCategory { bullet, blitz, rapid }
+> enum GameResult { white, black, draw, ongoing, aborted }
+> enum GameMode { local, online, bot, campaign }
+
+- `GameResult` — `ongoing` (davam edir) və `aborted` (ləğv edilib) dəyərləri, sadəcə "qalib/bərabərlik" İKİLİ MODELİNDƏN FƏRQLİ OLARAQ, OYUNUN BÜTÜN MÜMKÜN VƏZİYYƏTLƏRİNİ ƏHATƏ EDİR.
+- `GameMode` — `local` (eyni cihaz, 2 oyunçu), `online` (rəqabətli, reytinqli), `bot` (komputerə qarşı), `campaign` (kampaniya fəsli) — hər biri FƏRQLİ İŞ MƏNTİQİ TƏTBİQ EDİR (məsələn, yalnız `online` reytinq dəyişikliyinə səbəb olur).
+
+#### 7.2. TimeControl Sinfi
+
+> class TimeControl {
+>   final int minutes;
+>   final int incrementSeconds;
+>   String get label => incrementSeconds > 0 ? '$minutes+$incrementSeconds' : '$minutes+0';
+>   int get totalSeconds => minutes * 60;
+>   TimeControlCategory get category {
+>     final estimate = totalSeconds + incrementSeconds * 40;
+>     if (estimate < 180) return TimeControlCategory.bullet;
+>     if (estimate < 600) return TimeControlCategory.blitz;
+>     return TimeControlCategory.rapid;
+>   }
+> }
+
+`category` getterinin HESABLAMA DÜSTURU — `totalSeconds + incrementSeconds * 40` — FIDE-nin RƏSMİ "OYUN MÜDDƏTİ TƏXMİNİ" formuluna ƏSASLANIR: ORTA HESABLA bir oyunda HƏR TƏRƏF ≈40 GEDİŞ EDİR, beləliklə ARTIM (increment) DƏYƏRİ 40-A VURULARAQ ÜMUMİ "GÖZLƏNİLƏN OYUN MÜDDƏTİNƏ" ƏLAVƏ EDİLİR. Məsələn, "3+2" (3 dəqiqə + 2 saniyə artım): `180 + 2*40 = 260` saniyə → BLITZ (180 ilə 600 arasında). Bu, "3+2"-NİN niyə Bullet DEYİL, Blitz SAYILMASININ riyazi əsasıdır.
+
+#### 7.3. Hazır Vaxt Nəzarəti Dəstləri (TimeControls)
+
+> class TimeControls {
+>   static const bullet1   = TimeControl(minutes: 1, incrementSeconds: 0);   // "1+0"
+>   static const bullet1p1 = TimeControl(minutes: 1, incrementSeconds: 1);   // "1+1"
+>   static const bullet2p1 = TimeControl(minutes: 2, incrementSeconds: 1);   // "2+1"
+>   static const blitz3    = TimeControl(minutes: 3, incrementSeconds: 0);   // "3+0"
+>   static const blitz3p2  = TimeControl(minutes: 3, incrementSeconds: 2);   // "3+2"
+>   static const blitz5    = TimeControl(minutes: 5, incrementSeconds: 0);   // "5+0"
+>   static const blitz5p3  = TimeControl(minutes: 5, incrementSeconds: 3);   // "5+3"
+>   static const rapid10   = TimeControl(minutes: 10, incrementSeconds: 0);  // "10+0"
+>   static const rapid15p10= TimeControl(minutes: 15, incrementSeconds: 10); // "15+10"
+>   static const rapid30   = TimeControl(minutes: 30, incrementSeconds: 0);  // "30+0"
+>
+>   static const allBullet = [bullet1, bullet1p1, bullet2p1];
+>   static const allBlitz  = [blitz3, blitz3p2, blitz5, blitz5p3];
+>   static const allRapid  = [rapid10, rapid15p10, rapid30];
+> }
+
+Bu STATİK SABİTLƏR, `TimeControlSelector` vidjetində (bax Hissə 8-ci fayl) İSTİFADƏÇİYƏ TƏQDİM EDİLƏN SEÇİMLƏRİ təmsil edir, və `Kampaniya Rejimi` (bax Hissə 15) DA bu sabitlərdən istifadə edərək hər fəslin vaxt nəzarətini TƏYİN EDİR.
+
+#### 7.4. GameModel Sahələri
+
+> class GameModel {
+>   final String id;
+>   final GameMode mode;
+>   final String gameType;       // 'chess' | 'checkers' | 'domino'
+>   final String whiteUid, blackUid;
+>   final String whiteUsername, blackUsername;
+>   final TimeControl timeControl;
+>   final String pgn;
+>   final List<String> moves;
+>   final GameResult result;
+>   final DateTime createdAt;
+>   final DateTime? endedAt;
+>   final int? whiteRatingBefore, blackRatingBefore;
+>   final int? whiteRatingChange, blackRatingChange;
+>   final int? campaignChapter;
+>   final bool isRated;
+> }
+
+#### 7.5. Reytinq Sahələrinin "Nullable" Olmasının Səbəbi
+
+`whiteRatingBefore/blackRatingBefore/whiteRatingChange/blackRatingChange` sahələri `int?` (NULLABLE) TİPİNDƏDİR — və `toMap()` metodu bu sahələri YALNIZ `null` OLMADIQDA Map-ə ƏLAVƏ EDİR:
+
+> Map<String, dynamic> toMap() => {
+>   'id': id, 'mode': mode.name, 'gameType': gameType, /* ... */
+>   if (whiteRatingBefore != null) 'whiteRatingBefore': whiteRatingBefore,
+>   if (whiteRatingChange != null) 'whiteRatingChange': whiteRatingChange,
+>   // ...
+> };
+
+Bunun SƏBƏBİ Hissə 3-cü faylda izah edilən `SetOptions(merge: true)` STRATEGİYASI İLƏ BİRBAŞA ƏLAQƏLİDİR: əgər `whiteRatingChange: null` HƏR ZAMAN Map-ə DAXİL EDİLSƏYDİ, VƏ İKİ OYUNÇU EYNİ ANDA `saveGame()` ÇAĞIRSAYDI, BİRİNCİSİNİN YAZDIĞI DƏYƏRİ İKİNCİSİ `null` İLƏ ÜZƏRİNƏ YAZA BİLƏRDİ (overwrite) — `merge: true` BUNU QORUYUR, ANCAQ YALNIZ ƏGƏR SAHƏ ÜMUMİYYƏTLƏ MAP-DƏ MÖVCUD DEYİLSƏ. Bu, "yazma zamanı SADƏCƏ DƏYİŞƏN SAHƏLƏRİ GÖNDƏR" prinsipinin TƏTBİQİDİR — Firestore-un PARTIAL UPDATE imkanlarından TAM İSTİFADƏ.
+
+## 8. Nəticə
+
+`UserModel` və `GameModel`, "Grandmaster" tətbiqinin İKİ STÜNUDUR. Onların dizaynında görülən üç təcrübə — (1) sentinel-value `copyWith()` ilə null-safety probleminin HƏLLİ, (2) hesablanan (`overallRating`) və saxlanılan (`bulletStats.rating`) sahələrin AYRILMASI, və (3) NULLABLE SAHƏLƏRİN PARTIAL-UPDATE-Ə UYĞUN `toMap()` GENERASİYASI — BÜTÜN TƏTBİQ BOYU MƏLUMAT BÜTÖVLÜYÜNÜ (data integrity) TƏMİN EDƏN, DİQQƏTLƏ DÜŞÜNÜLMÜŞ ARXİTEKTURA QƏRARLARIDIR. Bu modellər, Firestore-un "schemaless" (sxemsiz) təbiətinə baxmayaraq, Dart-ın GÜCLÜ TİP SİSTEMİ vasitəsilə TƏTBİQ DAXİLİNDƏ "EFFEKTİV SXEM" yaradır.

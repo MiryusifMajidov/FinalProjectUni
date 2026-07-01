@@ -1,0 +1,201 @@
+# 1. Giriş, Məqsəd və Ümumi Arxitektura
+
+## 1. Giriş
+
+Bu hesabat, Flutter çərçivəsi (framework) əsasında hazırlanmış, "**Grandmaster**" (texniki adı: `chess_app`, paket təsviri: "CheckMate — Online chess with multiplayer, tournaments, campaign mode, and bot play") adlı, ÇOX-OYUNLU (multi-game) MOBİL TƏTBİQİN layihələndirilməsi, arxitekturası və proqramlaşdırma həllərini 16 ayrı bölmə (fəsil) şəklində izah edir. Bu birinci bölmə, BÜTÜN LAYİHƏNİN ÜMUMİ ŞƏKİLDƏ TANITDIRILMASINA, onun YARADILMA MƏQSƏDİNƏ, HƏDƏF AUDİTORİYASINA və ƏN ÜST SƏVİYYƏDƏ (high-level) PROQRAM TƏMİNATI ARXİTEKTURASINA HƏSR OLUNUB. Sonrakı 15 bölmə isə bu arxitekturanın HƏR BİR KOMPONENTİNİ AYRI-AYRILIQDA, KOD SƏVİYYƏSİNDƏ ətraflı izah edəcək.
+
+Layihənin cari versiyası `pubspec.yaml` faylında **1.0.3+5** olaraq qeyd olunub (`version: 1.0.3+5` — birinci hissə "versionName", Play Store-da görünən nömrə; `+5` isə "versionCode", hər yeni build ilə artırılan daxili build nömrəsidir). Tətbiq Dart SDK-nın `>=3.7.0 <4.0.0` versiyalarını dəstəkləyir.
+
+## 2. Layihənin Ümumi Təsviri
+
+"Grandmaster" — sadəcə BİR ŞAHMAT TƏTBİQİ DEYİL, ÜÇ AYRI LÖVHƏ OYUNUNU (şahmat, dama/checkers, domino) TƏK BİR EKOSİSTEM ALTINDA BİRLƏŞDİRƏN, TAM FUNKSİONAL BİR SOSIAL OYUN PLATFORMASIDIR. Tətbiqin əsas konsepsiyası belədir: İSTİFADƏÇİ İSTƏNİLƏN OYUNU (1) TƏK BAŞINA SÜNİ İNTELLEKTƏ (BOT) QARŞI, (2) EYNİ CİHAZDA İKİNCİ BİR İNSANLA ("local" rejim), (3) İNTERNET ÜZƏRİNDƏN REAL VAXTDA BAŞQA BİR OYUNÇUYA QARŞI, və ya (4) STRUKTURLAŞDIRILMIŞ "KAMPANİYA" REJİMİNDƏ (100 fəsillik tək-oyunçu progressiya) OYNAYA BİLƏR. Bundan əlavə, tətbiq BEYNƏLXALQ ŞAHMAT REYTİNQ SİSTEMLƏRİNƏ (Lichess, Chess.com) BƏNZƏR ELO-ƏSASLI REYTİNQ, LİDERLƏR LÖVHƏSİ, TURNİRLƏR (Arena formatı) VƏ SOSIAL FUNKSİYALAR (dostlar, söhbət, qruplar, dünya xəritəsi) TƏQDİM EDİR.
+
+## 3. Məqsəd və Motivasiya
+
+Layihənin yaradılmasının ƏSAS MƏQSƏDLƏRİ aşağıdakılardır:
+
+- **Tam dövrəli (full-stack) mobil tətbiq təcrübəsi qazanmaq** — yalnız İSTİFADƏÇİ İNTERFEYSİ DEYİL, HƏM DƏ BACKEND (Firebase), REAL-VAXT KOMMUNİKASİYA, AUTENTİFİKASİYA, SERVER TƏRƏFİ FUNKSİYALAR (Cloud Functions) DAXİL OLMAQLA TAM BİR SİSTEM QURMAQ.
+- **Mürəkkəb alqoritmik məsələlərin həlli** — şahmat, dama və domino üçün FƏRQLİ SÜNİ İNTELLEKT ALQORİTMLƏRİNİN (minimax, alfa-beta budama, negamax, Monte Carlo Tree Search) TƏTBİQİ VƏ OPTİMALLAŞDIRILMASI.
+- **Miqyaslana bilən (scalable) state management** — Riverpod kimi MÜASİR VƏZİYYƏT İDARƏETMƏ HƏLLİ İLƏ, ONLARLA EKRAN VƏ OYUN VƏZİYYƏTİNİ NİZAMLI ŞƏKİLDƏ İDARƏ ETMƏK.
+- **Real-vaxt sistemlərin layihələndirilməsi** — Firebase Realtime Database üzərində MATCHMAKİNQ, PRESENCE (onlayn/oflayn statusu), VƏ TRANZAKSİYA-ƏSASLI YARIŞ-VƏZİYYƏTİ (race condition) İDARƏETMƏSİ.
+- **Çox-dilli, əlçatan (accessible) məhsul** — 4 dildə (Azərbaycan, İngilis, Rus, Türk) tam lokalizasiya.
+- **Akademik tətbiq** — bu layihə Azərbaycan Texniki Universitetinin İnformasiya Texnologiyaları və Telekommunikasiya (İTT) fakültəsinin tələbəsi tərəfindən, MOBİL PROQRAMLAŞDIRMA SAHƏSİNDƏ ƏLDƏ EDİLMİŞ BİLİKLƏRİN PRAKTİKİ TƏTBİQİ kimi hazırlanmışdır.
+
+## 4. Hədəf Auditoriya
+
+Tətbiq aşağıdakı istifadəçi qruplarına yönəlib:
+
+- **Yeni başlayanlar** — "Kampaniya" rejimi vasitəsilə, TƏDRİCƏN ÇƏTİNLƏŞƏN BOT SƏVİYYƏLƏRİ İLƏ ŞAHMAT/DAMA/DOMİNO QAYDALARINI ÖYRƏNƏ BİLƏRLƏR.
+- **Tək-oyunçu (single-player) həvəskarları** — istənilən vaxt, İNTERNET OLMADAN BELƏ (lokal bot AI), MƏŞQ EDƏ BİLƏRLƏR.
+- **Rəqabətçi oyunçular** — REYTİNQLİ (rated) ONLAYN OYUNLAR, LİDERLƏR LÖVHƏSİNDƏ YER TUTMA VƏ TURNİRLƏRDƏ İŞTİRAK ETMƏK İSTƏYƏNLƏR.
+- **Sosial oyunçular** — DOSTLARI İLƏ OYNAMAQ, SÖHBƏT ETMƏK, QRUPLAR YARATMAQ VƏ DÜNYA XƏRİTƏSİNDƏ YAXINLIQDAKI OYUNÇULARI TAPMAQ İSTƏYƏNLƏR.
+
+## 5. Əsas Xüsusiyyətlərin Xülasəsi
+
+Aşağıdakı cədvəl, tətbiqin ƏSAS FUNKSIONAL MODULLARINI VƏ ONLARIN BU HESABATDAKI MÜVAFİQ BÖLMƏLƏRİNİ göstərir:
+
+- Autentifikasiya (Bölmə 4): Email/Şifrə + Google Sign-In, 2FA, sessiya idarəetməsi
+- Verilənlər Modelləri (Bölmə 5): UserModel, GameModel, Firestore strukturu
+- Naviqasiya (Bölmə 6): GoRouter ilə 30+ ekran arası keçid
+- Şahmat Mühərriki (Bölmə 7): chess paketi üzərində FEN/SAN/PGN dəstəyi
+- Şahmat UI/UX (Bölmə 8): Animasiyalı taxta, saat, gediş siyahısı, 5 tema
+- Süni İntellekt (Bölmə 9): Minimax/Alfa-Beta/Negamax/MCTS botlar
+- Multiplayer (Bölmə 10): RTDB-əsaslı real-vaxt oyun, matçmeykinq
+- Dama/Checkers (Bölmə 11): Məcburi-yemə qaydaları, Negamax+TT
+- Domino (Bölmə 12): Plitə uyğunlaşdırma, MCTS botu
+- Reytinq və Lider Lövhəsi (Bölmə 13): ELO sistemi, tarixçə qrafiki
+- Turnirlər (Bölmə 14): Arena formatı, avtomatik cütləşdirmə
+- Kampaniya (Bölmə 15): 100 fəsil, 10 Akt, hekayə xətti
+- Sosial və Lokalizasiya (Bölmə 16): Dostlar, söhbət, 10 dil, dizayn sistemi
+
+## 6. Ümumi Arxitektura: Qatlı (Layered) Yanaşma
+
+Tətbiq, KLASSİK MOBİL TƏTBİQ ARXİTEKTURASINA UYĞUN OLARAQ, AYDIN ŞƏKİLDƏ AYRILMIŞ DÖRD QATDAN (layer) İBARƏTDİR. Bu qatlı struktur, HƏR QATIN ÖZ MƏSULİYYƏT SAHƏSİNƏ MALİK OLMASINI VƏ DƏYİŞİKLİKLƏRİN BİR QATDA DİGƏRİNƏ MİNİMAL TƏSİR ETMƏSİNİ TƏMİN EDİR (Separation of Concerns prinsipi):
+
+> ┌─────────────────────────────────────────────────────────┐
+> │  1. TƏQDİMAT QATI (Presentation Layer)                    │
+> │     lib/features/*/screens/, lib/features/*/widgets/      │
+> │     — Flutter Widget-ləri, ekranlar, animasiyalar          │
+> └────────────────────────┬────────────────────────────────┘
+>                           │ (oxuyur/yazır)
+> ┌────────────────────────▼────────────────────────────────┐
+> │  2. VƏZİYYƏT İDARƏETMƏ QATI (State Management Layer)      │
+> │     lib/features/*/providers/                              │
+> │     — Riverpod Provider/StateNotifier/StateNotifierProvider│
+> └────────────────────────┬────────────────────────────────┘
+>                           │ (çağırır)
+> ┌────────────────────────▼────────────────────────────────┐
+> │  3. SERVİS VƏ MƏNTİQ QATI (Service & Logic Layer)          │
+> │     lib/core/services/, lib/features/*/engine/             │
+> │     — Firebase servisləri, Oyun mühərrikləri, AI alqoritmləri│
+> └────────────────────────┬────────────────────────────────┘
+>                           │ (oxuyur/yazır)
+> ┌────────────────────────▼────────────────────────────────┐
+> │  4. VERİLƏNLƏR QATI (Data Layer)                           │
+> │     Firebase Firestore, Realtime Database, Cloud Functions,│
+> │     SharedPreferences (lokal keş), Stockfish REST API       │
+> └─────────────────────────────────────────────────────────┘
+
+#### 6.1. Təqdimat Qatı (Presentation Layer)
+
+Bu qat, İSTİFADƏÇİNİN BİLAVASİTƏ GÖRDÜYÜ VƏ TOXUNDUĞU HƏR ŞEYDİR — Flutter-in DEKLARATİV (declarative) Widget AĞACI. Hər bir "feature" (xüsusiyyət) qovluğu (`lib/features/<modul>/screens/` və `widgets/`) ÖZ EKRANLARINI VƏ TƏKRAR İSTİFADƏ OLUNAN VİDJETLƏRİNİ saxlayır. Bu qat HEÇ VAXT BİRBAŞA Firebase və ya verilənlər bazası ilə ƏLAQƏ SAXLAMIR — YALNIZ Riverpod `Provider`-lərini "İZLƏYİR" (`ref.watch`) VƏ HADİSƏLƏRİ (məsələn, düyməyə basma) Notifier-lərə "ÖTÜRÜR" (`ref.read(...).method()`).
+
+#### 6.2. Vəziyyət İdarəetmə Qatı (State Management Layer)
+
+`flutter_riverpod` (v2.6.1) paketi VASİTƏSİLƏ REALİZƏ OLUNUB. Bu qat, "Bİznes Məntiqinin" (business logic) ƏSAS HİSSƏSİNİ VƏ TƏTBİQİN CARİ VƏZİYYƏTİNİ (current state) saxlayır — məsələn, `GameNotifier` (oyun lövhəsinin cari vəziyyəti, saatlar, gediş tarixçəsi), `currentUserProvider` (giriş etmiş istifadəçinin profili). Bu qat TƏQDİMAT QATINDAN ASILI DEYİL (UI-dan HEÇ NƏ İMPORT ETMİR) — bu, ƏKS İSTİQAMƏTLİ ASILILIQ (dependency direction) PRİNSİPİNƏ ƏMƏL EDİR VƏ BİZNES MƏNTİQİNİN UI OLMADAN TEST EDİLMƏSİNƏ İMKAN VERİR.
+
+#### 6.3. Servis və Məntiq Qatı (Service & Logic Layer)
+
+İki əsas alt-qatdan ibarətdir:
+- **`lib/core/services/`** — Firebase ilə BİRBAŞA ƏLAQƏ SAXLAYAN servislər: `AuthService`, `FirestoreService`, `RealtimeGameService`, `EloService`, `NotificationService`, `PhotoService`, `LogService`, `OtpService`, `TournamentService`. Bu siniflər, Firebase SDK-NIN XAM (raw) API-larını TƏTBİQƏ-XAS (domain-specific), TİP-TƏHLÜKƏSİZ (type-safe) METODLARA ÇEVİRƏN bir "ARA QAT" (abstraction layer) rolunu oynayır.
+- **`lib/features/*/engine/`** — XALİS DART (heç bir Flutter/Firebase asılılığı olmayan) OYUN MƏNTİQİ: `ChessEngine`, `CheckersEngine`, `DominoEngine` və onların AI alqoritmləri. Bu siniflərin "TƏMİZ DART" OLMASI, ONLARIN İSTƏNİLƏN PLATFORMADA (hətta backend Dart serverində) İSTİFADƏ OLUNA BİLMƏSİNİ VƏ ASANLIQLA UNIT-TEST EDİLMƏSİNİ TƏMİN EDİR.
+
+#### 6.4. Verilənlər Qatı (Data Layer)
+
+Tamamilə **Firebase** EKOSİSTEMİ ÜZƏRİNDƏ qurulub (bax Bölmə 7) — XÜSUSİ BACKEND SERVERİ YAZILMAYIB (Cloud Functions İSTİSNA OLMAQLA, onlar da "serverless"dir). Buna əlavə olaraq, REYTİNQ HESABLAMASI ÜÇÜN XARİCİ BİR **Stockfish REST API**-dan (HTTP vasitəsilə) İSTİFADƏ OLUNUR (bax Bölmə 9), VƏ İSTİFADƏÇİ TƏNZİMLƏMƏLƏRİ (səs, tema, dil) `shared_preferences` İLƏ CİHAZDA LOKAL SAXLANILIR.
+
+## 7. Texnologiya Stack-i (Tam Siyahı)
+
+`pubspec.yaml` faylına əsasən, layihədə istifadə olunan ƏSAS PAKETLƏR VƏ ONLARIN VERSİYALARI:
+
+#### 7.1. Əsas Çərçivə
+- **Flutter** (SDK), **Dart** `>=3.7.0 <4.0.0`
+
+#### 7.2. Firebase Ekosistemi
+- `firebase_core: ^3.6.0` — Firebase-in inicializasiyası.
+- `firebase_auth: ^5.3.1` — Autentifikasiya (email/şifrə, Google).
+- `cloud_firestore: ^5.4.4` — Sənəd-əsaslı (NoSQL) verilənlər bazası.
+- `firebase_database: ^11.1.4` — Realtime Database (real-vaxt oyun sinxronu).
+- `firebase_messaging: ^15.1.4` — Push bildirişlər (FCM).
+- `firebase_storage: ^12.3.3` — Profil şəkilləri üçün fayl saxlama.
+- `cloud_functions: ^5.1.3` — Server-tərəfi funksiyalar (OTP, reytinq hesablanması).
+
+#### 7.3. Vəziyyət İdarəetmə və Naviqasiya
+- `flutter_riverpod: ^2.6.1`
+- `go_router: ^14.6.2`
+
+#### 7.4. UI, Animasiya və Dizayn
+- `google_fonts: ^6.2.1` — Fərdi şriftlər (Poppins/Inter və s.).
+- `phosphor_flutter: ^2.1.0` — İkon dəsti.
+- `flutter_svg: ^2.0.10` — Şahmat fiqurlarının SVG formatında render edilməsi.
+- `flutter_animate: ^4.5.0` — Deklarativ animasiyalar (fade, slide, scale).
+- `shimmer: ^3.0.0` — Yüklənmə (loading) zamanı "shimmer" effekti.
+- `cached_network_image: ^3.4.1` — Şəbəkədən yüklənən şəkillərin keşlənməsi.
+
+#### 7.5. Oyun Məntiqi
+- `chess: ^0.8.1` — FEN/SAN/PGN dəstəkli şahmat qaydaları mühərriki (bax Bölmə 7).
+- `http: ^1.2.2` — Stockfish API ilə əlaqə (bot gedişləri üçün).
+
+#### 7.6. Xəritə (Map) Funksionallığı
+- `flutter_map: ^7.0.2`, `latlong2: ^0.9.0`, `geolocator: ^13.0.2` — "Yaxınlıqdakı oyunçular" xəritəsi üçün.
+
+#### 7.7. Digər Köməkçi Paketlər
+- `shared_preferences: ^2.3.3` — Lokal açar-dəyər keşi (tənzimləmələr, sessiya ID-si).
+- `connectivity_plus: ^6.1.0` — İnternet bağlantısının yoxlanılması.
+- `intl: ^0.19.0` — Tarix/say formatlaşdırma.
+- `uuid: ^4.5.1` — Unikal oyun/sessiya ID-ləri yaratmaq.
+- `equatable: ^2.0.7`, `collection: ^1.18.0` — Dəyər-əsaslı bərabərlik və kolleksiya köməkçiləri.
+- `flutter_local_notifications: ^18.0.1` — Lokal bildirişlər.
+- `audioplayers: ^6.1.0` — Oyun səsləri (gediş, yemə, mat).
+- `crypto: ^3.0.3` — Hash əməliyyatları.
+- `google_sign_in: ^6.2.2` — Google ilə daxil olma.
+- `device_info_plus: ^10.1.0`, `package_info_plus: ^8.1.1` — Cihaz/tətbiq versiyası məlumatları (sessiya idarəetməsi üçün).
+- `share_plus: ^10.1.3` — Tətbiqi/nəticələri paylaşma.
+- `easy_localization: ^3.0.7` — Çoxdilli dəstək (bax Bölmə 16).
+
+## 8. Layihənin Qovluq Strukturuna Ümumi Baxış
+
+Layihə kökündəki `lib/` qovluğu İKİ ƏSAS HİSSƏYƏ BÖLÜNÜB — `core/` (paylaşılan, tətbiqin HƏR YERİNDƏ istifadə olunan infrastruktur) və `features/` (HƏR BİR FUNKSİONAL MODULUN ÖZ-ÖZLÜYÜNDƏ TOPLANMIŞ KODU). Bu "FEATURE-FIRST" (xüsusiyyət-yönümlü) TƏŞKİLAT, "LAYER-FIRST" (bütün modellər bir qovluqda, bütün ekranlar başqa bir qovluqda) yanaşmasından FƏRQLİ OLARAQ, BİR XÜSUSİYYƏT ÜZƏRİNDƏ İŞLƏYƏRKƏN BÜTÜN ƏLAQƏLİ FAYLLARIN BİR-BİRİNƏ YAXIN OLMASINI TƏMİN EDİR. Bu strukturun DİZAYN PRİNSİPLƏRİ VƏ Riverpod-un TƏTBİQİ ÜSULLARI Bölmə 2-də ƏTRAFLI İZAH OLUNACAQ.
+
+> lib/
+>  ├── core/
+>  │    ├── config/      → mühit (environment) konfiqurasiyaları
+>  │    ├── constants/    → sabitlər (rənglər, ölçülər və s.)
+>  │    ├── models/       → UserModel, GameModel, TournamentModel...
+>  │    ├── router/        → GoRouter konfiqurasiyası
+>  │    ├── services/      → Firebase və digər servislər
+>  │    ├── theme/          → ThemeData, rəng sxemləri
+>  │    ├── utils/           → ümumi köməkçi funksiyalar
+>  │    └── widgets/          → paylaşılan vidjetlər (InviteListener və s.)
+>  └── features/
+>       ├── auth/, campaign/, chat/, checkers/, domino/,
+>       ├── friends/, game/, groups/, home/, leaderboard/,
+>       ├── map/, matchmaking/, profile/, settings/, tournaments/
+>       └── (hər biri: screens/, widgets/, providers/, [engine/])
+
+## 9. Platform Dəstəyi
+
+Flutter-in "BİR DƏFƏ YAZ, HƏR YERDƏ İŞLƏT" (write once, run anywhere) FƏLSƏFƏSİNƏ UYĞUN OLARAQ, layihə HEÇ BİR ƏLAVƏ DƏYİŞİKLİK TƏLƏB ETMƏDƏN Android, iOS VƏ Web (`flutter_launcher_icons` konfiqurasiyasında `web: generate: true` göstərilib) PLATFORMALARI ÜÇÜN BUILD OLUNA BİLƏR. Əsas hədəf platforma **Android**-dir (`min_sdk_android: 21`, yəni Android 5.0 Lollipop və yuxarısı dəstəklənir), lakin Firebase-in PLATFORMLARARASI TƏBİƏTİ SAYƏSİNDƏ, BACKEND TƏRƏFDƏ HEÇ BİR DƏYİŞİKLİYƏ EHTİYAC OLMADAN tətbiq digər platformalara da YAYILA BİLƏR.
+
+## 10. İnkişaf Mühiti və Vasitələri
+
+- **Versiya Nəzarəti:** Git (layihə kökündə `.git` qovluğu, `main` və inkişaf budaqları).
+- **IDE:** Visual Studio Code / Android Studio (Flutter və Dart plaginləri ilə).
+- **Backend İdarəetmə:** Firebase Console (Firestore qaydaları, Authentication tənzimləmələri, Cloud Functions yerləşdirilməsi).
+- **Test Mühiti:** Android Emulator/Fiziki cihaz, `flutter run` ilə Hot Reload/Hot Restart.
+- **Tətbiq İkonları:** `flutter_launcher_icons` paketi vasitəsilə `assets/images/app_icon.png`-dən AVTOMATIK OLARAQ HƏR PLATFORMA ÜÇÜN İKON GENERASİYASI.
+
+## 11. Hesabatın Quruluşu
+
+Bu hesabat 16 fəsildən ibarətdir:
+
+1. **Giriş, Məqsəd və Ümumi Arxitektura** (bu fəsil)
+2. Layihə Strukturu və Dizayn Pattern-ləri (Riverpod)
+3. Backend İnfrastrukturu (Firebase)
+4. Autentifikasiya və Təhlükəsizlik
+5. Verilənlər Modelləri və Firestore Servisi
+6. Naviqasiya Sistemi (GoRouter)
+7. Şahmat Oyun Mühərriki
+8. Şahmat UI/UX
+9. Süni İntellekt — Bot Alqoritmləri
+10. Real-Vaxt Multiplayer və Matçmeykinq
+11. Dama (Checkers) Modulu
+12. Domino Modulu
+13. Reytinq Sistemi, Lider Lövhəsi və Profil
+14. Turnir Sistemi
+15. Kampaniya Rejimi
+16. Sosial Funksiyalar, Lokalizasiya və Dizayn Sistemi
+
+## 12. Nəticə
+
+"Grandmaster" layihəsi, MÜASİR MOBİL TƏTBİQ İNKİŞAFININ ƏN VACİB PRİNSİPLƏRİNİ — TƏMİZ ARXİTEKTURA (qatlı struktur), MİQYASLANA BİLƏN VƏZİYYƏT İDARƏETMƏSİ (Riverpod), BULUD-ƏSASLI BACKEND (Firebase), VƏ MÜRƏKKƏB ALQORİTMİK MƏNTİQ (oyun AI-ları) — TƏK BİR LAYİHƏDƏ BİRLƏŞDİRƏN GENİŞ HƏCMLİ BİR PROQRAM TƏ'MİNATI MƏHSULUDUR. Növbəti bölmələrdə, yuxarıda təsvir edilən HƏR BİR QATIN VƏ MODULUN DAXİLİ İŞLƏYİŞ MEXANİZMİ, KONKRET KOD NÜMUNƏLƏRİ İLƏ BİRLİKDƏ ƏTRAFLI ŞƏKİLDƏ TƏHLİL OLUNACAQ.

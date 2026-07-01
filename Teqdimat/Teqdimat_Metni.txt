@@ -1,0 +1,443 @@
+==================================================================
+  CHECKMATE — TƏQDİMAT MƏTNİ
+  Müəllif: Miryusif Məcidov | AzTU, İTT Fakültəsi, Qrup 652a3
+  Davametmə: ~15-20 dəqiqə | Slayd sayı: 21
+==================================================================
+
+  QEYD: Hər bölmə bir slayda uyğundur (SLAYD 1 -> Slayd 1).
+  Mötərizə içindəki [...] qeydlər yalnız sizin üçündür, ucadan
+  oxunmur — ekranda nəyin göstəriləcəyini xatırladır.
+
+
+------------------------------------------------------------------
+AÇILIŞ SÖZÜ (salamlaşma, slaydlardan əvvəl)
+------------------------------------------------------------------
+
+Hörmətli professorlar, dekanlığın hörmətli nümayəndələri və əziz
+tələbə yoldaşlarım, sabahınız xeyir!
+
+Mənim adım Miryusif Məcidovdur. Azərbaycan Texniki Universitetinin
+İnformasiya Texnologiyaları və Telekommunikasiya fakültəsinin 652a3
+qrup tələbəsiyəm. Bu gün sizə son bir neçə ay ərzində sıfırdan
+hazırladığım, artıq Google Play Store-da canlı olaraq yayımlanan
+"CheckMate" adlı tam funksional mobil tətbiqi təqdim etmək
+istəyirəm. Bu, sadəcə bir kurs layihəsi deyil — real istifadəçilərə
+çatan, real performans göstərən tam bir məhsuldur. Növbəti 15-20
+dəqiqə ərzində sizə tətbiqin nə olduğunu, hansı texnologiyalar
+üzərində qurulduğunu, daxilindəki süni intellekt alqoritmlərini və
+nəhayət Play Store-da yayımlanmasından sonra əldə etdiyimiz real
+istifadəçi statistikasını təqdim edəcəyəm.
+
+
+------------------------------------------------------------------
+SLAYD 1 — BAŞLIQ: CheckMate
+------------------------------------------------------------------
+[EKRAN: Loqo, tətbiq ikonu, başlıq "CheckMate", alt başlıq
+"Çox-Oyunlu Strateji Platforma", müəllif adı və universitet]
+
+CheckMate — Flutter texnologiyası üzərində qurulmuş, Dart dilində
+yazılmış, tam üç strateji oyunu — şahmat, dama və domino — bir araya
+gətirən cross-platform mobil tətbiqdir. Hazırda Android versiyası
+Google Play-də aktiv olaraq yayımlanır və real istifadəçilər
+tərəfindən yüklənib oynanılır.
+
+
+------------------------------------------------------------------
+SLAYD 2 — GİRİŞ VƏ MOTİVASİYA
+------------------------------------------------------------------
+[EKRAN: "Niyə bu layihə?" başlığı, 3-4 motivasiya bənddi]
+
+Bu layihəyə başlarkən qarşıma üç məqsəd qoymuşdum. Birincisi,
+real dünya miqyasında, tam funksional bir mobil tətbiqi başdan sona
+özüm hazırlamaq — sadəcə dizayn deyil, backend, verilənlər bazası,
+real-vaxt kommunikasiya və süni intellekt daxil olmaqla bütün
+qatları. İkincisi, klassik alqoritmlər kursunda öyrəndiyimiz
+axtarış alqoritmlərini — Minimax, Alpha-Beta budama, Monte Carlo
+Tree Search — real bir məhsulda tətbiq etmək. Üçüncüsü isə, bunu
+elə qurmaq ki, layihə akademik tapşırıqdan kənara çıxsın və real
+istifadəçilərə fayda versin. Nəticədə ortaya çıxan CheckMate bu üç
+məqsədi də özündə birləşdirir.
+
+
+------------------------------------------------------------------
+SLAYD 3 — KONSEPSİYA: BİR PLATFORMA, ÜÇ OYUN
+------------------------------------------------------------------
+[EKRAN: Mərkəzdə "CheckMate" loqosu, ətrafında Şahmat / Dama /
+Domino kartları, hər birinin altında 4 oyun rejimi ikonu]
+
+CheckMate-in əsas konsepsiyası sadədir: bir platforma, üç strateji
+oyun, dörd oyun rejimi. İstifadəçi şahmat, dama və ya domino
+oynaya bilər — və hər üçündə eyni təcrübə təklif olunur: süni
+intellektə qarşı (Bot), eyni telefonda iki nəfər (Lokal),
+internet üzərindən canlı rəqibə qarşı (Onlayn) və hekayə əsaslı
+Kampaniya rejimi. Bu unifikasiya təsadüfi deyil — kodun
+arxitekturasında "GameType" adlı mərkəzi bir abstraksiya var ki,
+reytinq sistemi, turnir sistemi, matçmeyking və multiplayer
+infrastrukturu bu üç oyun üçün də EYNİ kod bazasından idarə olunur.
+Bu, həm kodun təkrarlanmasının qarşısını alır, həm də yeni oyun
+əlavə etməyi gələcəkdə xeyli asanlaşdırır.
+
+
+------------------------------------------------------------------
+SLAYD 4 — TEXNOLOGİYA STACK-İ
+------------------------------------------------------------------
+[EKRAN: Texnologiya "badge"ləri qruplaşdırılmış şəkildə —
+Frontend / State / Backend / Əlavə alətlər]
+
+İndi tətbiqin texnoloji təməlinə baxaq. Frontend tərəfdə Flutter
+və Dart istifadə olunub — bu, Google-ın bir kod bazasından həm
+Android, həm iOS üçün native performanslı tətbiq yaratmağa imkan
+verən framework-üdür. Vəziyyət idarəetməsi (state management) üçün
+Riverpod seçilib — bu, "Provider" pattern-inin daha təhlükəsiz,
+test edilə bilən və asılılıqları aydın idarə edən versiyasıdır.
+Naviqasiya üçün GoRouter istifadə olunub ki, 30-dan çox ekran
+arasında deklarativ, dərin keçidli (deep-link dəstəkli) marşrutlama
+təmin etsin. Backend tərəfdə isə tamamilə Firebase ekosistemi
+üzərində qurulmuşuq: Firebase Authentication istifadəçi girişi
+üçün, Cloud Firestore strukturlaşdırılmış məlumatlar — profil,
+turnir, reytinq tarixçəsi üçün, Firebase Realtime Database isə
+real-vaxt oyun vəziyyətinin sinxronizasiyası üçün. Əlavə olaraq
+Cloud Functions server tərəfli məntiq üçün, Firebase Cloud Messaging
+isə push bildirişlər üçün istifadə olunur.
+
+
+------------------------------------------------------------------
+SLAYD 5 — ARXİTEKTURA: 4 QATLI QURULUŞ
+------------------------------------------------------------------
+[EKRAN: Yuxarıdan aşağı 4 qat — Presentation / State / Service /
+Data — animasiyalı şəkildə bir-bir görünür, oxlarla bağlanır]
+
+Layihənin bütün kod bazası dörd aydın qatdan ibarətdir. Ən üstdə
+Presentation qatı dayanır — bu, istifadəçinin gördüyü ekranlar və
+vidcetlərdir. Onun altında State qatı yerləşir — Riverpod
+provider-ləri vasitəsilə tətbiqin vəziyyətini saxlayır və UI-ı
+yeniləyir. Üçüncü qat Service qatıdır — burada biznes məntiqi,
+Firebase ilə əlaqə, AI mühərrikləri və reytinq hesablamaları
+yerləşir. Ən aşağıda isə Data qatı var — modellər, Firestore
+sənədləri və yerli keş. Bu təbəqələşmə sayəsində, məsələn, AI
+alqoritmini dəyişdirmək istəsəm, UI-a toxunmadan yalnız Service
+qatında dəyişiklik edə bilərəm. Bu, kodun həm test edilməsini, həm
+də uzunmüddətli saxlanmasını xeyli asanlaşdırır.
+
+
+------------------------------------------------------------------
+SLAYD 6 — NAVİQASİYA VƏ STATE MANAGEMENT
+------------------------------------------------------------------
+[EKRAN: Sol tərəfdə GoRouter marşrut ağacı sxemi, sağ tərəfdə
+Riverpod provider nümunəsi]
+
+Tətbiqdə 30-dan artıq ekran var — giriş, qeydiyyat, ana səhifə,
+oyun taxtası, profil, liderlik lövhəsi, turnirlər, kampaniya xəritəsi
+və s. Bunların hamısını idarə etmək üçün GoRouter-dən istifadə
+edirik ki, bu da həm "deep link" — yəni birbaşa konkret bir oyun
+otağına keçid linki, həm də autentifikasiya əsaslı yönləndirmə
+(guard) imkanı verir. Vəziyyət idarəetməsi tərəfində isə Riverpod-un
+StateNotifier və Provider strukturları istifadə olunur. Məsələn,
+bir şahmat oyunu zamanı taxtanın vəziyyəti, saat, gedişlər tarixçəsi
+— hamısı tək bir "GameProvider" daxilində saxlanılır və UI bu
+provider-i "watch" edərək avtomatik yenilənir. Bu yanaşma "boilerplate"
+kodu minimuma endirir və performans baxımından lazımsız "rebuild"-lərin
+qarşısını alır.
+
+
+------------------------------------------------------------------
+SLAYD 7 — ŞAHMAT MÜHƏRRİKİ
+------------------------------------------------------------------
+[EKRAN: Şahmat taxtası animasiyası, FEN/SAN/PGN nümunə kodu]
+
+Şahmat modulunun nüvəsində oyun qaydalarının düzgün tətbiqini təmin
+edən bir mühərrik dayanır. Bu mühərrik şahmatın standart
+notasiyalarını dəstəkləyir: FEN — taxtanın istənilən anının mətn
+formatında təsviri, SAN — gedişlərin "Nf3", "exd5" kimi standart
+qeydiyyatı, və PGN — bütün partiyanın tarixçəsinin saxlanması üçün
+format. Bu standartlara uyğunluq vacibdir, çünki bu sayədə tətbiqdə
+oynanan istənilən partiyanı ixrac edib istənilən başqa şahmat
+proqramında (məsələn, Lichess və ya Chess.com analiz alətlərində)
+açmaq mümkündür. Mühərrik həmçinin bütün xüsusi qaydaları —
+rokirovka, en-passant, pешка çevrilməsi (promotion), şah-mat və pat
+vəziyyətlərinin aşkarlanmasını tam dəstəkləyir.
+
+
+------------------------------------------------------------------
+SLAYD 8 — ŞAHMAT UI/UX
+------------------------------------------------------------------
+[EKRAN: 5 fərqli taxta teması yan-yana, saat vidceti, gedişlər
+siyahısı]
+
+İstifadəçi təcrübəsi tərəfində oyun taxtası tam animasiyalıdır —
+fiqur sürüşməsi, tutma effektləri, şah vəziyyətində parıltı (glow)
+effekti. İstifadəçilər 5 fərqli taxta temasından birini seçə bilər:
+klassik qəhvəyi, yaşıl keçə, tünd mərmər, mavi buz və krem-perqament.
+Hər partiyada peşəkar şahmat saatı simulyasiyası mövcuddur — vaxt
+azalması, "low time" xəbərdarlığı və avtomatik vaxt bitməsi
+hesablanması daxil olmaqla. Sağ paneldə isə real-vaxt gedişlər
+siyahısı göstərilir ki, istifadəçi istənilən an geriyə baxıb
+partiyanı təhlil edə bilsin.
+
+
+------------------------------------------------------------------
+SLAYD 9 — SÜNİ İNTELLEKT (AI) ALQORİTMLƏRİ
+------------------------------------------------------------------
+[EKRAN: 3 sütun — Şahmat / Dama / Domino, hər birinin altında
+istifadə olunan alqoritmin adı və qısa izahı]
+
+Bu, akademik baxımdan layihənin ən maraqlı hissəsidir, çünki hər üç
+oyun fərqli növ axtarış alqoritmi tələb edir. Şahmat botunda
+Minimax alqoritmi Alpha-Beta budaması ilə birlikdə istifadə olunur
+— çətinlik səviyyəsindən asılı olaraq axtarış dərinliyi dəyişir, və
+Alpha-Beta budama sayəsində araşdırılan node sayı eksponensial
+şəkildə azalır. Dama (checkers) botunda isə Negamax alqoritmi
+Transposition Table — yəni əvvəllər hesablanmış mövqelərin yaddaşda
+saxlanması ilə işləyir; bu da məcburi tutma (forced capture) qaydası
+ilə birləşərək effektiv qərar qəbuluna imkan verir. Domino isə
+fərqli bir problemdir — rəqibin əlindəki daşlar bilinmir, yəni
+"qeyri-tam məlumat" (imperfect information) şəraitidir. Bunun üçün
+Monte Carlo Tree Search, yəni MCTS alqoritmi istifadə olunub — bot
+minlərlə təsadüfi simulyasiya aparıb statistik olaraq ən perspektivli
+gedişi seçir. Performansın UI-ı bloklamaması üçün bütün bu
+hesablamalar ayrı Dart Isolate-larda, yəni ayrı paralel "thread"-lərdə
+icra olunur.
+
+
+------------------------------------------------------------------
+SLAYD 10 — REAL-VAXT MULTIPLAYER
+------------------------------------------------------------------
+[EKRAN: İki telefon arasında Firebase RTDB ilə sinxronizasiya
+animasiyası, matçmeyking axını]
+
+Onlayn rejimdə iki istifadəçi bir-biri ilə real vaxtda eyni partiyanı
+oynayır. Bunun arxasında Firebase Realtime Database dayanır — hər
+gediş edildiyi an qarşı tərəfin ekranında milisaniyələr içində
+əks olunur. Matçmeyking sistemi istifadəçiləri reytinqlərinə görə
+uyğun rəqiblərlə eşləşdirir. Həmçinin "presence" sistemi var —
+yəni rəqibin onlayn olub-olmadığı, əlaqənin kəsilib-kəsilmədiyi real
+vaxtda izlənilir, və qoşulma kəsilərsə, partiyanın ədalətli şəkildə
+tamamlanması üçün müvafiq məntiq işə düşür. Dost dəvəti sistemi də
+mövcuddur — istifadəçi konkret bir dostunu birbaşa partiyaya dəvət
+edə bilər.
+
+
+------------------------------------------------------------------
+SLAYD 11 — DAMA (CHECKERS) MODULU
+------------------------------------------------------------------
+[EKRAN: Dama taxtası, məcburi tutma qaydasının vizual
+nümayişi — vurğulanmış daşlar]
+
+Dama modulu CheckMate-in eyni infrastrukturu — multiplayer, reytinq,
+turnir sistemi — üzərində işləyir, lakin öz unikal qayda dəstinə
+malikdir. Ən vacib qayda budur: əgər tutma (capture) gedişi
+mümkündürsə, oyunçu MÜTLƏQ o gedişi etməlidir — bu, "məcburi tutma"
+qaydasıdır və mühərrik bunu avtomatik tətbiq edir, qanunsuz
+gedişlərə icazə vermir. Dama, Şahla yanaşı, xüsusilə "dama" (king)
+fiquruna çevrilmə və zəncirvari çoxlu tutmaların (multi-jump)
+hesablanması baxımından alqoritmik cəhətdən maraqlıdır — bot bu
+zəncirləri Negamax axtarışı zamanı tam nəzərə alır.
+
+
+------------------------------------------------------------------
+SLAYD 12 — DOMİNO MODULU
+------------------------------------------------------------------
+[EKRAN: Domino daşları, əl (hand) görüntüsü, MCTS qərar ağacı
+animasiyası]
+
+Domino modulu CheckMate-də üçüncü oyun olaraq platformaya tam
+inteqrasiya olunub — eyni dərəcə bənzərliyi, eyni bot çətinlik
+sistemi və eyni multiplayer infrastrukturu ilə. Daşların uyğunlaşması,
+"keçmə" (pass) məntiqi və xal hesablanması tam tətbiq olunub. Əvvəl
+qeyd etdiyim kimi, burada bot MCTS ilə işləyir — çünki rəqibin
+əlində hansı daşların olduğunu bilmədiyi üçün klassik Minimax kimi
+"tam məlumatlı" alqoritmlər birbaşa tətbiq oluna bilməz. Bunun
+əvəzinə bot mümkün ssenariləri simulyasiya edir və ən yüksək
+qazanma ehtimalına malik gedişi seçir.
+
+
+------------------------------------------------------------------
+SLAYD 13 — REYTİNQ VƏ ELO SİSTEMİ
+------------------------------------------------------------------
+[EKRAN: ELO formulu, reytinq tarixçəsi qrafiki (xətt qrafiki),
+liderlik lövhəsi nümunəsi]
+
+Bütün üç oyun üçün vahid reytinq sistemi mövcuddur — bu, şahmat
+dünyasında hamının tanıdığı ELO sisteminə əsaslanır. Hər partiyadan
+sonra hər iki oyunçunun reytinqi onların əvvəlki reytinq fərqinə və
+oyunun nəticəsinə (qələbə/məğlubiyyət/heç-heçə) əsasən yenidən
+hesablanır — gözlənilməz nəticələr (məsələn, aşağı reytinqli
+oyunçunun güclü rəqibi məğlub etməsi) reytinqdə daha böyük dəyişikliyə
+səbəb olur. Bu hesablama "calculatePointChange" adlı funksiya
+vasitəsilə icra olunur və Firestore-da hər istifadəçinin reytinq
+tarixçəsi saxlanılır ki, profil ekranında vaxt üzrə inkişaf qrafiki
+göstərilə bilsin. Qlobal liderlik lövhəsi isə bütün istifadəçiləri
+reytinqə görə sıralayır.
+
+
+------------------------------------------------------------------
+SLAYD 14 — TURNİRLƏR (ARENA)
+------------------------------------------------------------------
+[EKRAN: Turnir lobbisi, iştirakçı siyahısı, avtomatik
+cütləşdirmə (pairing) animasiyası]
+
+"Arena" adlandırdığımız turnir sistemi istifadəçilərə öz
+turnirlərini yaratmaq və ya mövcud turnirlərə qoşulmaq imkanı verir.
+Turnir başladıqdan sonra sistem iştirakçıları avtomatik cütləşdirir,
+hər raundun nəticəsinə əsasən sıralama yenilənir, və turnir sonunda
+qaliblər müəyyən edilir. Bu sistem də əvvəl bəhs etdiyim "GameType"
+abstraksiyası sayəsində həm şahmat, həm dama, həm də domino
+turnirləri üçün eyni kodla işləyir — yalnız oyun mühərriki
+dəyişdirilir, turnir məntiqi eyni qalır.
+
+
+------------------------------------------------------------------
+SLAYD 15 — KAMPANİYA REJİMİ
+------------------------------------------------------------------
+[EKRAN: Kampaniya xəritəsi — aktlara bölünmüş yol, kilidli/açıq
+fəsil ikonları]
+
+Tək oyunçu təcrübəsini daha maraqlı etmək üçün hekayə əsaslı
+Kampaniya rejimi hazırlanıb. Kampaniya 10 fərqli "akt"a bölünmüş
+100 fəsildən ibarətdir. Hər fəsil tədricən çətinləşən bir AI rəqibi
+təmsil edir — istifadəçi əvvəlki fəsli tamamladıqca yeni fəsillər
+açılır. Bu rejim həm yeni başlayanlar üçün tədrici öyrənmə əyrisi
+yaradır, həm də təcrübəli oyunçular üçün uzunmüddətli məqsəd
+təqdim edir. Hər akt vizual olaraq xəritədə fərqli bir bölgə kimi
+göstərilir və irəliləyiş avtomatik saxlanılır.
+
+
+------------------------------------------------------------------
+SLAYD 16 — SOSİAL FUNKSİYALAR
+------------------------------------------------------------------
+[EKRAN: Dostlar siyahısı, çat pəncərəsi, dünya xəritəsi üzərində
+oyunçu yerləşmələri]
+
+CheckMate təkcə oyun deyil, həm də ictimai bir platformadır.
+İstifadəçilər bir-birini dost əlavə edə bilər, daxili çat vasitəsilə
+yazışa bilər, qruplar yarada bilər. Maraqlı funksiyalardan biri də
+"oyunçu xəritəsi"dir — istifadəçilər (icazə verdikləri halda)
+dünya xəritəsində digər oyunçuların təxmini yerləşməsini görə
+bilirlər. Bu, məsafə hesablamaları üçün Haversine formulundan
+istifadə edir — yəni Yer kürəsinin əyriliyini nəzərə alaraq iki
+koordinat arasındakı real məsafəni hesablayan triqonometrik
+formuldur.
+
+
+------------------------------------------------------------------
+SLAYD 17 — LOKALİZASİYA: 10 DİL
+------------------------------------------------------------------
+[EKRAN: Dünya xəritəsi və ya bayraq ikonları — AZ, EN, RU, TR, DE,
+ES, FR, HI, UR, ZH]
+
+Tətbiq başlanğıcdan beynəlxalq auditoriyanı nəzərdə tutaraq
+hazırlanıb. "easy_localization" paketi vasitəsilə hazırda 10 dil
+tam dəstəklənir: Azərbaycan, İngilis, Rus, Türk, Alman, İspan, Fransız,
+Hind, Urdu və Çin dilləri. Bütün UI mətnləri, bildirişlər və hətta
+tarix/rəqəm formatları seçilmiş dilə uyğun avtomatik dəyişir. Bu,
+təsadüfi seçim deyil — irəlidə görəcəyimiz kimi, real istifadəçi
+bazamız artıq Hindistan, ABŞ, Böyük Britaniya, Rusiya kimi müxtəlif
+ölkələrdən ibarətdir, və bu dil dəstəyi həmin istifadəçilərin tətbiqi
+rahat istifadə etməsini təmin edir.
+
+
+------------------------------------------------------------------
+SLAYD 18 — DİZAYN SİSTEMİ
+------------------------------------------------------------------
+[EKRAN: Rəng palitrası swatch-ları (kəhrəba, tünd fon, checkers
+mavisi, domino yaşılı), tipoqrafiya nümunəsi — Fraunces + Inter]
+
+Bütün tətbiq vahid dizayn sistemi üzərində qurulub — və əslində,
+indi gördüyünüz bu təqdimatın özü də HƏMİN dizayn sistemindən
+istifadə edir. Əsas fon tünd, demək olar qara rəngdədir, əsas vurğu
+rəngi isə zərif bir kəhrəba-qızılı tondur. Hər oyunun öz ikincil
+rəngi var — dama üçün mavi, domino üçün yaşıl — bu da istifadəçiyə
+hansı oyunda olduğunu vizual olaraq dərhal hiss etdirir. Tipoqrafiya
+tərəfində üç fontdan ibarət bir sistem istifadə olunur: başlıqlar
+üçün zərif, "serif" xarakterli Fraunces fontu, əsas mətnlər üçün
+müasir və oxunaqlı Inter fontu, rəqəmlər və kodlar üçün isə monospace
+JetBrains Mono fontu. Bu sistem tətbiqin bütün ekranlarında — dialoqlar,
+düymələr, kartlar daxil olmaqla — ardıcıl tətbiq olunur.
+
+
+------------------------------------------------------------------
+SLAYD 19 — PLAY STORE-DA NƏŞR
+------------------------------------------------------------------
+[EKRAN: Tətbiq ikonu, Play Store siyahı görünüşünün skrinşotu və ya
+maketi, paket adı "com.ludodo.checkmate"]
+
+Layihə akademik çərçivədən kənara çıxaraq Google Play Store-da rəsmi
+olaraq dərc edilib. Tətbiqin paket identifikatoru "com.ludodo.checkmate"-dir,
+hazırkı versiya isə 1.0.3-dür. Nəşr prosesi Android App Bundle
+formatında imzalanmış release build-in hazırlanmasını, Play Console-da
+mağaza siyahısının (başlıq, təsvir, skrinşotlar, ikon) doldurulmasını
+və Google-ın daxili nəzərdənkeçirmə prosesindən keçməyi əhatə etdi.
+Bu mərhələ texniki işdən fərqli olaraq, "real istifadəçiyə çatmaq"
+üçün lazım olan son addımdır — və bundan sonrakı slaydda görəcəyiniz
+kimi, tətbiq artıq real nəticələr göstərməyə başlayıb.
+
+
+------------------------------------------------------------------
+SLAYD 20 — STATİSTİKA: İLK HƏFTƏNİN NƏTİCƏLƏRİ
+------------------------------------------------------------------
+[EKRAN: Animasiyalı say sayğacları (counter) — böyük rəqəmlər
+0-dan hədəfə qədər artır; ölkələr üzrə üfüqi bar-qrafik;
+5 ulduzlu reytinq vizualı]
+
+İndi isə, fikrimcə, bu təqdimatın ən həyəcanverici hissəsinə
+gəlirik — real istifadəçi statistikası. Tətbiq Play Store-a
+yerləşdirildikdən sonra İLK HƏFTƏ ərzində 97 nəfər tətbiqi yükləyib
+— bu, ortalama olaraq hər gün təxminən 5 fərqli istifadəçi deməkdir,
+və bu istifadəçilər dünyanın müxtəlif guşələrindəndir. Coğrafi
+bölgüyə baxsaq: Hindistandan 32, ABŞ-dan 23, Böyük Britaniyadan 17,
+Rusiyadan 9 istifadəçi, qalan təxminən 16 istifadəçi isə digər
+ölkələrdən — o cümlədən Avropanın müxtəlif nöqtələrindən — yükləyib.
+Bundan da vacibi — keyfiyyət göstəricisidir: 9 istifadəçi tətbiqə
+qiymət verib və HAMISI 5 ulduz qoyub, yəni tam 5.0 ortalama reytinq.
+Əlavə olaraq 6 istifadəçi yazılı rəy buraxıb, onlardan bəziləri
+Avropadan, xüsusilə Rumıniyadan yazılıb. Bunu vurğulamaq istəyirəm:
+bu rəqəmlər heç bir reklam büdcəsi olmadan, sadəcə tətbiqin keyfiyyəti
+ilə əldə olunub.
+
+
+------------------------------------------------------------------
+SLAYD 21 — TƏŞƏKKÜR VƏ QR KOD
+------------------------------------------------------------------
+[EKRAN: Mərkəzdə böyük QR kod, altında Play Store linki, "Təşəkkür
+edirik" başlığı]
+
+Diqqətiniz üçün çox sağ olun. Əgər istəsəniz, ekrandakı QR kodu
+telefonunuzla skan edərək CheckMate-i birbaşa Google Play-dən
+yükləyə və özünüz sınaya bilərsiniz — şahmat, dama və ya domino,
+istənilən rejimdə. İndi isə suallarınızı məmnuniyyətlə dinləyirəm.
+
+
+------------------------------------------------------------------
+SUAL-CAVAB ÜÇÜN HAZIRLIQ — TƏXMİNİ SUALLAR
+------------------------------------------------------------------
+
+Aşağıdakı suallara qısa cavablar hazırlamaq faydalı ola bilər:
+
+1. "iOS versiyası varmı?"
+   -> Hazırda Android-ə fokuslanmışıq, lakin Flutter-in
+      cross-platform təbiəti sayəsində iOS-a keçid kодun əksər
+      hissəsini dəyişdirmədən mümkündür.
+
+2. "Server xərcləri necə idarə olunur?"
+   -> Firebase-in "pay-as-you-go" modeli istifadə olunur, hazırkı
+      istifadəçi sayında pulsuz (Spark/Blaze free tier) limitlər
+      daxilindədir.
+
+3. "AI nə qədər güclüdür, insanı məğlub edə bilərmi?"
+   -> Çətinlik səviyyəsi tənzimlənə bilir; ən yüksək səviyyədə
+      Alpha-Beta budamalı Minimax orta səviyyəli oyunçular üçün
+      ciddi rəqib təşkil edir.
+
+4. "Niyə Flutter seçildi, native (Kotlin/Swift) yox?"
+   -> Tək kod bazasından həm Android, həm iOS üçün native-yaxın
+      performans, sürətli inkişaf dövrü və zəngin vidcet
+      ekosistemi səbəbindən.
+
+5. "Məlumatların təhlükəsizliyi necə təmin olunur?"
+   -> Firebase Authentication + Firestore təhlükəsizlik qaydaları
+      (security rules) vasitəsilə hər istifadəçi yalnız öz
+      məlumatına çıxış əldə edir.
+
+==================================================================
+                         SON (THE END)
+==================================================================

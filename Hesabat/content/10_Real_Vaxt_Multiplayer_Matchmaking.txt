@@ -1,0 +1,258 @@
+# 10. Real-Vaxt Multiplayer və Matçmeykinq Sistemi
+
+## 1. Giriş və Məqsəd
+
+İki istifadəçi arasında ONLAYN ŞAHMAT/DAMA/DOMINO oyunu — sadəcə "lövhəni göstərmək" deyil, HƏR İKİ TƏRƏFİN GEDİŞLƏRİNİN, SAATLARININ, BAĞLANTI VƏZİYYƏTİNİN VƏ OYUN NƏTİCƏSİNİN SANİYƏNİN ONDA BİRİ DƏQİQLİKLƏ SİNXRONLAŞDIRILMASINI tələb edir. Bu sənəd, "Grandmaster" tətbiqinin REAL-VAXT MULTİPLAYER YADDAŞINI (`RealtimeGameService`, Firebase Realtime Database üzərində qurulub) və oyunun BÜTÜN VƏZİYYƏT MAŞINI MƏNTİQİNİ idarə edən mərkəzi `GameNotifier`/`GameProvider`-i, həmçinin RƏQİB AXTARIŞI (matchmaking) və OYUN DƏVƏTLƏRİ (game invites) sistemlərini əhatə edir.
+
+**Əsas Fayllar:**
+- `lib/core/services/realtime_game_service.dart`
+- `lib/features/game/providers/game_provider.dart`
+- `lib/features/matchmaking/screens/matchmaking_screen.dart`
+- `lib/core/widgets/invite_listener.dart`
+
+## 2. İstifadə Olunan Texnologiyalar
+
+- **`firebase_database` (Realtime Database, RTDB)** — Firestore-dan FƏRQLİ OLARAQ, RTDB MİLLİSANİYƏ SƏVİYYƏSİNDƏ GECİKMƏ ilə işləyən, JSON-AĞACI ŞƏKLİNDƏ TƏŞKİL OLUNMUŞ verilənlər bazasıdır — GEDİŞLƏRİN, SAATLARIN VƏ "BİRİ-İNDİ-YAZIR" KİMİ KEÇİCİ HADİSƏLƏRİN ötürülməsi üçün İDEALDIR.
+- **RTDB Tranzaksiyaları (`runTransaction`)** — RƏQİB CÜTLƏŞDİRMƏSİ (matchmaking) zamanı YARIŞ VƏZİYYƏTİNİN (race condition) qarşısının alınması üçün.
+- **`onDisconnect()` Handler-ləri** — Firebase-in SERVER TƏRƏFİNDƏ İCRA OLUNAN, "İSTİFADƏÇİ BAĞLANTINI İTİRSƏ AVTOMATIK YERİNƏ YETİRİLƏCƏK ƏMƏLİYYAT" mexanizmi.
+- **Riverpod `StateNotifier` + `StateNotifierProvider.autoDispose.family`** — hər oyun ekranı üçün AYRI, PARAMETRLƏŞDİRİLMİŞ (gameId-ə görə) vəziyyət idarəetməsi.
+- **`Timer.periodic`** — saatların 100ms dəqiqliklə yenilənməsi.
+- **`cloud_functions`** — reytinq dəyişikliyinin SERVER TƏRƏFİNDƏ TƏHLÜKƏSİZ HESABLANMASI (`processGameRating`).
+
+## 3. RealtimeGameService: RTDB Ağac Strukturu
+
+> /live_games/{gameId}
+>   ├── whiteUid, blackUid, timeControl, status, createdAt, arenaId?
+>   ├── moves/{pushId}        → {from, to, promotion?, uid}
+>   ├── clocks                → {white, black, updatedAt}
+>   ├── result                → "white" | "black" | "draw"
+>   ├── gameOver               → {result, status}
+>   ├── drawOffer              → {fromUid, sentAt}
+>   └── presence/{uid}         → {online, disconnectedAt}
+>
+> /matchmaking/{uid}           → {uid, rating, timeControl, gameType, joinedAt, gameId?}
+> /invites/{toUid}/{pushId}    → {fromUid, fromUsername, timeControlLabel, isWhite, status, gameId?}
+> /rematch/{originalGameId}    → {requestedBy, newGameId, status}
+> /arena_queue/{tournamentId}/{uid}      → {uid, username, rating, joinedAt}
+> /arena_pairings/{tournamentId}/{uid}   → {opponentUid, gameId, isWhite, pairedAt}
+
+Bu struktur, RTDB-NİN "BİR DƏFƏLİK YAZ, ÇOX DİNLƏ" (write-once, listen-many) MODELİNƏ uyğundur — hər bir "qovşaq" (node) ÖZ-ÖZLÜYÜNDƏ DİNLƏNƏ BİLƏN, KİÇİK BİR VƏZİYYƏT VAHİDİDİR (məsələn, `moves` qovşağına YENİ ELEMENT ƏLAVƏ EDİLDİKDƏ, YALNIZ `onChildAdded` DİNLƏYİCİLƏRİ TETİKLƏNİR — bütün `live_games/{gameId}` ağacı YENİDƏN GÖNDƏRİLMİR).
+
+## 4. Presence (Online/Offline) İzlənməsi: onDisconnect()
+
+> Future<void> goOnline(String gameId, String uid) async {
+>   final ref = _presenceRef(gameId, uid);
+>   // ƏVVƏLCƏ "disconnect handler" qeydiyyatdan keçir
+>   await ref.onDisconnect().update({
+>     'online': false,
+>     'disconnectedAt': ServerValue.timestamp,
+>   });
+>   // SONRA "online: true" yazılır
+>   await ref.update({'online': true, 'disconnectedAt': null});
+> }
+
+Bu metodun SIRASI ÇOX VACİBDİR: `onDisconnect()` HANDLER-İ ƏVVƏLCƏ QEYDİYYATA ALINIR (bu, SERVERDƏ saxlanılan bir "ƏGƏR BU CİHAZ BAĞLANTINI İTİRƏRSƏ, AVTOMATIK OLARAQ BUNU YAZ" göstərişidir), VƏ YALNIZ SONRA `online: true` YAZILIR. Beləliklə, ƏGƏR İSTİFADƏÇİ TƏTBİQİ QƏFLƏTƏN BAĞLASA, İNTERNETİ İTİRSƏ, VƏ YA TƏTBİQ ÇÖKSƏ — FIREBASE-İN ÖZÜ (HEÇ BİR KLİENT KODU İŞLƏMƏDƏN) `presence/{uid}.online`-İ `false`-A YAZACAQ. Bu, "DEAD MAN'S SWITCH" (ölü adamın açarı) PRİNSİPİNİN KLASSİK TƏTBİQİDİR.
+
+## 5. Matchmaking Alqoritmi: ELO Aralığının Tədricən Genişləndirilməsi
+
+#### 5.1. Sıraya Qoşulma
+
+> await service.joinQueue(uid, myRating, queueLabel, gameType: 'chess');
+
+İstifadəçi "Rəqib Axtar" düyməsinə basdıqda, `matchmaking/{uid}` qovşağına ÖZ REYTİNQİ, SEÇDİYİ VAXT NƏZARƏTİ VƏ OYUN NÖVÜ İLƏ BİR SƏNƏD YAZILIR.
+
+#### 5.2. Tədricən Genişlənən ELO Pəncərəsi
+
+> int get _currentEloRange {
+>   if (_searchSeconds < 5)  return 200;
+>   if (_searchSeconds < 10) return 400;
+>   if (_searchSeconds < 20) return 800;
+>   return 9999; // "İSTƏNİLƏN REYTİNQ"
+> }
+
+Axtarış BAŞLADIQDA, sistem yalnız ±200 ELO ARALIĞINDA RƏQİB axtarır (BALANSLI oyun üçün). Lakin əgər 5 saniyə ərzində UYĞUN RƏQİB TAPILMASA, aralıq ±400-ə, sonra (10s) ±800-ə, sonra (20s) İSTƏNİLƏN REYTİNQƏ GENİŞLƏNİR. Bu, "MÜMKÜN QƏDƏR BALANSLI, LAKİN HEÇ VAXT SONSUZ GÖZLƏTMƏYƏN" matchmaking strategiyasıdır — Lichess və Chess.com-da istifadə olunan YANAŞMAYA BƏNZƏYİR. **Diqqət:** Dama/Domino üçün ELO FİLTRİ ÜMUMİYYƏTLƏ TƏTBİQ OLUNMUR (`if (_gameType == GameType.chess && ...)`) — bu oyun növlərinin İSTİFADƏÇİ BAZASI HƏLƏ KİÇİK olduğundan, İLK MÖVCUD RƏQİBLƏ DƏRHAL CÜTLƏŞDİRMƏ ÜSTÜN TUTULUB.
+
+#### 5.3. tryClaimMatch() — Atomik Cütləşdirmə Tranzaksiyası
+
+> Future<bool> tryClaimMatch({required String myUid, required String opponentUid,
+>     required String gameId, required String timeControlLabel}) async {
+>   final result = await _matchmakingRef.child(opponentUid).runTransaction((currentData) {
+>     if (currentData == null) return Transaction.abort();
+>     final map = Map<String, dynamic>.from(currentData as Map);
+>     if (map['gameId'] != null) return Transaction.abort();  // artıq tutulub
+>     return Transaction.success({...map, 'gameId': gameId, 'opponentUid': myUid, 'isWhite': false});
+>   });
+>   if (!result.committed) return false;
+>   await _matchmakingRef.child(myUid).update({'gameId': gameId, 'opponentUid': opponentUid, 'isWhite': true});
+>   await _db.ref('live_games/$gameId').set({...});
+>   return true;
+> }
+
+Burada KRİTİK PROBLEM — İKİ İSTİFADƏÇİNİN EYNİ ANDA BİR-BİRİNİ "TUTMAĞA" (claim) ÇALIŞMASIDIR. RTDB Tranzaksiyası BUNU HƏLL EDİR: `runTransaction()` çağırışı RƏQİBİN sənədini OXUYUR, ƏGƏR `gameId` ARTIQ DOLUDURSA (BAŞQA BİRİ ARTIQ TUTUB) `Transaction.abort()` QAYTARIR. Yalnız BİRİNCİ TRANZAKSİYA UĞURLA TƏSDİQLƏNİR (`result.committed == true`); İKİNCİ CƏHD AVTOMATIK UĞURSUZ OLUR VƏ O İSTİFADƏÇİ AXTARIŞA DAVAM EDİR. Cütləşmə baş verdikdə, İLK ADDIM ATAN İSTİFADƏÇİ HƏMİŞƏ AĞ FİQURLARLA (`isWhite: true`) TƏYİN OLUNUR.
+
+#### 5.4. 30 Saniyəlik "Gizli Bot" Fallback-ı
+
+> if (_searchSeconds == 30 && !_matched) _matchWithBot();
+>
+> void _matchWithBot() {
+>   final fakeName = names[rng.nextInt(names.length)];
+>   final fakeRating = (_myRating + rng.nextInt(101) - 50).clamp(clampLo, clampHi);  // ±50
+>   // ... 1.8 saniyə "Opponent found!" animasiyasından sonra:
+>   context.pushReplacement(gameType.gameRoute(gameId), extra: {
+>     'mode': 'bot', 'isRated': true, 'opponentUsername': fakeName,
+>     'botRating': fakeRating, 'opponentRating': fakeRating,
+>     'isFakeBotFallback': true,  // "Bot" etiketini gizlədir, saxta adı göstərir
+>   });
+> }
+
+Əgər 30 SANİYƏ ərzində REAL RƏQİB TAPILMASA, sistem İSTİFADƏÇİNİ "GİZLİ BOT"LA CÜTLƏŞDİRİR: bot, İSTİFADƏÇİNİN REYTİNQİNƏ ±50 BƏRABƏR (yəni "FƏRQLƏNDİRİLMƏZ") bir reytinqlə, TƏSADÜFİ İNSAN ADI ilə təqdim olunur (`fakeName`), VƏ `mode: 'bot'` OLMASINA BAXMAYARAQ `isRated: true` TƏYİN EDİLİR — yəni BU OYUN HƏQİQİ ELO TƏSİRİ YARADIR. `isFakeBotFallback: true` bayrağı UI-da "Bot" yazısının GİZLƏDİLMƏSİNƏ SƏBƏB OLUR. Bu DİZAYN QƏRARI, İSTİFADƏÇİ BAZASI KİÇİK OLDUQDA (axşam saatlarında AZ İSTİFADƏÇİ onlayn olduqda), İSTİFADƏÇİNİN "HEÇ KİM TAPILMADI" XƏTASI ALMASININ VƏ TƏTBİQİ TƏRK ETMƏSİNİN QARŞISINI ALAN, BÖYÜK PLATFORMALARDA DA (anonim şəkildə) TƏTBİQ OLUNAN bir TEXNİKADIR.
+
+## 6. GameNotifier: Mərkəzi Vəziyyət Maşını
+
+`GameNotifier` (`StateNotifier<GameState>`) — TƏK BİR OYUNUN BÜTÜN HƏYAT DÖVRÜNÜ idarə edir. `GameState` `@immutable` sinfi 20-DƏN ÇOX SAHƏYƏ malikdir: `engine`, `status` (9 mümkün dəyər: waiting/playing/paused/checkmate/stalemate/draw/resign/timeout/aborted), saat dəyərləri, seçim/qanuni-gediş siyahısı, REMATCH/DRAW-OFFER/PREMOVE/DISCONNECT VƏZİYYƏTLƏRİ, KAMPANİYA MƏQSƏD İZLƏNMƏSİ.
+
+#### 6.1. GameConfig — Parametrləşdirilmiş Provider
+
+> final gameProvider = StateNotifierProvider.autoDispose
+>     .family<GameNotifier, GameState, GameConfig>((ref, config) => GameNotifier(...));
+
+`.family<..., GameConfig>` — HƏR FƏRQLİ `GameConfig` (mode, timeControl, gameId, opponent və s.) ÜÇÜN AYRI BİR `GameNotifier` NÜSXƏSİ YARADIR. `.autoDispose` — istifadəçi oyun ekranını TƏRK ETDİKDƏ, BÜTÜN TAYMERLƏR/ABUNƏLİKLƏR AVTOMATIK TƏMİZLƏNİR (`dispose()` metodu). `GameConfig`-in `==`/`hashCode` operatorlarının DƏQIQ İMPLEMENTASİYASI VACİBDİR — Riverpod EYNİ KONFİQURASİYA ÜÇÜN EYNİ NOTIFIER NÜSXƏSİNİ QAYTARIR (keşləmə).
+
+## 7. Onlayn Sinxronizasiya: 4 Stream Abunəliyi
+
+`_initOnline()` metodu DÖRD AYRI RTDB STREAM-Ə ABUNƏ OLUR:
+
+#### 7.1. _onRemoteMove — Rəqibin Gedişi
+
+> void _onRemoteMove(DatabaseEvent event) {
+>   final key = event.snapshot.key;
+>   if (_seenMoveKeys.contains(key)) return;  // dublikat qarşısı
+>   _seenMoveKeys.add(key);
+>   final map = ...;
+>   if (map['uid'] == _myUid) return;  // öz gedişimi təkrar tətbiq etmə
+>   _applyOpponentMove(map['from'], map['to'], promotion: map['promotion']);
+> }
+
+`_seenMoveKeys` (Set) — RTDB-nin `onChildAdded` HADİSƏSİ NƏZƏRİ CƏHƏTDƏN BİRDƏFƏLİK OLSA DA, ŞƏBƏKƏ YENİDƏN-QOŞULMALARINDA TƏKRAR ÇAĞIRILA BİLƏR; bu Set DUBLİKAT TƏTBİQİN qarşısını alır. `map['uid'] == _myUid` yoxlanışı — HƏR İKİ OYUNÇU EYNİ `moves` siyahısını DİNLƏDİYİ üçün, OYUNÇU ÖZ GÖNDƏRDİYİ GEDİŞİ "RƏQİB GEDİŞİ" KİMİ İKİNCİ DƏFƏ TƏTBİQ ETMƏSİN deyə VACİBDİR.
+
+#### 7.2. _onRemoteGameOver — Oyunun Bitməsi
+
+Hər iki tərəfdən hər hansı biri (mat, vaxt bitməsi, təslim) OYUNU BİTİRDİKDƏ, `setGameOver(gameId, result, status)` YAZIR. DİGƏR TƏRƏF bunu `watchGameOver` vasitəsilə ALIR VƏ EYNİ NƏTİCƏNİ ÖZ EKRANINDA göstərir — BU, HƏR İKİ OYUNÇUNUN EYNİ "Oyun Bitdi" EKRANINI GÖRMƏSİNİ TƏMİN EDİR.
+
+#### 7.3. _checkStaleGameOver() — "Oflayn İkən Bitmiş Oyun" Problemi
+
+> Future<void> _checkStaleGameOver() async {
+>   final data = await rtdb.getGameOver(_gameId);  // ONE-SHOT oxuma
+>   if (data == null) return;
+>   // ... nəticəni tətbiq et, saat BAŞLADILMAZ
+> }
+> // constructor-da:
+> _checkStaleGameOver().then((_) {
+>   if (mounted && state.status == GameStatus.playing) _startClock();
+> });
+
+Bu, ÇOX İNCƏ BİR EDGE-CASE-İN HƏLLİDİR: əgər OYUNÇU TƏTBİQİ BAĞLAYIB-AÇARKƏN (və ya arxa fonda ikən) RƏQİB ARTIQ OYUNU BİTİRİBSƏ (məsələn, vaxtı bitdiyi üçün), SAAT TAYMERİ HEÇ BAŞLADILMAMALIDIR — ƏKS HALDA, ARTIQ BİTMİŞ BİR OYUNDA SAAT BİR NEÇƏ MİLLİSANİYƏ "İŞLƏYƏ" BİLƏR. Ona görə, `_checkStaleGameOver()` TAMAMLANANA QƏDƏR `_startClock()` ÇAĞIRILMIR — yalnız OYUN HƏLƏ DƏ "playing" statusundadırsa saat başladılır.
+
+## 8. Bağlantı İtkisi və Geri Sayım (Disconnect Grace Period)
+
+> int get _gracePeriodSeconds {
+>   final totalSec = timeControl.totalSeconds;
+>   if (totalSec <= 180) return 15;  // bullet  (≤3 dəq)
+>   if (totalSec <= 600) return 30;  // blitz   (≤10 dəq)
+>   return 60;                        // rapid   (>10 dəq)
+> }
+
+Rəqibin `presence` qovşağı `online: false` OLDUQDA (bax Hissə 4), `_startDisconnectCountdown()` İŞƏ DÜŞÜR: SAAT DAYANDIRILIR (`_clockTimer?.cancel()`) VƏ EKRANDA "Rəqib bağlantını itirdi: 15s..." BANNERİ GÖSTƏRİLİR. Geri sayım VAXT NƏZARƏTİNİN NÖVÜNƏ GÖRƏ DƏYİŞİR — BULLET oyunda 15 saniyə (sürətli format, uzun gözləmə MƏNASIZDIR), RAPID-də isə 60 saniyə (UZUN FORMAT, İSTİFADƏÇİYƏ ŞƏBƏKƏNİ BƏRPA ETMƏK ÜÇÜN DAHA ÇOX VAXT VERİLİR). Geri sayım `0`-A ÇATARSA, `_onOpponentForfeit()` ÇAĞIRILIR VƏ QALAN OYUNÇU AVTOMATIK QƏLƏBƏ QAZANIR. Əgər rəqib QEYDDƏN ƏVVƏL QAYIDARSA (`online: true`), geri sayım LƏĞV EDİLİR VƏ SAAT YENİDƏN BAŞLADILIR (`status == playing` yoxlanışı ilə — artıq BİTMİŞ OYUNDA SAATIN TƏSADÜFƏN YENİDƏN BAŞLAMASININ qarşısını alır).
+
+## 9. Premove (Əvvəlcədən Gediş) Sistemi
+
+> if (mode == GameMode.online && !state.isMyTurn) {
+>   if (!cache.premove) return;  // tənzimləmələrdə deaktiv edilibsə
+>   if (state.premoveFrom == null) {
+>     // 1-ci toxunma: hansı fiqur "planlaşdırılır"
+>     state = state.copyWith(premoveFrom: square, ...);
+>   } else {
+>     // 2-ci toxunma: hədəf xana
+>     state = state.copyWith(premoveTo: square);
+>   }
+>   return;
+> }
+
+Premove — RƏQİBİN GEDİŞİNİ GÖZLƏMƏDƏN, NÖVBƏTİ GEDİŞİ ƏVVƏLCƏDƏN "PLANLAŞDIRMAQ" funksiyasıdır (sürətli/bullet oyunlarda vacibdir). Rəqib gediş etdikdən DƏRHAL SONRA, `_executePremoveIfQueued()` ÇAĞIRILIR:
+
+> void _executePremoveIfQueued() {
+>   if (premFrom == null || premTo == null) return;
+>   if (!state.isMyTurn) return;
+>   state = state.copyWith(clearPremove: true);  // re-entrancy qarşısı
+>   final legal = state.engine.legalMovesFrom(premFrom);
+>   if (!legal.contains(premTo)) {
+>     debugPrint('[Premove] became illegal — discarded');  // səssizcə ləğv edilir
+>     return;
+>   }
+>   _attemptMove(premFrom, premTo);
+> }
+
+VACİB DETAL: planlaşdırılan gediş YENİ MÖVQEDƏ ARTIQ QANUNİ OLMAYA BİLƏR (məsələn, rəqib bizim PLANLAŞDIRDIĞIMIZ GEDİŞİN YOLUNU BAĞLAYAN bir fiqur gətirib) — bu halda, premove SƏSSİZCƏ LƏĞV EDİLİR (XƏTA MESAJI GÖSTƏRİLMİR), oyunçu sadəcə YENİDƏN GEDİŞ EDİR.
+
+## 10. Bərabərlik Təklifi (Draw Offer) Axını
+
+`drawOffer` qovşağı — TƏKLİF EDƏNİN UID-i VƏ VAXT DAMĞASI ilə YAZILIR. `_onDrawOfferUpdate()` HƏR İKİ TƏRƏFDƏ İŞLƏYİR: əgər `fromUid == _myUid` (öz təklifim "ƏKS-SƏDA" kimi qayıdıb) → `drawOfferSent: true`; ƏKS HALDA (rəqibdən gəlib) → `drawOfferPending: true`. Qəbul edildikdə, qovşaq `clearDrawOffer()` İLƏ SİLİNİR VƏ `_onDrawOfferUpdate` BU SİLİNMƏNİ DƏ TUTARAQ HƏR İKİ BAYRAĞI SIFIRLAYIR.
+
+## 11. Yenidən Oyun (Rematch) Axını
+
+> Future<void> sendRematch() async {
+>   final newGameId = const Uuid().v4();
+>   final iWillBeWhite = !playerIsWhite;  // RƏNGLƏR DƏYİŞİR
+>   await rtdb.sendRematchInvite(originalGameId: _gameId, newGameId: newGameId,
+>     whiteUidInNew: iWillBeWhite ? myUid : oppUid, ...);
+> }
+
+Rematch təklif edildikdə, YENİ BİR `gameId` YARADILIR VƏ RƏNGLƏR AVTOMATIK TƏRSİNƏ ÇEVRİLİR (əgər mən birinci oyunda QARA idimsə, rematch-də AĞ olacam) — bu, ŞAHMATDA QƏBUL EDİLMİŞ "HƏR OYUNDAN SONRA RƏNG DƏYİŞİR" KONVENSİYASINA UYĞUNDUR. `rematch/{originalGameId}` qovşağı `status: 'pending'` İLƏ YAZILIR; RƏQİB BUNU GÖRDÜKDƏ `RematchState.inviteReceived` VƏZİYYƏTİNƏ KEÇİR VƏ "Qəbul et/Rədd et" BANNERİ göstərilir.
+
+## 12. Reytinq Hesablanması: Cloud Function + Lokal Ehtiyat (Fallback)
+
+> Future<void> _processRatingChange(GameResult result) async {
+>   try {
+>     final response = await FirebaseFunctions.instance
+>       .httpsCallable('processGameRating').call({'gameId': _gameId});
+>     final myDelta = (response.data['myDelta'] as num?)?.toInt() ?? 0;
+>     // state-ə yazılır...
+>     return;
+>   } catch (e) {
+>     debugPrint('CF failed — falling back to local calculation');
+>   }
+>   // ehtiyat: EloService.calculate() lokal olaraq, sonra Firestore-a yazılır
+> }
+
+BU İKİ-MƏRHƏLƏLİ STRATEGİYA, TƏHLÜKƏSİZLİK İLƏ ETİBARLILIQ ARASINDA TARAZLIQ YARADIR:
+1. **ƏSAS YOL (Cloud Function):** `processGameRating` SERVER TƏRƏFİNDƏ oyunun NƏTİCƏSİNİ DOĞRULAYIR, ELO-NU HESABLAYIR VƏ Firestore-A YAZIR — KLİENT TƏRƏFİNDƏN REYTİNQ MANİPULYASİYASININ (məsələn, dəyişdirilmiş APK ilə "həmişə qələbə" göndərmək) QARŞISINI ALIR.
+2. **EHTİYAT YOL (Lokal):** Əgər Cloud Function ÇAĞIRIŞI UĞURSUZ OLARSA (İNTERNET KƏSİLMƏSİ, server XƏTASI), KLİENT `EloService.calculate()` İLƏ EYNİ HESABLAMANI LOKAL EDİR VƏ NƏTİCƏNİ Firestore-a BİRBAŞA yazır — BU, "ŞƏBƏKƏ PROBLEMİ ÜZÜNDƏN OYUNÇUNUN REYTİNQİ HEÇ DƏYİŞMƏSİN" SSENARİSİNİN QARŞISINI ALIR.
+
+## 13. Oyun Dəvətləri (InviteListener)
+
+`InviteListener` — TƏTBİQİN ÜST SƏVİYYƏSİNDƏ (ana naviqasiya çərçivəsini "saran") YERLƏŞƏN bir vidjetdir, `invites/{myUid}` qovşağını DAİM DİNLƏYİR.
+
+#### 13.1. Bloklanmış İstifadəçilərdən Avtomatik İmtina
+
+> if (blockedUsers.contains(fromUid)) {
+>   rtdb.deleteInvite(me.uid, inviteKey);  // SƏSSİZCƏ silinir, bildiriş göstərilmir
+>   return;
+> }
+
+#### 13.2. Qəbul Axını: "Shell-Əvvəl" Strategiyası
+
+> Future<void> _acceptInvite(...) async {
+>   final iAmWhite = !inviterIsWhite;
+>   final whiteUid = inviterIsWhite ? fromUid : me.uid;
+>   final blackUid = inviterIsWhite ? me.uid : fromUid;
+>   // 1. ƏVVƏLCƏ live_games/{gameId} "qabığını" (shell) YARAT
+>   await rtdb.createLiveGame(gameId: gameId, whiteUid: whiteUid, blackUid: blackUid, ...);
+>   // 2. SONRA dəvətə gameId-ni YAZ ki, dəvət edən bunu OXUYUB NAVİQASİYA edə bilsin
+>   await rtdb.acceptInviteWithGame(me.uid, inviteKey, gameId);
+> }
+
+Bu sıralama (ƏVVƏLCƏ `live_games/{gameId}` SHELL-İNİ YARATMAQ, SONRA `gameId`-Nİ DƏVƏTƏ YAZMAQ) BİR RACE CONDITION-UN QARŞISINI ALIR: ƏGƏR SIRA TƏRSİNƏ OLSAYDI, DƏVƏT EDƏN İSTİFADƏÇİ `gameId`-Nİ GÖRÜB DƏRHAL O OYUNA KEÇMƏYƏ ÇALIŞA BİLƏRDİ, AMMA `live_games/{gameId}` SƏNƏDİ HƏLƏ MÖVCUD OLMAZDI VƏ "OYUN TAPILMADI" XƏTASI BAŞ VERƏRDİ.
+
+## 14. Nəticə
+
+"Grandmaster"-in real-vaxt multiplayer sistemi — Firebase Realtime Database-in TRANZAKSİYA, `onDisconnect` VƏ HADİSƏ-ƏSASLI (`onChildAdded`/`onValue`) İMKANLARINDAN MAKSIMUM İSTİFADƏ EDƏN, ÇOX QATLI BİR ARXİTEKTURADIR. Tədricən genişlənən ELO axtarışı və "gizli bot" fallback-ı İSTİFADƏÇİ TƏCRÜBƏSİNİN HEÇ VAXT "BOŞ QALMAMASINI" təmin edir; presence + grace-period sistemi ŞƏBƏKƏ PROBLEMLƏRİNİ ƏDALƏTLİ ŞƏKİLDƏ İDARƏ EDİR; premove, rematch və draw-offer kimi funksiyalar isə TƏCRÜBƏLİ OYUNÇULARIN GÖZLƏDİYİ "PƏRAKƏNDƏ SATIŞ SƏVİYYƏSİNDƏ" (production-grade) bir onlayn şahmat təcrübəsi yaradır. Server-tərəfli ELO hesablanması (Cloud Function) ilə LOKAL EHTİYAT MEXANİZMİNİN BİRGƏ İSTİFADƏSİ — TƏHLÜKƏSİZLİK VƏ ETİBARLILIQ ARASINDA NÜMUNƏVİ BİR KOMPROMİSDİR.

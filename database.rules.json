@@ -1,0 +1,62 @@
+{
+  "rules": {
+
+    "live_games": {
+      "$gameId": {
+        ".read":  "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "matchmaking": {
+      ".read":  "auth != null",
+      "$uid": {
+        ".write": "auth != null"
+      }
+    },
+
+    "rematch": {
+      "$originalGameId": {
+        ".read":  "auth != null",
+        ".write": "auth != null"
+      }
+    },
+
+    "presence": {
+      "$uid": {
+        ".read":  "auth != null",
+        ".write": "auth != null && auth.uid === $uid"
+      }
+    },
+
+    "invites": {
+      "$recipientUid": {
+        ".read":  "auth != null",
+        "$inviteId": {
+          ".write": "auth != null"
+        }
+      }
+    },
+
+    "arena_queue": {
+      "$arenaId": {
+        ".read":  "auth != null",
+        "$uid": {
+          ".write": "auth != null"
+        }
+      }
+    },
+
+    "arena_pairings": {
+      "$arenaId": {
+        ".read":  "auth != null",
+        "$pairingId": {
+          ".write": "auth != null"
+        }
+      }
+    },
+
+    ".read":  false,
+    ".write": false
+  }
+}

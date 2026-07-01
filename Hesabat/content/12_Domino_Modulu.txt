@@ -1,0 +1,181 @@
+# 12. Domino Oyun Modulu
+
+## 1. Giriş və Modulun Məqsədi
+
+"Grandmaster" tətbiqinə əlavə edilmiş üçüncü oyun modulu Domino-dur. Bu modul "Block Domino" adlanan klassik domino qaydaları əsasında qurulmuşdur və istifadəçilərə tanış, lakin fərqli növ strateji düşüncə tələb edən bir oyun təcrübəsi təqdim edir. Domino modulu, eyni zamanda, layihədə "natamam məlumat" (hidden information / imperfect information) şəraitində qərar qəbul edən süni intellektin necə qurulduğunu nümayiş etdirən ən yaxşı nümunədir, çünki şahmat və damadan fərqli olaraq, domino oyununda oyunçu rəqibinin əlindəki daşları görmür.
+
+Modul aşağıdakı fayllardan ibarətdir:
+
+- Oyun mühərriki — `lib/features/domino/engine/domino_engine.dart`
+- Oyun ekranı — `lib/features/domino/screens/domino_game_screen.dart`
+- Daş və zəncir vidjetləri — `lib/features/domino/widgets/domino_tile_widget.dart`
+- Bot ilə oyun tənzimləmə ekranı — `lib/features/domino/screens/domino_bot_setup_screen.dart`
+
+Bu sənəd domino daşlarının modelləşdirilməsindən tutmuş, oyun qaydalarının tətbiqinə, Monte Carlo Tree Search alqoritminə əsaslanan bota və istifadəçi interfeysinin necə qurulduğuna qədər bütün texniki detalları əhatə edir.
+
+## 2. İstifadə Olunan Texnologiyalar
+
+Dama modulunda olduğu kimi, Domino modulu da xalis Dart məntiqi üzərində qurulub və UI qatında `flutter_animate`, `google_fonts`, `phosphor_flutter` paketlərindən istifadə edir. Əlavə olaraq, bu modulda aşağıdakı konsepsiyalar mərkəzi yer tutur:
+
+- `dart:math` — Monte Carlo simulyasiyalarında təsadüfi seçim (`Random`) və UCB1 düsturunda `sqrt`/`log` funksiyaları üçün.
+- Operator overriding (`==` və `hashCode`) — domino daşının "istiqamətsiz" (order-independent) bərabərliyini təmin etmək üçün.
+- Enum-lar — `DominoEnd` (sol/sağ ucu), `DominoPlayer`, `DominoResult` üçün.
+- Dərin kopyalama (deep clone) — Monte Carlo simulyasiyalarının əsl oyun vəziyyətini korlamadan, müvəqqəti "xəyal" oyunlar aparması üçün.
+
+## 3. Domino Daşının Modelləşdirilməsi: DominoTile
+
+Domino oyununun ən fundamental elementi "daş"dır (tile) — hər biri 0-dan 6-ya qədər iki ədəd (pip) cütündən ibarətdir. `DominoTile` sinfi bunu aşağıdakı kimi təmsil edir:
+
+> class DominoTile {
+>   final int a;
+>   final int b;
+>   const DominoTile(this.a, this.b);
+>   bool get isDouble => a == b;
+> }
+
+Bu sinifin ən maraqlı cəhəti `==` operatorunun və `hashCode`-un override edilməsidir. Domino daşında (3,5) və (5,3) FAKTIKI OLARAQ EYNİ DAŞDIR — sadəcə fərqli istiqamətdə təsvir olunub. Buna görə bərabərlik yoxlaması SİFARİŞDƏN ASILI OLMAYAN (order-independent) şəkildə yazılmışdır:
+
+> @override
+> bool operator ==(Object other) {
+>   if (other is! DominoTile) return false;
+>   return (a == other.a && b == other.b) || (a == other.b && b == other.a);
+> }
+>
+> @override
+> int get hashCode => (a <= b) ? Object.hash(a, b) : Object.hash(b, a);
+
+Bu yanaşma sayəsində `Set<DominoTile>` və `Map<DominoTile, ...>` strukturlarında daşları "fiziki eyniyyətinə" görə müqayisə etmək mümkün olur, bu da bot alqoritmində "bilinməyən daşların" izlənməsi üçün vacibdir (aşağıda 8-ci bölmədə izah olunur).
+
+Standart "Double-Six" dəsti 28 daşdan ibarətdir: (0,0)-dan (6,6)-a qədər bütün unikal cütlüklər (təkrarsız). Bu, `_fullSet()` adlı statik metodla generasiya olunur — iki iç-içə dövr (`for i in 0..6, for j in i..6`) vasitəsilə.
+
+## 4. Oyunun Başlanğıcı: _initGame()
+
+Oyun başladıqda `_initGame()` metodu aşağıdakı addımları yerinə yetirir:
+
+1. Tam 28 daşlıq dəst yaradılır və qarışdırılır (`shuffle`).
+2. Oyunçu sayına (2 və ya 4) əsasən, hər oyunçuya 7 daş paylanır.
+3. Qalan daşlar "bazar" (boneyard/stock) kimi saxlanılır — oyunçular gediş edə bilmədikdə buradan daş çəkəcəklər.
+4. Açılış oyunçusu təyin edilir: ƏNƏNƏVİ DOMINO QAYDASINA GÖRƏ, ƏLİNDƏ ƏN BÖYÜK CÜT DAŞ (DOUBLE) OLAN OYUNÇU BİRİNCİ GEDİR (məsələn, (6,6) varsa, o oyunçu başlayır; əgər heç kimdə cüt yoxdursa, ən böyük cəm dəyərinə malik daşı olan başlayır).
+5. İlk gediş, açılış oyunçusunun həmin "ən böyük cüt" daşını masaya qoyması ilə həyata keçirilir və zəncirin hər iki ucu (`leftEnd`, `rightEnd`) bu daşın dəyərinə bərabər olur.
+
+Bu, real domino turnirlərində istifadə olunan standart açılış protokoludur və bot ilə insan arasında ƏDALƏTLİ başlanğıc təmin edir.
+
+## 5. Zəncir Modeli və Qanuni Gedişlərin Generasiyası
+
+Masadakı domino zənciri sadəcə iki ədəd "uc dəyəri" ilə təmsil olunur: `leftEnd` və `rightEnd` (tam zəncirin vizual təsviri UI qatında ayrıca qurulur — bax bölmə 9). `DominoEnd` enum-u `left` və `right` dəyərlərini ehtiva edir.
+
+`legalPlays(DominoPlayer player)` metodu — verilmiş oyunçunun əlindəki daşlardan hansının indiki zəncirin sol və ya sağ ucuna uyğun gələ biləcəyini hesablayır:
+
+> List<DominoPlay> legalPlays(DominoPlayer player) {
+>   final hand = hands[player.index];
+>   final plays = <DominoPlay>[];
+>   for (final tile in hand) {
+>     if (tile.a == leftEnd || tile.b == leftEnd) {
+>       plays.add(DominoPlay(tile, DominoEnd.left));
+>     }
+>     if (tile.a == rightEnd || tile.b == rightEnd) {
+>       plays.add(DominoPlay(tile, DominoEnd.right));
+>     }
+>   }
+>   return plays;
+> }
+
+Diqqət edilməli məqam budur ki, bir daş HƏM sol, HƏM DƏ sağ uca uyğun gələ bilər (məsələn, zəncirin hər iki ucunda eyni rəqəm varsa) — bu halda HƏR İKİ seçim ayrı-ayrı `DominoPlay` kimi siyahıya əlavə olunur, çünki onlar fərqli nəticələrə (zəncirin fərqli ucunun fərqli rəqəmlə uzanmasına) gətirib çıxarır.
+
+## 6. Gedişin İcrası: play(), drawTile(), pass()
+
+`play(DominoPlay play)` metodu seçilmiş daşı oyunçunun əlindən çıxarır, zənciri müvafiq tərəfdən uzadır və YENİ ucu yeniləyir (daşın "digər" tərəfindəki rəqəmi yeni uc dəyəri kimi təyin edir). Əgər oyunçunun əlindəki daşların sayı sıfıra çatarsa, oyun dərhal "Domino!" qələbəsi ilə bitir (oyunçu bütün daşlarını boşaltdı).
+
+`drawTile(DominoPlayer player)` — əgər oyunçunun ƏLİNDƏ ZƏNCİRİN UCLARINA UYĞUN HEÇ BİR DAŞ YOXDURSA, o, bazardan (boneyard) bir daş çəkməyə MƏCBURDUR (əgər bazar boş deyilsə). Çəkilən daş əlinə əlavə olunur və YENİDƏN `legalPlays` yoxlanılır — əgər yenə uyğun gəlmirsə, çəkmə davam edir, ta ki ya uyğun daş tapılsın, ya da bazar tükənsin.
+
+`pass(DominoPlayer player)` — əgər bazar boşdursa VƏ oyunçunun heç bir qanuni gedişi yoxdursa, növbə sonrakı oyunçuya keçir (`pass`). Əgər BÜTÜN oyunçular ardıcıl olaraq pas keçərsə, oyun "bloklanmış" (blocked) hesab olunur və `_resolveBlockedGame()` çağırılır.
+
+## 7. Oyun Sonu Şərtləri: _resolveBlockedGame()
+
+Domino oyununda iki bitmə ssenarisi var:
+
+#### 7.1. "Domino" (Birbaşa Qələbə)
+
+Bir oyunçu son daşını oynadıqda, dərhal QALİB elan olunur (`DominoResult`-da müvafiq oyunçu).
+
+#### 7.2. Bloklanmış Oyun (Blocked Game)
+
+Əgər heç bir oyunçu gediş edə bilmirsə (bazar boş, bütün əllər zəncirin uclarına uyğun gəlmir), `_resolveBlockedGame()` işə düşür. Bu metodda HƏR OYUNÇUNUN ƏLİNDƏ QALAN DAŞLARIN PİP CƏMİ (məsələn, (4,2) daşı = 6 xal) hesablanır. ƏN AZ XAL CƏMİNƏ MALİK OYUNÇU QALİB elan olunur. Əgər iki və ya daha çox oyunçunun cəmi BƏRABƏRDİRSƏ, oyun BƏRABƏRƏ (`DominoResult.draw`) bitir.
+
+Bu qayda real "Block Domino" turnir qaydalarına tam uyğundur və `domino_engine.dart`-da dəqiq tətbiq olunmuşdur.
+
+## 8. Süni İntellekt: Monte Carlo Tree Search (MCTS)
+
+Domino botunun əsas çağırışı ŞƏFFAF OLMAYAN MƏLUMAT (imperfect information) şəraitidir — bot rəqiblərinin əlindəki daşları görmür. Buna görə şahmat/dama-da istifadə olunan Negamax/Minimax kimi "tam məlumatlı" alqoritmlər birbaşa tətbiq edilə bilməz. Bunun əvəzinə, `bestBotPlay({int simulations = 800})` metodu MONTE CARLO TREE SEARCH (MCTS) alqoritmindən istifadə edir.
+
+#### 8.1. Bilinməyən Daşların İzlənməsi (_knownMissing)
+
+Bot, oyun gedişatı boyu hansı oyunçunun HANSI RƏQƏMLƏRƏ UYĞUN DAŞI OLMADIĞINI yadda saxlayır. Məsələn, əgər bir oyunçu zəncirin "5" ucuna gediş edə bilməyib pas keçibsə, bu o deməkdir ki, onun əlində HEÇ BİR "5" daşı YOXDUR. Bu məlumat `_knownMissing` strukturunda saxlanılır və sonrakı simulyasiyalarda istifadə olunur.
+
+#### 8.2. Naməlum Əllərin Randomizasiyası (_randomizeUnknownHands)
+
+Hər simulyasiyanın əvvəlində, bot ÖZ ƏLİNİ bilir, lakin RƏQİBLƏRİN əllərini VƏ bazarı BİLMİR. `_randomizeUnknownHands()` metodu bu naməlum daşları GÖTÜRÜR, qarışdırır və `_knownMissing` MƏHDUDİYYƏTLƏRİNƏ UYĞUN ŞƏKİLDƏ təsadüfi olaraq rəqiblərin əllərinə VƏ bazara PAYLAYIR (yəni, əgər rəqibin "5" daşı ola bilməyəcəyi məlumdursa, simulyasiya zamanı ona "5" rəqəmi olan daş verilmir). Bu texnika "Determinization" adlanır və natamam-məlumatlı oyunlar üçün MCTS-in standart uyğunlaşdırma üsuludur.
+
+#### 8.3. UCB1 Seçim Düsturu (_selectPlay)
+
+Axtarış ağacının hər node-unda, bot mövcud gedişlər arasından "Upper Confidence Bound 1" (UCB1) düsturuna əsasən seçim edir:
+
+> UCB1 = (wins / visits) + C * sqrt(ln(totalVisits) / visits)
+
+Bu düstur iki amili balanslaşdırır:
+- "İstismar" (exploitation) — indiyədək ən yaxşı nəticə vermiş gedişi seçmək (`wins/visits`).
+- "Kəşfiyyat" (exploration) — az sınanmış gedişlərə də şans vermək (`sqrt(ln(total)/visits)` həddi).
+
+`C` sabiti bu iki amil arasındakı tarazlığı tənzimləyir. Bu yanaşma, AlphaGo kimi müasir oyun süni intellektlərinin də əsasını təşkil edən klassik MCTS seçim strategiyasıdır.
+
+#### 8.4. Təsadüfi Simulyasiya (_randomPlayout)
+
+Hər simulyasiyada, seçilmiş gedişdən sonra OYUN SONUNA QƏDƏR "ağıllı-təsadüfi" (smart-random) gedişlərlə davam etdirilir (`_randomPlayout`). "Ağıllı" olması ondan ibarətdir ki, alqoritm CÜT DAŞLARA (doubles) və YÜKSƏK XALLI daşlara üstünlük verir — çünki real domino strategiyasında cüt daşları erkən boşaltmaq adətən faydalıdır (əks halda, oyun bloklandıqda yüksək xallı daşlar əldə qalıb xal itkisinə səbəb olur).
+
+#### 8.5. Nəticənin Qiymətləndirilməsi və Bərabərlik Krediti
+
+Hər simulyasiyanın sonunda nəticə yoxlanılır:
+
+> if (winner == turn.index) {
+>   wins[playIdx] = wins[playIdx]! + 1.0;   // Qələbə → tam xal
+> } else if (winner == -1) {
+>   wins[playIdx] = wins[playIdx]! + 0.5;   // Bərabərlik → yarım xal
+> }
+> // Məğlubiyyət → 0 xal (heç nə əlavə olunmur)
+
+800 simulyasiyadan sonra, ən çox "wins/visits" nisbətinə malik gediş bot tərəfindən seçilir. Bu, statistik baxımdan ən yüksək gözlənilən qələbə ehtimalına malik gedişdir.
+
+## 9. Bot Çətinlik Səviyyələri
+
+`domino_bot_setup_screen.dart`-da 6 çətinlik səviyyəsi mövcuddur, bunlar SİMULYASİYA SAYINI deyil, ƏSASƏN BOTUN ÜMUMİ ELO REYTİNQİNİ təmsil edir (bot daxili olaraq sabit 800 simulyasiya istifadə edir, lakin reytinq leaderboard və "rated" hesablamalar üçün istifadə olunur):
+
+> Rookie  — ~600 ELO
+> Casual  — ~900 ELO
+> Counter — ~1200 ELO
+> Tracker — ~1500 ELO
+> Shark   — ~1800 ELO
+> Legend  — ~2100 ELO
+
+Bu ekranda həmçinin OYUNÇU SAYI seçimi (2 və ya 4 oyunçu) mövcuddur. `_startGame()` metodu seçilmiş parametrləri (`dominoPlayerCount: '2-player'` və ya `'4-player'`, `botRating`) `/domino-game/:gameId` marşrutuna `extra` map-i kimi ötürür. Ekranın aşağı hissəsində "Block Domino · Double-Six set · 7 tiles each" məlumat lövhəsi istifadəçiyə oyun qaydalarını xatırladır.
+
+## 10. İstifadəçi İnterfeysi: Domino Zənciri və Daş Vidjetləri
+
+`domino_tile_widget.dart` faylı iki əsas vidjetdən ibarətdir:
+
+#### 10.1. _PipLayout — Xal Naxışlarının Çəkilməsi
+
+Hər domino yarısında (0-dan 6-ya qədər) müəyyən sayda dairəvi "xal" (pip) müvafiq həndəsi düzülüşdə göstərilməlidir (məsələn, "5" — künclərdə 4 xal + mərkəzdə 1 xal, "4" — yalnız 4 künc, "2" — diaqonal əks künclər). `_PipLayout` adlı daxili vidjet hər ədəd üçün bu naxışları `Grid` və ya mütləq mövqeləndirmə (`Positioned`) ilə çəkir.
+
+#### 10.2. DominoChainWidget — Zəncirin Vizual Təqdimatı
+
+Bu, modulun ən mürəkkəb UI komponentidir, çünki masadakı domino zənciri YALNIZ İKİ ƏDƏD "uc dəyəri" (`leftEnd`/`rightEnd`) kimi MƏNTİQİ səviyyədə saxlanılsa da, VİZUAL OLARAQ bütün oynanmış daşların ardıcıllığı göstərilməlidir. `_orientedChain()` metodu, oynanmış daşların TAM SİYAHISINI gəzərək, HƏR DAŞIN (a,b) cütünü elə YENİDƏN İSTİQAMƏTLƏNDİRİR ki, qonşu daşların TOXUNAN tərəflərinin XAL DƏYƏRLƏRİ VİZUAL OLARAQ ÜST-ÜSTƏ DÜŞSÜN (məsələn, zəncirdə "...-3|3-5-..." düzgün göstərilsin, "...-3|5-3-..." yox). Bu, zəncirin SOL UCUNDAN başlayaraq, hər addımda əvvəlki daşın "açıq" tərəfinə uyğun gələn tərəfi tapıb daşı lazım gəldikdə güzgüləməklə (a və b-ni yerini dəyişməklə) həyata keçirilir.
+
+Domino daşları üfüqi (horizontal) və ya şaquli (vertical) istiqamətdə göstərilə bilər — zəncir uzandıqca və ekran sərhədlərinə çatdıqca, vidjet avtomatik olaraq istiqaməti dəyişərək "bükülmə" effekti yarada bilər (real fiziki domino masasında olduğu kimi).
+
+## 11. Oyun Ekranı və Oyunçu Əlləri
+
+`domino_game_screen.dart` (877 sətir) — dörd oyunçuya qədər (2 və ya 4 nəfərlik rejimlərdə) əllərin göstərilməsini, növbə indikatorunu, bazardakı qalan daş sayını və zəncirin canlı yenilənməsini idarə edir. Hər oyunçunun əli `Wrap` və ya üfüqi `ListView` ilə göstərilir, oynana bilən daşlar VİZUAL OLARAQ vurğulanır (məsələn, parlaqlıq effekti və ya çərçivə ilə), oynana bilməyənlər isə solğunlaşdırılır. İstifadəçi bir daşa toxunduqda, əgər o daş HƏM sol, HƏM DƏ sağ uca uyğun gəlirsə, hansı tərəfə qoyulacağını soruşan kiçik seçim menyusu göstərilir.
+
+## 12. Nəticə
+
+Domino modulu, layihənin süni intellekt yanaşmalarının ən müxtəlif olduğu hissədir: şahmat və damadan fərqli olaraq, burada TAM MƏLUMATLI axtarış (Negamax/Minimax) əvəzinə NATAMAM MƏLUMATLI Monte Carlo Tree Search tətbiq olunur. "Determinization" (naməlum əllərin təsadüfi bərpası), UCB1 seçim düsturu və "ağıllı-təsadüfi" simulyasiya playoutları — bunların hamısı müasir oyun süni intellekti elmində geniş istifadə olunan, sübut edilmiş üsullardır. UI tərəfdə isə `DominoChainWidget`-in dinamik istiqamətləndirmə alqoritmi, sadə məlumat strukturunu (iki "uc dəyəri") zəngin vizual təqdimata çevirməyin yaxşı nümunəsidir.

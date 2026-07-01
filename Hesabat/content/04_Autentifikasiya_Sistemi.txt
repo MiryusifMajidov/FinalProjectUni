@@ -1,0 +1,233 @@
+# 4. Autentifikasiya və Təhlükəsizlik Sistemi
+
+## 1. Giriş və Məqsəd
+
+Reytinqli, sosial bir platformada İSTİFADƏÇİ KİMLİYİNİN DOĞRU TƏSDİQLƏNMƏSİ — həm TƏHLÜKƏSİZLİK (başqasının hesabına icazəsiz giriş), həm də ƏDALƏTLİLİK (reytinqlərin "saxta hesablar" tərəfindən manipulyasiya edilməməsi) baxımından KRİTİK ƏHƏMİYYƏT DAŞIYIR. Bu sənəd "Grandmaster" tətbiqinin autentifikasiya axınını — qeydiyyat, giriş, İKİ MƏRHƏLƏLİ DOĞRULAMA (2FA), Google ilə giriş, sessiya idarəetməsi və hesab təhlükəsizliyi parametrlərini əhatə edir.
+
+**Əsas Fayllar:**
+- `lib/core/services/auth_service.dart`
+- `lib/core/services/otp_service.dart`
+- `lib/features/auth/screens/` (login, register, 2fa, email-verification, skill-level, profile-photo-prompt)
+
+## 2. İstifadə Olunan Texnologiyalar
+
+- **`firebase_auth`** — email/şifrə əsaslı qeydiyyat/giriş, Google OAuth (`GoogleAuthProvider`), email təsdiqi (`sendEmailVerification`), şifrə bərpası.
+- **`google_sign_in`** — Google hesabı ilə BİR-KLİKLƏ giriş axını.
+- **`cloud_functions`** — OTP (One-Time Password) generasiyası/yoxlanması, FƏAL OLARAQ SERVER TƏRƏFİNDƏ icra olunur (klient tərəfdə HEÇ BİR SMTP/email kimliyi saxlanılmır).
+- **`device_info_plus`** — giriş sessiyalarını CİHAZ MƏLUMATI ilə (marka/model/OS versiyası) izləmək üçün.
+- **`shared_preferences`** — sessiya ID-sinin LOKAL SAXLANILMASI (`pref_session_id`) üçün.
+- **Riverpod `StreamProvider`** — Firebase Auth vəziyyətinin (`authStateChanges`) REAKTİV İZLƏNMƏSİ üçün.
+
+## 3. AuthService Sinfi: Əsas Struktur
+
+> class AuthService {
+>   AuthService(this._firestore);
+>   final FirestoreService _firestore;
+>   final FirebaseAuth _auth = FirebaseAuth.instance;
+>
+>   User? get currentUser => _auth.currentUser;
+>   Stream<User?> get authStateChanges => _auth.authStateChanges();
+> }
+
+`AuthService` constructor-unda `FirestoreService`-i QƏBUL EDİR (Dependency Injection) — bu, autentifikasiya əməliyyatlarının (qeydiyyat, giriş) NƏTİCƏSİNDƏ Firestore-da İSTİFADƏÇİ SƏNƏDİ YARADILMASI/OXUNMASI ÜÇÜN birbaşa asılılıq yaradır, lakin EYNİ ZAMANDA hər iki sinfin AYRI-AYRI TEST EDİLƏ BİLMƏSİNƏ (mocking) imkan verir.
+
+## 4. Qeydiyyat Axını (register())
+
+> Future<UserModel> register({
+>   required String email, required String password, required String username,
+>   required String avatarId, int startingRating = 1200,
+>   required int skillLevel, required String countryCode,
+> }) async {
+>   final exists = await _firestore.usernameExists(username);
+>   if (exists) throw Exception('Username already taken');
+>
+>   final cred = await _auth.createUserWithEmailAndPassword(email: email, password: password);
+>
+>   final stats = RatingStats(rating: startingRating, wins: 0, draws: 0, losses: 0);
+>   final user = UserModel(
+>     uid: cred.user!.uid, username: username, email: email, avatarId: avatarId,
+>     skillLevel: skillLevel, countryCode: countryCode,
+>     bulletStats: stats, blitzStats: stats, rapidStats: stats,
+>     checkersStats: const RatingStats(), dominoStats: const RatingStats(),  // default 1200/0/0/0... bax qeyd
+>     createdAt: DateTime.now(),
+>   );
+>   await _firestore.createUser(user);
+>   _logService.logEvent('register');
+>   return user;
+> }
+
+#### 4.1. Addım-addım izah:
+
+1. **Username unikallığının yoxlanması** — `usernames/{lowercase}` sənədinin mövcudluğu yoxlanılır (bax Hissə 3-cü fayl).
+2. **Firebase Auth hesabı yaradılması** — `createUserWithEmailAndPassword()` Firebase-in OWN AUTH SERVERİNDƏ bir istifadəçi yaradır və ŞİFRƏNİ TƏHLÜKƏSİZ ŞƏKİLDƏ HASH EDİB SAXLAYIR (klient TƏRƏF HEÇ VAXT şifrəni emal/saxlamır).
+3. **Başlanğıc reytinqlərin təyini** — `bulletStats`/`blitzStats`/`rapidStats` İSTİFADƏÇİNİN QEYDİYYAT ZAMANI SEÇDİYİ `skillLevel`-ə UYĞUN BAŞLANĞIC REYTİNQLƏ (`startingRating`, məsələn 1200) İNİSİALİZE OLUNUR; `checkersStats`/`dominoStats` isə DEFOLT (`RatingStats()` konstruktoru, rating=1200) DƏYƏRLƏ.
+4. **Atomik Firestore yazma** — `_firestore.createUser()` (batch — bax 3-cü fayl, Hissə 4.2).
+5. **Loqlama** — `'register'` hadisəsi `logs` kolleksiyasına yazılır (analitika üçün).
+
+## 5. Giriş Axını (signIn()) və 2FA
+
+> Future<UserModel> signIn({required String email, required String password}) async {
+>   final cred = await _auth.signInWithEmailAndPassword(email: email, password: password);
+>   final user = await _firestore.getUser(cred.user!.uid);
+>   _logService.logEvent('login');
+>   return user;
+> }
+
+#### 5.1. İki Mərhələli Doğrulama (2FA) — login_screen.dart
+
+> if (user.twoFactorEnabled) {
+>   await otpService.sendOtp(user.email);
+>   final verified = await context.push<bool>('/login/2fa-verify', extra: user.email);
+>   if (verified != true) {
+>     await authService.signOut();
+>     return;  // giriş ləğv edilir
+>   }
+> }
+> // 2FA aktiv deyil, ya da uğurla təsdiqləndi → /home-a davam et
+
+Əgər istifadəçi Tənzimləmələrdə "2FA"-nı AKTİVLƏŞDİRİBSƏ, USERNAME/ŞİFRƏ DOĞRU OLSA BELƏ, sistem ƏLAVƏ BİR ADDIM TƏLƏB EDİR: 6-rəqəmli OTP kodu istifadəçinin EMAILİNƏ göndərilir (`OtpService.sendOtp`), və `TwoFactorVerifyScreen`-də DOĞRU KOD daxil edilməyincə, **`signOut()` çağırılır** — yəni Firebase Auth SƏVİYYƏSİNDƏ ARTIQ "GİRİLMİŞ" OLSA BELƏ, 2FA TƏSDİQLƏNMƏYİBSƏ, sessiya DƏRHAL LƏĞV EDİLİR. Bu, "fail-safe" (təhlükəsiz uğursuzluq) prinsipinin TƏTBİQİDİR.
+
+## 6. OtpService — Server Tərəfli Bir Dəfəlik Kodlar
+
+> class OtpService {
+>   Future<void> sendOtp(String email) async {
+>     await FirebaseFunctions.instance.httpsCallable('sendOtp').call({'email': email});
+>   }
+>   Future<bool> verifyOtp(String email, String code) async {
+>     final result = await FirebaseFunctions.instance.httpsCallable('verifyOtp')
+>       .call({'email': email, 'code': code});
+>     return result.data['valid'] == true;
+>   }
+> }
+
+`sendOtp`/`verifyOtp` — Cloud Functions-da icra olunan SERVER FUNKSİYALARIDIR. Kod GENERASİYASI, EMAIL GÖNDƏRİLMƏSİ (SMTP kimlik məlumatları ilə) və YOXLAMA TAMAMILƏ SERVER TƏRƏFİNDƏ baş verir — KLİENT TƏTBİQİ HEÇ VAXT email göndərmə kimlik məlumatlarına ÇIXIŞ ƏLDƏ ETMİR. Kodlar **10 DƏQİQƏ (600 saniyə)** ərzində KEÇƏRLİDİR. `TwoFactorVerifyScreen`-də "Yenidən göndər" düyməsi GERİ SAYIM TAYMERİ ilə MƏHDUDLAŞDIRILIR (spam/abuse qarşısının alınması).
+
+## 7. Sessiya İdarəetməsi
+
+#### 7.1. saveLoginSession() — Cihaz Qeydiyyatı
+
+> Future<String> saveLoginSession(String uid) async {
+>   final deviceInfo = await DeviceInfoPlugin().deviceInfo;
+>   final deviceLabel = Platform.isAndroid
+>     ? '${(deviceInfo as AndroidDeviceInfo).manufacturer} ${deviceInfo.model} (Android ${deviceInfo.version.release})'
+>     : '${(deviceInfo as IosDeviceInfo).name} (iOS ${deviceInfo.systemVersion})';
+>   final sessionId = await _firestore.saveSession(uid, deviceLabel);
+>   final prefs = await SharedPreferences.getInstance();
+>   await prefs.setString('pref_session_id', sessionId);
+>   return sessionId;
+> }
+
+Hər giriş, `sessions/{uid}/devices/{sessionId}` yolunda BİR SƏNƏD yaradır — bu sənəd CİHAZIN MARKASI/MODELİ/ƏMƏLİYYAT SİSTEMİ VERSİYASI (məsələn, "Samsung SM-G991B (Android 14)" və ya "iPhone 15 Pro (iOS 17.4)") kimi İNSANIN OXUYA BİLƏCƏYİ MƏLUMATLA YARADILIR. İstifadəçi Tənzimləmələr → Hesab → Sessiyalar bölməsində BÜTÜN AKTİV CİHAZLARI GÖRƏ BİLƏR və ŞÜBHƏLİ BİR SESSİYANI UZAQDAN LƏĞV EDƏ BİLƏR (`deleteSession`).
+
+#### 7.2. restoreOrCreateSession() — Soyuq Başlanğıc Bərpası
+
+> Future<void> restoreOrCreateSession(String uid) async {
+>   final prefs = await SharedPreferences.getInstance();
+>   final savedId = prefs.getString('pref_session_id');
+>   if (savedId != null) {
+>     final refreshed = await _firestore.refreshSession(uid, savedId);
+>     if (refreshed) return;  // sessiya hələ keçərlidir
+>   }
+>   await saveLoginSession(uid);  // sessiya tapılmadı/ləğv edilib → yeni yarat
+> }
+
+Tətbiq YENİDƏN AÇILDIQDA (cold start), İSTİFADƏÇİNİ YENİDƏN GİRİŞ ETMƏYƏ MƏCBUR ETMƏK ƏVƏZİNƏ, ƏVVƏLKİ SESSİYA ID-Sİ `SharedPreferences`-dən OXUNUR. Əgər bu sessiya Firestore-da HƏLƏ MÖVCUDDURSA (istifadəçi onu UZAQDAN LƏĞV ETMƏYİB), `lastActiveAt` sahəsi YENİLƏNİR (refresh). Əks halda, YENİ SESSİYA YARADILIR — bu, "istifadəçi başqa bir cihazdan SESSİYANI LƏĞV EDİBSƏ, BU CİHAZ DA YENİ SESSİYA KİMİ TANINSIN" davranışını təmin edir.
+
+## 8. Google ilə Giriş
+
+> Future<({UserModel? user, bool isNewUser, User firebaseUser})> signInWithGoogle() async {
+>   final googleUser = await GoogleSignIn().signIn();
+>   if (googleUser == null) throw Exception('Cancelled');
+>   final googleAuth = await googleUser.authentication;
+>   final credential = GoogleAuthProvider.credential(
+>     accessToken: googleAuth.accessToken, idToken: googleAuth.idToken);
+>   final userCred = await _auth.signInWithCredential(credential);
+>   final isNew = userCred.additionalUserInfo?.isNewUser ?? false;
+>   UserModel? existingUser;
+>   if (!isNew) existingUser = await _firestore.getUser(userCred.user!.uid);
+>   return (user: existingUser, isNewUser: isNew, firebaseUser: userCred.user!);
+> }
+
+Bu metod Dart-ın **named record** tipini (`({UserModel? user, bool isNewUser, User firebaseUser})`) qaytarır — ÜÇ FƏRQLİ MƏLUMATI (mövcud istifadəçi profili VARSA, "yeni istifadəçidir" bayrağı, və xam Firebase `User` obyekti) BİR OBYEKTDƏ BİRLƏŞDİRİR. `isNewUser == true` OLDUQDA, UI `completeGoogleSignUp()` axınına yönləndirilir — yəni Google hesabı ilə İLK DƏFƏ giriş edən istifadəçi, EYNİ "username/skill level" addımlarından KEÇMƏLİDİR (Google email-i avtomatik istifadəçi adı kimi İSTİFADƏ EDİLMİR, çünki `usernames` UNİKALLIQ TƏLƏBİNƏ UYĞUN OLMAYA BİLƏR).
+
+> Future<UserModel> completeGoogleSignUp({
+>   required User firebaseUser, required String username,
+>   required String countryCode, required int skillLevel}) async {
+>   final stats = RatingStats(rating: 1200, ...);
+>   final user = UserModel(uid: firebaseUser.uid, username: username,
+>     email: firebaseUser.email!, checkersStats: const RatingStats(rating: 1200),
+>     dominoStats: const RatingStats(rating: 1200), ...);
+>   await _firestore.createUser(user);
+>   return user;
+> }
+
+## 9. Hesab İdarəetməsi: Email/Şifrə Dəyişikliyi və Hesabın Silinməsi
+
+#### 9.1. Reauthentication Tələbi
+
+Firebase Auth, HƏSSAS ƏMƏLİYYATLAR (email dəyişdirmə, şifrə dəyişdirmə, hesab silmə) ÜÇÜN "YAXIN VAXTDA GİRİŞ" (recent login) TƏLƏB EDİR. Bu səbəbdən, `changeEmail()` və `changePassword()` metodları ƏVVƏLCƏ `reauthenticateWithCredential()` ÇAĞIRIR:
+
+> Future<void> changePassword(String currentPassword, String newPassword) async {
+>   final cred = EmailAuthProvider.credential(email: currentUser!.email!, password: currentPassword);
+>   await currentUser!.reauthenticateWithCredential(cred);
+>   await currentUser!.updatePassword(newPassword);
+> }
+
+#### 9.2. deleteAccount() — Tam Təmizləmə
+
+> Future<void> deleteAccount({String? currentPassword}) async {
+>   final providerId = currentUser!.providerData.first.providerId;
+>   if (providerId == 'password') {
+>     final cred = EmailAuthProvider.credential(email: currentUser!.email!, password: currentPassword!);
+>     await currentUser!.reauthenticateWithCredential(cred);
+>   } else if (providerId == 'google.com') {
+>     final googleUser = await GoogleSignIn().signIn();
+>     final googleAuth = await googleUser!.authentication;
+>     await currentUser!.reauthenticateWithCredential(GoogleAuthProvider.credential(
+>       accessToken: googleAuth.accessToken, idToken: googleAuth.idToken));
+>   }
+>   final batch = _db.batch();
+>   batch.delete(_db.collection('users').doc(uid));
+>   batch.delete(_db.collection('usernames').doc(username.toLowerCase()));
+>   await batch.commit();
+>   // sessions/{uid}/devices/* sənədləri də silinir
+>   await currentUser!.delete();
+> }
+
+Provider tipinə (`'password'` vs `'google.com'`) görə FƏRQLİ REAUTH STRATEGİYASI tətbiq olunur. Sonra BATCH SİLMƏ ilə `users` VƏ `usernames` sənədləri ATOMİK ŞƏKİLDƏ silinir (username DƏRHAL BAŞQALARI ÜÇÜN SƏRBƏST OLUR), bütün sessiya qeydləri silinir, və ƏN SONDA `currentUser!.delete()` ilə Firebase Auth hesabının ÖZÜ silinir.
+
+## 10. Məxfilik Parametrləri
+
+`AuthService` aşağıdakı Firestore sahələrini idarə edən "setter" metodlarına malikdir:
+- `setTwoFactorEnabled(bool)` — 2FA aç/bağla.
+- `setOnlineStatus`/`setInvisibleMode` — "onlayn" statusunun digərlərinə görünməsi.
+- `setFriendRequestPrivacy`/`setChallengePrivacy`/`setMessagePrivacy` — `'everyone'`/`'friends'`/`'nobody'` dəyərləri.
+- `blockUser(targetUid)`/`unblockUser(targetUid)` — `arrayUnion`/`arrayRemove` ilə `blockedUsers` siyahısına/dan əlavə/silmə.
+
+## 11. Riverpod Provayderləri
+
+> final firestoreServiceProvider = Provider((ref) => FirestoreService());
+> final authServiceProvider = Provider((ref) => AuthService(ref.watch(firestoreServiceProvider)));
+> final authStateProvider = StreamProvider((ref) => ref.watch(authServiceProvider).authStateChanges);
+> final currentSessionIdProvider = StateProvider<String?>((ref) => null);
+> final currentUserProvider = StreamProvider.autoDispose((ref) {
+>   final uid = ref.watch(authStateProvider).valueOrNull?.uid;
+>   if (uid == null) return Stream.value(null);
+>   return FirebaseFirestore.instance.collection('users').doc(uid).snapshots()
+>     .map((d) => d.exists ? UserModel.fromMap(d.data()!) : null);
+> });
+
+`currentUserProvider`-in `.autoDispose` olması VACİBDİR — istifadəçi ÇIXIŞ ETDİKDƏ, bu PROVAYDERİN Firestore SNAPSHOT ABUNƏLİYİ AVTOMATIK LƏĞV EDİLİR, YADDAŞ SIZMASININ (memory leak) qarşısı alınır.
+
+## 12. Autentifikasiya Ekranları
+
+- **LoginScreen** — email/şifrə formu + "Google ilə daxil ol" düyməsi + 2FA yönləndirməsi.
+- **RegisterScreen** — 2 ADDIMLI: (1) istifadəçi adı/email/şifrə/ölkə seçimi, (2) bacarıq səviyyəsi.
+- **TwoFactorVerifyScreen** — 6 rəqəmli kod daxiletmə qutuları, "yenidən göndər" geri sayımı.
+- **EmailVerificationScreen** — `sendEmailVerification()` çağırır, sonra `user.reload()` ilə PERİODİK YOXLAMA (polling) edərək, istifadəçi emailini TƏSDİQLƏYƏNDƏ AVTOMATIK İRƏLİ keçir.
+- **SkillLevelScreen** — 6 KART (Beginner→Master, 400-2400 ELO), istifadəçinin ÖZÜNÜ-QİYMƏTLƏNDİRMƏSİ ƏSASINDA başlanğıc reytinqi təyin edir.
+- **ProfilePhotoPromptScreen** — qeydiyyatdan sonra, ixtiyari profil şəkli yükləmə təklifi.
+
+## 13. Nəticə
+
+"Grandmaster"-in autentifikasiya sistemi — Firebase Auth-un VERDİYİ TƏHLÜKƏSİZ TEMƏLİ (şifrə hashinq, OAuth) GÖTÜRÜB, ONUN ÜZƏRİNƏ TƏTBİQƏ-XAS ƏLAVƏ TƏHLÜKƏSİZLİK QATLARI (2FA, sessiya idarəetməsi, reauth tələbi) İNŞA EDİR. Server-tərəfli Cloud Functions (OTP) istifadəsi, KLİENT TƏTBİQİNİN HEÇ VAXT HƏSSAS KİMLİK MƏLUMATLARINA (SMTP credentials) ÇIXIŞININ OLMAMASINI TƏMİN EDİR — bu, "Defense in Depth" (Çoxqatlı Müdafiə) prinsipinin TƏTBİQİNİN GÖZƏL NÜMUNƏSİDİR.

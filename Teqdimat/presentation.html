@@ -1,0 +1,848 @@
+<!DOCTYPE html>
+<html lang="az">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+<title>CheckMate — Təqdimat</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,500;0,9..144,600;0,9..144,700;0,9..144,900;1,9..144,400&family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0A0A0B; --surface:#131316; --card:#1A1A1E; --card-elev:#202026;
+  --border:rgba(255,255,255,.06); --border-strong:rgba(255,255,255,.10);
+  --amber:#E8B960; --amber-soft:#FFD98B; --amber-deep:#B88A3A; --amber-glow:rgba(232,185,96,.16);
+  --checkers:#6FB4E0; --domino:#5FD4A3; --win:#5FD4A3; --loss:#F07079;
+  --ink:#F5F3EF; --ink-dim:#A8A39A; --ink-mute:#706B62;
+  --f-display:'Fraunces',Georgia,serif; --f-body:'Inter',-apple-system,'Segoe UI',sans-serif; --f-mono:'JetBrains Mono',Consolas,monospace;
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+html{font-size:16px;}
+@media(min-width:1700px){html{font-size:19px;}}
+@media(min-width:2300px){html{font-size:23px;}}
+html,body{height:100%;background:var(--bg);overflow:hidden;}
+body{font-family:var(--f-body);color:var(--ink);-webkit-font-smoothing:antialiased;}
+
+/* ===== background fx ===== */
+.bg-fx{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden;}
+.bg-fx .glow{position:absolute;border-radius:50%;filter:blur(110px);opacity:.5;}
+.bg-fx .glow-1{width:42vw;height:42vw;background:var(--amber);opacity:.10;top:-12vw;right:-10vw;animation:floatA 26s ease-in-out infinite alternate;}
+.bg-fx .glow-2{width:36vw;height:36vw;background:var(--checkers);opacity:.07;bottom:-14vw;left:-8vw;animation:floatB 30s ease-in-out infinite alternate;}
+.bg-fx .glow-3{width:28vw;height:28vw;background:var(--domino);opacity:.06;bottom:8vw;right:14vw;animation:floatC 22s ease-in-out infinite alternate;}
+.bg-fx .grid-overlay{position:absolute;inset:0;background-image:radial-gradient(rgba(255,255,255,.035) 1px,transparent 1px);background-size:42px 42px;mask-image:radial-gradient(circle at 50% 40%,black,transparent 75%);}
+@keyframes floatA{from{transform:translate(0,0) scale(1);}to{transform:translate(-4vw,5vw) scale(1.12);}}
+@keyframes floatB{from{transform:translate(0,0) scale(1);}to{transform:translate(5vw,-4vw) scale(1.08);}}
+@keyframes floatC{from{transform:translate(0,0) scale(1);}to{transform:translate(-3vw,-3vw) scale(1.15);}}
+@keyframes spin{to{transform:rotate(360deg);}}
+
+/* ===== deck & slides ===== */
+.deck{position:relative;width:100vw;height:100vh;z-index:1;}
+.slide{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;
+  padding:6vh 8vw;gap:1.4rem;opacity:0;transform:translateY(48px) scale(.985);
+  transition:opacity .65s cubic-bezier(.22,.61,.36,1),transform .65s cubic-bezier(.22,.61,.36,1);
+  pointer-events:none;overflow:hidden;}
+.slide.active{opacity:1;transform:translateY(0) scale(1);pointer-events:auto;z-index:2;}
+.slide.prev{transform:translateY(-48px) scale(.985);opacity:0;}
+.slide-num{position:absolute;top:5vh;right:8vw;font-family:var(--f-display);font-size:clamp(2.5rem,5vw,5rem);
+  font-weight:300;color:var(--ink);opacity:.05;line-height:1;user-select:none;}
+.bg-glyph{position:absolute;font-family:serif;pointer-events:none;user-select:none;line-height:1;z-index:-1;}
+
+/* ===== reveal stagger ===== */
+.r{opacity:0;transform:translateY(22px);transition:opacity .65s cubic-bezier(.22,.61,.36,1),transform .65s cubic-bezier(.22,.61,.36,1);}
+.r.show{opacity:1;transform:translateY(0);}
+
+/* ===== typography ===== */
+.eyebrow{font-family:var(--f-mono);font-size:clamp(.7rem,.9vw,.95rem);letter-spacing:.38em;text-transform:uppercase;color:var(--amber);font-weight:600;}
+.h1{font-family:var(--f-display);font-weight:600;font-size:clamp(2rem,4.3vw,3.7rem);line-height:1.12;letter-spacing:-.01em;}
+.h1 em{font-style:italic;color:var(--amber);}
+.lead{font-size:clamp(1rem,1.25vw,1.32rem);color:var(--ink-dim);line-height:1.55;max-width:62ch;font-weight:350;}
+.hero-title{font-family:var(--f-display);font-weight:700;font-size:clamp(4rem,11.5vw,9.5rem);line-height:.98;
+  background:linear-gradient(135deg,var(--amber-soft),var(--amber) 55%,var(--amber-deep));
+  -webkit-background-clip:text;background-clip:text;color:transparent;letter-spacing:-.02em;}
+.note{font-size:clamp(.8rem,.95vw,1rem);color:var(--ink-mute);font-style:italic;}
+strong{color:var(--ink);font-weight:600;}
+.accent{color:var(--amber);}
+
+/* ===== layout helpers ===== */
+.split{display:grid;grid-template-columns:1.05fr 1fr;gap:clamp(2rem,5vw,5rem);align-items:center;}
+.grid-2{display:grid;grid-template-columns:repeat(2,1fr);gap:1.25rem;}
+.grid-3{display:grid;grid-template-columns:repeat(3,1fr);gap:1.25rem;}
+.grid-4{display:grid;grid-template-columns:repeat(4,1fr);gap:1rem;}
+.col{display:flex;flex-direction:column;gap:1.5rem;}
+.row{display:flex;align-items:center;gap:1rem;}
+.stack{display:flex;flex-direction:column;gap:.85rem;}
+
+/* ===== cards & components ===== */
+.card{background:var(--card);border:1px solid var(--border);border-radius:18px;padding:clamp(1.1rem,1.8vw,1.7rem);}
+.card-elev{background:var(--card-elev);}
+.card h3{font-family:var(--f-display);font-size:clamp(1.05rem,1.5vw,1.45rem);font-weight:600;margin-bottom:.4rem;display:flex;align-items:center;gap:.6rem;}
+.card p{font-size:clamp(.82rem,1vw,1rem);color:var(--ink-dim);line-height:1.55;}
+.card .icon-wrap{width:2.6rem;height:2.6rem;border-radius:12px;display:flex;align-items:center;justify-content:center;
+  background:var(--accent-soft,var(--amber-glow));color:var(--accent,var(--amber));margin-bottom:.85rem;flex-shrink:0;}
+.icon{width:1.4em;height:1.4em;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round;}
+
+.bullet-list{list-style:none;display:flex;flex-direction:column;gap:.7rem;}
+.bullet-list li{display:flex;gap:.75rem;align-items:flex-start;font-size:clamp(.85rem,1.05vw,1.08rem);color:var(--ink-dim);line-height:1.5;}
+.bullet-list li::before{content:'';flex-shrink:0;width:8px;height:8px;border-radius:2px;background:var(--bullet-color,var(--amber));margin-top:.45em;transform:rotate(45deg);}
+.bullet-list li strong{color:var(--ink);}
+
+.badge{display:inline-flex;align-items:center;gap:.55rem;padding:.55rem 1.15rem;border:1px solid var(--border-strong);
+  border-radius:999px;font-family:var(--f-mono);font-size:clamp(.75rem,.9vw,.92rem);color:var(--ink-dim);background:rgba(255,255,255,.02);}
+.badge .dot{width:7px;height:7px;border-radius:50%;background:var(--accent,var(--amber));box-shadow:0 0 8px var(--accent,var(--amber));}
+.badge-row{display:flex;flex-wrap:wrap;gap:.6rem;}
+.group-label{font-family:var(--f-mono);font-size:.78rem;letter-spacing:.2em;text-transform:uppercase;color:var(--ink-mute);margin-bottom:.6rem;}
+
+.pill{display:inline-flex;align-items:center;padding:.4rem 1rem;border-radius:999px;font-size:clamp(.78rem,.95vw,.95rem);
+  font-weight:600;border:1px solid var(--border-strong);color:var(--ink-dim);font-family:var(--f-mono);}
+.pill.on{background:var(--amber-glow);border-color:var(--amber);color:var(--amber-soft);}
+
+/* layer stack (architecture) */
+.layer-stack{display:flex;flex-direction:column;align-items:stretch;gap:0;max-width:46rem;}
+.layer{display:flex;align-items:center;gap:1.1rem;background:var(--card);border:1px solid var(--border);border-radius:16px;
+  padding:1rem 1.4rem;border-left:3px solid var(--accent,var(--amber));}
+.layer .icon-wrap{width:2.4rem;height:2.4rem;border-radius:10px;background:var(--accent-soft,var(--amber-glow));color:var(--accent,var(--amber));
+  display:flex;align-items:center;justify-content:center;flex-shrink:0;}
+.layer strong{display:block;font-family:var(--f-display);font-size:clamp(1rem,1.3vw,1.25rem);}
+.layer span{font-size:clamp(.78rem,.95vw,.95rem);color:var(--ink-dim);}
+.layer-arrow{height:1.6rem;width:2px;background:linear-gradient(var(--border-strong),var(--border-strong));margin-left:2.6rem;
+  position:relative;transform:scaleY(0);transform-origin:top;transition:transform .5s ease .15s;}
+.layer-arrow::after{content:'';position:absolute;bottom:-3px;left:50%;transform:translateX(-50%);
+  border:5px solid transparent;border-top-color:var(--border-strong);}
+.r.show .layer-arrow{transform:scaleY(1);}
+
+/* mini boards */
+.mini-board{position:relative;width:clamp(170px,20vw,280px);aspect-ratio:1;border-radius:10px;overflow:hidden;
+  border:1px solid var(--border-strong);background-image:repeating-conic-gradient(var(--sq1,#2C2C3E) 0% 25%,var(--sq2,#1A1A28) 0% 50%);
+  background-size:25% 25%;flex-shrink:0;box-shadow:0 20px 60px -20px rgba(0,0,0,.6);}
+.mini-board .piece{position:absolute;font-size:clamp(1.4rem,3vw,2.6rem);transform:translate(-50%,-50%);line-height:1;
+  filter:drop-shadow(0 2px 6px rgba(0,0,0,.5));}
+.mini-board .hl{position:absolute;width:12.5%;height:12.5%;background:var(--amber-glow);outline:2px solid var(--amber);
+  outline-offset:-2px;}
+.mini-board .disc{position:absolute;width:9%;height:9%;border-radius:50%;transform:translate(-50%,-50%);box-shadow:0 3px 8px rgba(0,0,0,.5);}
+
+/* domino tile */
+.domino-row{display:flex;gap:1rem;flex-wrap:wrap;}
+.domino{width:clamp(54px,6vw,80px);height:clamp(108px,12vw,160px);background:var(--ink);border-radius:10px;
+  display:flex;flex-direction:column;border:1px solid var(--border-strong);box-shadow:0 14px 40px -16px rgba(0,0,0,.6);overflow:hidden;}
+.domino .half{flex:1;display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,1fr);place-items:center;padding:10%;}
+.domino .half:first-child{border-bottom:2px solid var(--bg);}
+.domino .pip{width:22%;aspect-ratio:1;border-radius:50%;background:var(--bg);}
+.domino .p1{grid-area:2/2;}.domino .p2a{grid-area:1/1;}.domino .p2b{grid-area:3/3;}
+.domino .p3a{grid-area:1/1;}.domino .p3b{grid-area:2/2;}.domino .p3c{grid-area:3/3;}
+.domino .p4a{grid-area:1/1;}.domino .p4b{grid-area:1/3;}.domino .p4c{grid-area:3/1;}.domino .p4d{grid-area:3/3;}
+.domino .p5a{grid-area:1/1;}.domino .p5b{grid-area:1/3;}.domino .p5c{grid-area:2/2;}.domino .p5d{grid-area:3/1;}.domino .p5e{grid-area:3/3;}
+.domino .p6a{grid-area:1/1;}.domino .p6b{grid-area:1/3;}.domino .p6c{grid-area:2/1;}.domino .p6d{grid-area:2/3;}.domino .p6e{grid-area:3/1;}.domino .p6f{grid-area:3/3;}
+
+/* sync diagram */
+.sync-diagram{display:flex;align-items:center;gap:0;width:100%;max-width:50rem;}
+.sync-node{background:var(--card);border:1px solid var(--border-strong);border-radius:16px;padding:1.1rem 1.5rem;
+  text-align:center;font-family:var(--f-display);font-size:clamp(.95rem,1.2vw,1.2rem);font-weight:600;flex-shrink:0;}
+.sync-node span{display:block;font-family:var(--f-mono);font-size:.7rem;color:var(--ink-mute);font-weight:400;letter-spacing:.15em;
+  text-transform:uppercase;margin-top:.3rem;}
+.sync-line{flex:1;height:2px;background:var(--border-strong);position:relative;margin:0 -1px;overflow:visible;}
+.sync-line .pulse{position:absolute;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--amber);
+  box-shadow:0 0 14px var(--amber);left:-10px;animation:travel 2.4s linear infinite;}
+.sync-line.rev .pulse{background:var(--checkers);box-shadow:0 0 14px var(--checkers);animation-delay:1.2s;animation-direction:reverse;}
+@keyframes travel{from{left:-10px;}to{left:100%;}}
+
+/* formula card */
+.formula{font-family:var(--f-mono);font-size:clamp(1.05rem,1.6vw,1.7rem);font-weight:600;color:var(--amber-soft);
+  background:var(--card);border:1px solid var(--border-strong);border-radius:16px;padding:1.2rem 1.6rem;display:inline-block;
+  white-space:nowrap;letter-spacing:.04em;}
+.rating-graph{width:100%;max-width:24rem;height:auto;}
+.rating-graph polyline{stroke-dasharray:100;stroke-dashoffset:100;transition:stroke-dashoffset 1.6s cubic-bezier(.22,.61,.36,1) .2s;}
+.r.show .rating-graph polyline{stroke-dashoffset:0;}
+
+/* act path (campaign) */
+.act-path{display:flex;align-items:center;width:100%;max-width:50rem;}
+.act{width:clamp(1.8rem,3vw,2.6rem);height:clamp(1.8rem,3vw,2.6rem);border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-family:var(--f-mono);font-weight:700;font-size:clamp(.75rem,1vw,.95rem);border:2px solid var(--border-strong);
+  color:var(--ink-mute);flex-shrink:0;background:var(--card);}
+.act.done{background:var(--amber);border-color:var(--amber);color:var(--bg);}
+.act-line{flex:1;height:2px;background:var(--border-strong);}
+.act-line.done{background:var(--amber);}
+
+/* color swatches & type sample */
+.swatch{display:flex;flex-direction:column;align-items:center;gap:.5rem;}
+.swatch .sw-color{width:clamp(3rem,4.5vw,4.5rem);height:clamp(3rem,4.5vw,4.5rem);border-radius:14px;border:1px solid var(--border-strong);
+  box-shadow:0 12px 30px -14px rgba(0,0,0,.6);}
+.swatch span{font-family:var(--f-mono);font-size:.72rem;color:var(--ink-mute);}
+.type-sample{display:flex;flex-direction:column;align-items:center;gap:.4rem;background:var(--card);border:1px solid var(--border);
+  border-radius:16px;padding:1.2rem 1.6rem;min-width:8rem;}
+.type-sample .Aa{font-size:clamp(2rem,3.5vw,3.2rem);line-height:1;}
+.type-sample span{font-size:.78rem;color:var(--ink-mute);font-family:var(--f-mono);}
+
+/* phone mockup */
+.phone{width:clamp(11rem,15vw,15rem);aspect-ratio:9/18.5;background:var(--card);border:1px solid var(--border-strong);
+  border-radius:2rem;padding:.9rem;box-shadow:0 30px 80px -30px rgba(0,0,0,.7);flex-shrink:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:.8rem;position:relative;}
+.phone::before{content:'';position:absolute;top:.6rem;left:50%;transform:translateX(-50%);width:32%;height:.4rem;
+  border-radius:999px;background:var(--bg);}
+.phone .app-icon{width:4.2rem;height:4.2rem;border-radius:1.1rem;background:linear-gradient(135deg,var(--amber-soft),var(--amber-deep));
+  display:flex;align-items:center;justify-content:center;font-size:2.1rem;color:var(--bg);box-shadow:0 10px 30px -8px var(--amber-glow);}
+.phone strong{font-family:var(--f-display);font-size:1.05rem;}
+.phone span{font-family:var(--f-mono);font-size:.68rem;color:var(--ink-mute);text-align:center;padding:0 .5rem;}
+
+/* stats */
+.stat-hero{display:flex;align-items:baseline;gap:1rem;}
+.stat-num{font-family:var(--f-mono);font-weight:700;font-size:clamp(4rem,9vw,7.5rem);color:var(--amber);line-height:1;
+  background:linear-gradient(135deg,var(--amber-soft),var(--amber));-webkit-background-clip:text;background-clip:text;color:transparent;}
+.stat-label{font-size:clamp(.95rem,1.2vw,1.25rem);color:var(--ink-dim);max-width:14rem;line-height:1.4;}
+.bar-row{display:flex;align-items:center;gap:1rem;margin-bottom:.65rem;}
+.bar-row .country{width:8rem;font-size:clamp(.8rem,1vw,1rem);color:var(--ink-dim);flex-shrink:0;}
+.bar-row .bar-track{flex:1;height:.6rem;background:var(--card);border-radius:999px;overflow:hidden;border:1px solid var(--border);}
+.bar-row .bar-fill{height:100%;width:0;border-radius:999px;background:linear-gradient(90deg,var(--amber-deep),var(--amber));
+  transition:width 1.3s cubic-bezier(.22,.61,.36,1) .15s;}
+.bar-row .count{width:2.5rem;text-align:right;font-family:var(--f-mono);font-weight:600;color:var(--ink);flex-shrink:0;}
+.stars{display:flex;gap:.2rem;color:var(--amber);}
+.stars .icon{width:1.5rem;height:1.5rem;fill:currentColor;}
+
+/* qr */
+.qr-card{background:var(--ink);border-radius:24px;padding:1.4rem;display:inline-flex;box-shadow:0 0 0 1px var(--border-strong),
+  0 30px 90px -30px var(--amber-glow),0 0 60px -10px var(--amber-glow);}
+.qr-card svg{display:block;width:clamp(9rem,13vw,13rem);height:auto;}
+
+/* ===== nav chrome ===== */
+.progress-bar{position:fixed;top:0;left:0;width:100%;height:3px;background:rgba(255,255,255,.05);z-index:50;}
+.progress-fill{height:100%;width:4.76%;background:linear-gradient(90deg,var(--amber-deep),var(--amber-soft));
+  transition:width .5s cubic-bezier(.22,.61,.36,1);box-shadow:0 0 12px var(--amber-glow);}
+.nav-controls{position:fixed;bottom:1.6rem;right:2rem;z-index:50;display:flex;align-items:center;gap:.7rem;
+  font-family:var(--f-mono);color:var(--ink-mute);}
+.nav-btn{width:2.6rem;height:2.6rem;border-radius:50%;border:1px solid var(--border-strong);background:rgba(255,255,255,.03);
+  color:var(--ink-dim);display:flex;align-items:center;justify-content:center;cursor:pointer;transition:.2s;backdrop-filter:blur(8px);}
+.nav-btn:hover{background:var(--amber-glow);border-color:var(--amber);color:var(--amber-soft);}
+.nav-btn .icon{width:1.1rem;height:1.1rem;}
+.slide-counter{font-size:.85rem;letter-spacing:.1em;min-width:3.6rem;text-align:center;}
+.nav-hint{position:fixed;bottom:1.8rem;left:2rem;z-index:50;font-family:var(--f-mono);font-size:.75rem;color:var(--ink-mute);
+  letter-spacing:.05em;display:flex;align-items:center;gap:.5rem;}
+.nav-hint .icon{width:1rem;height:1rem;}
+.brand-mark{position:fixed;top:1.6rem;left:2rem;z-index:50;font-family:var(--f-display);font-weight:600;font-size:1rem;
+  color:var(--ink-dim);letter-spacing:.02em;display:flex;align-items:center;gap:.4rem;}
+.brand-mark .icon{width:1.1rem;height:1.1rem;color:var(--amber);}
+
+@media(max-width:900px){
+  .split,.grid-3,.grid-4{grid-template-columns:1fr;}
+  .grid-2{grid-template-columns:1fr;}
+  .slide{padding:5vh 6vw;}
+}
+</style>
+</head>
+<body>
+
+<svg style="display:none">
+  <symbol id="i-window" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="16" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/></symbol>
+  <symbol id="i-sliders" viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"/><circle cx="9" cy="6" r="2"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="15" cy="12" r="2"/><line x1="4" y1="18" x2="20" y2="18"/><circle cx="11" cy="18" r="2"/></symbol>
+  <symbol id="i-gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M12 1v4M12 19v4M4.2 4.2l2.8 2.8M17 17l2.8 2.8M1 12h4M19 12h4M4.2 19.8L7 17M17 7l2.8-2.8"/></symbol>
+  <symbol id="i-database" viewBox="0 0 24 24"><ellipse cx="12" cy="5" rx="8" ry="3"/><path d="M4 5v14c0 1.7 3.6 3 8 3s8-1.3 8-3V5"/><path d="M4 12c0 1.7 3.6 3 8 3s8-1.3 8-3"/></symbol>
+  <symbol id="i-route" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></symbol>
+  <symbol id="i-king" viewBox="0 0 24 24"><path d="M5 20h14"/><path d="M6 20l-1.5-9L8 13l4-7 4 7 3.5-2L18 20"/><circle cx="12" cy="3" r="1.4"/></symbol>
+  <symbol id="i-disc" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4"/></symbol>
+  <symbol id="i-domino" viewBox="0 0 24 24"><rect x="4" y="2" width="16" height="20" rx="3"/><line x1="4" y1="12" x2="20" y2="12"/><circle cx="9" cy="7" r="1"/><circle cx="15" cy="7" r="1"/><circle cx="9" cy="17" r="1"/><circle cx="15" cy="17" r="1"/><circle cx="12" cy="17" r="1"/></symbol>
+  <symbol id="i-cpu" viewBox="0 0 24 24"><rect x="5" y="5" width="14" height="14" rx="2"/><path d="M9 1v4M15 1v4M9 19v4M15 19v4M1 9h4M1 15h4M19 9h4M19 15h4"/><circle cx="12" cy="12" r="3"/></symbol>
+  <symbol id="i-bolt" viewBox="0 0 24 24"><polygon points="13 2 3 14 11 14 11 22 21 10 13 10 13 2"/></symbol>
+  <symbol id="i-trophy" viewBox="0 0 24 24"><path d="M8 21h8M12 17v4M5 4h14v3a5 5 0 01-5 5h-4a5 5 0 01-5-5V4z"/><path d="M5 5H3a2 2 0 002 2M19 5h2a2 2 0 01-2 2"/></symbol>
+  <symbol id="i-map" viewBox="0 0 24 24"><polygon points="3 6 9 3 15 6 21 3 21 18 15 21 9 18 3 21"/><line x1="9" y1="3" x2="9" y2="18"/><line x1="15" y1="6" x2="15" y2="21"/></symbol>
+  <symbol id="i-chat" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 01-9 8.4A8.5 8.5 0 113 11.5 8.38 8.38 0 0111 3a8.5 8.5 0 0110 8.5z"/></symbol>
+  <symbol id="i-globe" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="2" y1="12" x2="22" y2="12"/><path d="M12 2a15 15 0 010 20 15 15 0 010-20z"/></symbol>
+  <symbol id="i-palette" viewBox="0 0 24 24"><path d="M12 2a10 10 0 000 20c1.5 0 2-1 2-2s-.5-1.5-.5-2.5S14 16 15 16h3a3 3 0 003-3c0-6-4-11-9-11z"/><circle cx="7" cy="11" r="1"/><circle cx="9" cy="7" r="1"/><circle cx="14" cy="7" r="1"/><circle cx="17" cy="11" r="1"/></symbol>
+  <symbol id="i-rocket" viewBox="0 0 24 24"><path d="M12 2c3 2 5 6 5 10 0 2-1 4-2 5l-3-1-3 1c-1-1-2-3-2-5 0-4 2-8 5-10z"/><circle cx="12" cy="9" r="1.5"/><path d="M9 16l-2 5 4-2M15 16l2 5-4-2"/></symbol>
+  <symbol id="i-chart" viewBox="0 0 24 24"><line x1="4" y1="20" x2="20" y2="20"/><rect x="6" y="12" width="3" height="8"/><rect x="11" y="7" width="3" height="13"/><rect x="16" y="3" width="3" height="17"/></symbol>
+  <symbol id="i-download" viewBox="0 0 24 24"><path d="M12 3v12m0 0l-4-4m4 4l4-4"/><path d="M4 17v2a2 2 0 002 2h12a2 2 0 002-2v-2"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><polygon points="12 2 15 9 22 9.5 17 14.5 18.5 22 12 18 5.5 22 7 14.5 2 9.5 9 9 12 2"/></symbol>
+  <symbol id="i-layers" viewBox="0 0 24 24"><path d="M12 2 2 7l10 5 10-5-10-5z"/><path d="M2 12l10 5 10-5"/><path d="M2 17l10 5 10-5"/></symbol>
+  <symbol id="i-chevron-left" viewBox="0 0 24 24"><path d="M15 18l-6-6 6-6"/></symbol>
+  <symbol id="i-chevron-right" viewBox="0 0 24 24"><path d="M9 18l6-6-6-6"/></symbol>
+  <symbol id="i-expand" viewBox="0 0 24 24"><path d="M8 3H5a2 2 0 00-2 2v3m18 0V5a2 2 0 00-2-2h-3m0 18h3a2 2 0 002-2v-3M3 16v3a2 2 0 002 2h3"/></symbol>
+</svg>
+
+<div class="bg-fx"><div class="glow glow-1"></div><div class="glow glow-2"></div><div class="glow glow-3"></div><div class="grid-overlay"></div></div>
+<div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+<div class="brand-mark"><svg class="icon"><use href="#i-king"/></svg> CheckMate</div>
+
+<div class="deck" id="deck">
+<section class="slide active" data-index="0">
+  <span class="bg-glyph" style="font-size:48vw;top:-20vh;right:-14vw;color:var(--amber);opacity:.05;animation:spin 140s linear infinite;">♔</span>
+  <div class="col" style="align-items:flex-start;gap:1.1rem;">
+    <div class="eyebrow r">Şahmat · Dama · Domino</div>
+    <h1 class="hero-title r">CheckMate</h1>
+    <p class="lead r">Çox-Oyunlu Strateji Oyun Ekosistemi — Flutter &amp; Firebase üzərində qurulmuş, Google Play-də canlı tətbiq.</p>
+    <div class="row r" style="margin-top:1.6rem;gap:.7rem;flex-wrap:wrap;">
+      <span class="badge"><span class="dot"></span>Miryusif Məcidov</span>
+      <span class="badge"><span class="dot" style="--accent:var(--checkers)"></span>Azərbaycan Texniki Universiteti</span>
+      <span class="badge"><span class="dot" style="--accent:var(--domino)"></span>İTT Fakültəsi · Qrup 652a3</span>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-index="1">
+  <div class="slide-num">01</div>
+  <div class="eyebrow r">01 · Giriş</div>
+  <h1 class="h1 r">Niyə Bu Layihə?</h1>
+  <p class="lead r">Üç məqsəd, bir nəticə.</p>
+  <div class="grid-3" style="margin-top:1rem;">
+    <div class="card r">
+      <div class="icon-wrap"><svg class="icon"><use href="#i-layers"/></svg></div>
+      <h3>Tam-Stack Təcrübə</h3>
+      <p>UI-dan backend-ə, verilənlər bazasına və real-vaxt kommunikasiyaya qədər bütün qatların özüm tərəfimdən qurulması.</p>
+    </div>
+    <div class="card r">
+      <div class="icon-wrap" style="--accent:var(--checkers);--accent-soft:rgba(111,180,224,.16)"><svg class="icon"><use href="#i-cpu"/></svg></div>
+      <h3>Alqoritmlərin Real Tətbiqi</h3>
+      <p>Minimax, Alpha-Beta budama və Monte Carlo Tree Search — dərslikdən kənara çıxıb canlı məhsulda işləyir.</p>
+    </div>
+    <div class="card r">
+      <div class="icon-wrap" style="--accent:var(--domino);--accent-soft:rgba(95,212,163,.16)"><svg class="icon"><use href="#i-rocket"/></svg></div>
+      <h3>Real İstifadəçilərə Çatmaq</h3>
+      <p>Akademik tapşırıqdan kənara çıxaraq Google Play Store-da rəsmi nəşr və canlı istifadəçi bazası.</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-index="2">
+  <div class="slide-num">02</div>
+  <div class="eyebrow r">02 · Konsepsiya</div>
+  <h1 class="h1 r">Bir Platforma, <em>Üç Oyun</em></h1>
+  <p class="lead r">Şahmat, Dama və Domino — vahid "GameType" arxitekturası üzərində, eyni reytinq, turnir və multiplayer infrastrukturu ilə.</p>
+  <div class="grid-3" style="margin-top:.5rem;">
+    <div class="card r" style="border-top:3px solid var(--amber);text-align:center;">
+      <div class="icon-wrap" style="margin:0 auto .85rem;"><svg class="icon" style="width:1.8em;height:1.8em;"><use href="#i-king"/></svg></div>
+      <h3 style="justify-content:center;">Şahmat</h3>
+      <p>FEN · SAN · PGN dəstəyi</p>
+    </div>
+    <div class="card r" style="border-top:3px solid var(--checkers);text-align:center;">
+      <div class="icon-wrap" style="margin:0 auto .85rem;--accent:var(--checkers);--accent-soft:rgba(111,180,224,.16)"><svg class="icon" style="width:1.8em;height:1.8em;"><use href="#i-disc"/></svg></div>
+      <h3 style="justify-content:center;">Dama</h3>
+      <p>Məcburi tutma qaydası</p>
+    </div>
+    <div class="card r" style="border-top:3px solid var(--domino);text-align:center;">
+      <div class="icon-wrap" style="margin:0 auto .85rem;--accent:var(--domino);--accent-soft:rgba(95,212,163,.16)"><svg class="icon" style="width:1.8em;height:1.8em;"><use href="#i-domino"/></svg></div>
+      <h3 style="justify-content:center;">Domino</h3>
+      <p>MCTS əsaslı bot</p>
+    </div>
+  </div>
+  <div class="row r" style="justify-content:center;gap:.7rem;margin-top:1.5rem;flex-wrap:wrap;">
+    <span class="pill on">Bot</span>
+    <span class="pill">Lokal</span>
+    <span class="pill">Onlayn</span>
+    <span class="pill">Kampaniya</span>
+  </div>
+</section>
+
+<section class="slide" data-index="3">
+  <div class="slide-num">03</div>
+  <div class="eyebrow r">03 · Texnologiya</div>
+  <h1 class="h1 r">Texnologiya Stack-i</h1>
+  <div class="col r" style="gap:1.5rem;margin-top:.5rem;">
+    <div>
+      <div class="group-label">Frontend</div>
+      <div class="badge-row">
+        <span class="badge"><span class="dot"></span>Flutter</span>
+        <span class="badge"><span class="dot"></span>Dart</span>
+      </div>
+    </div>
+    <div>
+      <div class="group-label">Naviqasiya &amp; State</div>
+      <div class="badge-row">
+        <span class="badge"><span class="dot" style="--accent:var(--checkers)"></span>GoRouter</span>
+        <span class="badge"><span class="dot" style="--accent:var(--checkers)"></span>Riverpod</span>
+        <span class="badge"><span class="dot" style="--accent:var(--checkers)"></span>easy_localization</span>
+      </div>
+    </div>
+    <div>
+      <div class="group-label">Backend — Firebase Ekosistemi</div>
+      <div class="badge-row">
+        <span class="badge"><span class="dot" style="--accent:var(--domino)"></span>Authentication</span>
+        <span class="badge"><span class="dot" style="--accent:var(--domino)"></span>Cloud Firestore</span>
+        <span class="badge"><span class="dot" style="--accent:var(--domino)"></span>Realtime Database</span>
+        <span class="badge"><span class="dot" style="--accent:var(--domino)"></span>Cloud Functions</span>
+        <span class="badge"><span class="dot" style="--accent:var(--domino)"></span>Cloud Messaging</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-index="4">
+  <div class="slide-num">04</div>
+  <div class="eyebrow r">04 · Arxitektura</div>
+  <h1 class="h1 r">Dörd Qatlı Struktur</h1>
+  <p class="lead r">Hər qat öz məsuliyyətini daşıyır — UI-a toxunmadan AI-nı dəyişmək mümkündür.</p>
+  <div class="layer-stack" style="margin-top:.4rem;">
+    <div class="layer r"><div class="icon-wrap"><svg class="icon"><use href="#i-window"/></svg></div><div><strong>Presentation</strong><span>30+ ekran, vidcetlər, animasiyalar</span></div></div>
+    <div class="layer-arrow r"></div>
+    <div class="layer r" style="--accent:var(--checkers)"><div class="icon-wrap" style="--accent:var(--checkers);--accent-soft:rgba(111,180,224,.16)"><svg class="icon"><use href="#i-sliders"/></svg></div><div><strong>State</strong><span>Riverpod provider-ləri, reaktiv UI yenilənməsi</span></div></div>
+    <div class="layer-arrow r"></div>
+    <div class="layer r" style="--accent:var(--domino)"><div class="icon-wrap" style="--accent:var(--domino);--accent-soft:rgba(95,212,163,.16)"><svg class="icon"><use href="#i-gear"/></svg></div><div><strong>Service</strong><span>Biznes məntiqi, AI mühərrikləri, reytinq hesablamaları</span></div></div>
+    <div class="layer-arrow r"></div>
+    <div class="layer r" style="--accent:var(--ink-dim)"><div class="icon-wrap" style="--accent:var(--ink-dim);--accent-soft:rgba(255,255,255,.06)"><svg class="icon"><use href="#i-database"/></svg></div><div><strong>Data</strong><span>Modellər, Firestore sənədləri, yerli keş</span></div></div>
+  </div>
+</section>
+
+<section class="slide" data-index="5">
+  <div class="slide-num">05</div>
+  <div class="eyebrow r">05 · Naviqasiya &amp; State</div>
+  <h1 class="h1 r">GoRouter + Riverpod</h1>
+  <div class="split" style="margin-top:1rem;">
+    <div class="card r">
+      <div class="icon-wrap"><svg class="icon"><use href="#i-route"/></svg></div>
+      <h3>GoRouter — Naviqasiya</h3>
+      <ul class="bullet-list" style="margin-top:.6rem;">
+        <li><strong>30+ ekran</strong> arasında deklarativ marşrutlama</li>
+        <li>Deep-link dəstəyi — birbaşa oyun otağına keçid</li>
+        <li>Autentifikasiya əsaslı yönləndirmə (route guard)</li>
+      </ul>
+    </div>
+    <div class="card r" style="--accent:var(--checkers)">
+      <div class="icon-wrap" style="--accent:var(--checkers);--accent-soft:rgba(111,180,224,.16)"><svg class="icon"><use href="#i-sliders"/></svg></div>
+      <h3>Riverpod — State Management</h3>
+      <ul class="bullet-list" style="margin-top:.6rem;">
+        <li style="--bullet-color:var(--checkers)"><strong>StateNotifier</strong> + <strong>Provider</strong> arxitekturası</li>
+        <li style="--bullet-color:var(--checkers)">UI <strong>watch()</strong> ilə avtomatik yenilənir</li>
+        <li style="--bullet-color:var(--checkers)">Lazımsız "rebuild"-lərin qarşısı alınır</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-index="6">
+  <div class="slide-num">06</div>
+  <div class="eyebrow r">06 · Şahmat Mühərriki</div>
+  <h1 class="h1 r">Qaydalara Tam Uyğunluq</h1>
+  <div class="split" style="margin-top:.5rem;">
+    <div class="stack r">
+      <p class="lead">Standart şahmat notasiyaları tam dəstəklənir — partiyalar istənilən xarici platformada açıla bilər.</p>
+      <div class="badge-row">
+        <span class="badge"><span class="dot"></span>FEN</span>
+        <span class="badge"><span class="dot"></span>SAN</span>
+        <span class="badge"><span class="dot"></span>PGN</span>
+      </div>
+      <ul class="bullet-list" style="margin-top:.4rem;">
+        <li>Rokirovka, en-passant, piyada çevrilməsi (promotion)</li>
+        <li>Şah, mat və pat vəziyyətlərinin avtomatik aşkarlanması</li>
+        <li>Tam gediş tarixçəsi və partiya ixracı</li>
+      </ul>
+    </div>
+    <div class="mini-board r" style="justify-self:center;">
+      <span class="piece" style="left:50%;top:12.5%;color:#e8e6e3;">♚</span>
+      <span class="piece" style="left:18.75%;top:12.5%;color:#e8e6e3;">♜</span>
+      <span class="piece" style="left:81.25%;top:25%;color:#e8e6e3;">♞</span>
+      <span class="piece" style="left:37.5%;top:37.5%;color:var(--amber-soft);">♙</span>
+      <span class="piece" style="left:62.5%;top:62.5%;color:var(--amber-soft);">♔</span>
+      <span class="piece" style="left:25%;top:87.5%;color:var(--amber-soft);">♖</span>
+      <div class="hl" style="left:50%;top:50%;"></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-index="7">
+  <div class="slide-num">07</div>
+  <div class="eyebrow r">07 · Şahmat UI/UX</div>
+  <h1 class="h1 r">Vizual Təcrübə</h1>
+  <div class="row r" style="gap:1.4rem;flex-wrap:wrap;margin-top:.5rem;">
+    <div class="swatch"><div class="sw-color" style="background:linear-gradient(135deg,#F0D9B5 50%,#B58863 50%);"></div><span>Klassik</span></div>
+    <div class="swatch"><div class="sw-color" style="background:linear-gradient(135deg,#EEEED2 50%,#769656 50%);"></div><span>Yaşıl Keçə</span></div>
+    <div class="swatch"><div class="sw-color" style="background:linear-gradient(135deg,#2C2C3E 50%,#1A1A28 50%);"></div><span>Tünd Mərmər</span></div>
+    <div class="swatch"><div class="sw-color" style="background:linear-gradient(135deg,#DEE3E6 50%,#8CA2AD 50%);"></div><span>Mavi Buz</span></div>
+    <div class="swatch"><div class="sw-color" style="background:linear-gradient(135deg,#F5F0E8 50%,#D4C5A9 50%);"></div><span>Krem</span></div>
+  </div>
+  <div class="grid-3 r" style="margin-top:1.5rem;">
+    <div class="card"><h3 style="font-size:1.05rem;">Animasiyalı Gedişlər</h3><p>Fiqur sürüşməsi, tutma effekti, şah vəziyyətində parıltı (glow)</p></div>
+    <div class="card"><h3 style="font-size:1.05rem;">Peşəkar Saat</h3><p>Vaxt azalması, "low time" xəbərdarlığı, avtomatik bitmə hesablanması</p></div>
+    <div class="card"><h3 style="font-size:1.05rem;">Gedişlər Tarixçəsi</h3><p>Real-vaxt siyahı — istənilən an geriyə baxış və təhlil</p></div>
+  </div>
+</section>
+
+<section class="slide" data-index="8">
+  <div class="slide-num">08</div>
+  <div class="eyebrow r">08 · Süni İntellekt</div>
+  <h1 class="h1 r">Hər Oyun — Öz Alqoritmi</h1>
+  <p class="lead r">Üç fərqli oyun, üç fərqli axtarış strategiyası — hamısı ayrı Dart Isolate-larda, UI-ı bloklamadan.</p>
+  <div class="grid-3" style="margin-top:.5rem;">
+    <div class="card r" style="text-align:center;">
+      <div class="icon-wrap" style="margin:0 auto .85rem;"><svg class="icon"><use href="#i-king"/></svg></div>
+      <h3 style="justify-content:center;font-family:var(--f-mono);font-size:1.05rem;">Minimax + α-β</h3>
+      <p>Şahmat — dərinlik əsaslı çətinlik səviyyələri, budama ilə eksponensial sürətlənmə</p>
+    </div>
+    <div class="card r" style="text-align:center;">
+      <div class="icon-wrap" style="margin:0 auto .85rem;--accent:var(--checkers);--accent-soft:rgba(111,180,224,.16)"><svg class="icon"><use href="#i-disc"/></svg></div>
+      <h3 style="justify-content:center;font-family:var(--f-mono);font-size:1.05rem;">Negamax + TT</h3>
+      <p>Dama — Transposition Table ilə təkrar mövqelərin yenidən hesablanmaması</p>
+    </div>
+    <div class="card r" style="text-align:center;">
+      <div class="icon-wrap" style="margin:0 auto .85rem;--accent:var(--domino);--accent-soft:rgba(95,212,163,.16)"><svg class="icon"><use href="#i-domino"/></svg></div>
+      <h3 style="justify-content:center;font-family:var(--f-mono);font-size:1.05rem;">MCTS</h3>
+      <p>Domino — qeyri-tam məlumat şəraitində minlərlə simulyasiya</p>
+    </div>
+  </div>
+  <div class="badge-row r" style="margin-top:1.4rem;justify-content:center;">
+    <span class="badge"><span class="dot"></span>Dart Isolate — paralel hesablama</span>
+    <span class="badge"><span class="dot"></span>UI heç vaxt bloklanmır</span>
+  </div>
+</section>
+
+<section class="slide" data-index="9">
+  <div class="slide-num">09</div>
+  <div class="eyebrow r">09 · Multiplayer</div>
+  <h1 class="h1 r">Real-Vaxt Onlayn Oyun</h1>
+  <p class="lead r">Firebase Realtime Database hər gedişi milisaniyələr içində qarşı tərəfə ötürür.</p>
+  <div class="sync-diagram r" style="margin:1.5rem 0;">
+    <div class="sync-node">Oyunçu A<span>Telefon</span></div>
+    <div class="sync-line"><span class="pulse"></span></div>
+    <div class="sync-node" style="--accent:var(--amber)">Firebase<span>Realtime DB</span></div>
+    <div class="sync-line rev"><span class="pulse"></span></div>
+    <div class="sync-node">Oyunçu B<span>Telefon</span></div>
+  </div>
+  <div class="grid-3 r">
+    <div class="card"><h3 style="font-size:1.05rem;">Matçmeyking</h3><p>Reytinqə uyğun rəqib seçimi</p></div>
+    <div class="card"><h3 style="font-size:1.05rem;">Presence</h3><p>Onlayn status və bağlantı izlənməsi</p></div>
+    <div class="card"><h3 style="font-size:1.05rem;">Dost Dəvəti</h3><p>Birbaşa dostu partiyaya çağırmaq</p></div>
+  </div>
+</section>
+
+<section class="slide" data-index="10">
+  <div class="slide-num">10</div>
+  <div class="eyebrow r" style="color:var(--checkers)">10 · Dama</div>
+  <h1 class="h1 r">Məcburi Tutma Qaydası</h1>
+  <div class="split" style="margin-top:.5rem;">
+    <div class="stack r">
+      <p class="lead">Əgər tutma gedişi mümkündürsə, oyunçu MÜTLƏQ onu etməlidir — mühərrik bunu avtomatik tətbiq edir.</p>
+      <ul class="bullet-list">
+        <li style="--bullet-color:var(--checkers)">Zəncirvari çoxlu tutmalar (multi-jump) tam hesablanır</li>
+        <li style="--bullet-color:var(--checkers)">Adi daşın "Dama" (king) fiqurana çevrilməsi</li>
+        <li style="--bullet-color:var(--checkers)">Eyni multiplayer, reytinq və turnir infrastrukturu</li>
+      </ul>
+    </div>
+    <div class="mini-board r" style="justify-self:center;--sq1:#274b63;--sq2:#162b3a;">
+      <div class="disc" style="left:18.75%;top:18.75%;background:#3a3a40;border:2px solid #555;"></div>
+      <div class="disc" style="left:43.75%;top:18.75%;background:#3a3a40;border:2px solid #555;"></div>
+      <div class="disc" style="left:31.25%;top:43.75%;background:var(--amber-soft);border:2px solid var(--amber);"></div>
+      <div class="disc" style="left:68.75%;top:81.25%;background:var(--amber-soft);border:2px solid var(--amber);"></div>
+      <div class="hl" style="left:50%;top:25%;outline-color:var(--checkers);"></div>
+      <div class="hl" style="left:75%;top:12.5%;outline-color:var(--checkers);"></div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-index="11">
+  <div class="slide-num">11</div>
+  <div class="eyebrow r" style="color:var(--domino)">11 · Domino</div>
+  <h1 class="h1 r">Qeyri-Tam Məlumat, MCTS Həlli</h1>
+  <div class="split" style="margin-top:.5rem;">
+    <div class="stack r">
+      <p class="lead">Rəqibin əlindəki daşlar bilinmir — bot minlərlə ssenarini simulyasiya edib statistik olaraq ən yaxşı gedişi seçir.</p>
+      <ul class="bullet-list">
+        <li style="--bullet-color:var(--domino)">Daş uyğunlaşması, "keçmə" (pass) məntiqi, xal hesablanması</li>
+        <li style="--bullet-color:var(--domino)">Eyni bot çətinlik sistemi və multiplayer infrastrukturu</li>
+        <li style="--bullet-color:var(--domino)">Minimax kimi "tam-məlumatlı" alqoritmlər tətbiq oluna bilməz</li>
+      </ul>
+    </div>
+    <div class="domino-row r" style="justify-self:center;">
+      <div class="domino">
+        <div class="half"><div class="pip p6a"></div><div class="pip p6b"></div><div class="pip p6c"></div><div class="pip p6d"></div><div class="pip p6e"></div><div class="pip p6f"></div></div>
+        <div class="half"><div class="pip p3a"></div><div class="pip p3b"></div><div class="pip p3c"></div></div>
+      </div>
+      <div class="domino">
+        <div class="half"><div class="pip p4a"></div><div class="pip p4b"></div><div class="pip p4c"></div><div class="pip p4d"></div></div>
+        <div class="half"><div class="pip p4a"></div><div class="pip p4b"></div><div class="pip p4c"></div><div class="pip p4d"></div></div>
+      </div>
+      <div class="domino">
+        <div class="half"><div class="pip p5a"></div><div class="pip p5b"></div><div class="pip p5c"></div><div class="pip p5d"></div><div class="pip p5e"></div></div>
+        <div class="half"><div class="pip p2a"></div><div class="pip p2b"></div></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-index="12">
+  <div class="slide-num">12</div>
+  <div class="eyebrow r">12 · Reytinq</div>
+  <h1 class="h1 r">Vahid ELO Sistemi</h1>
+  <div class="split" style="margin-top:.5rem;">
+    <div class="stack r">
+      <div class="formula">R' = R + K × (S − E)</div>
+      <ul class="bullet-list" style="margin-top:.5rem;">
+        <li>Gözlənilməz nəticələr reytinqdə daha böyük dəyişikliyə səbəb olur</li>
+        <li><strong>calculatePointChange()</strong> funksiyası ilə hesablanır</li>
+        <li>Bütün üç oyun (şahmat/dama/domino) üçün vahid sistem</li>
+      </ul>
+    </div>
+    <div class="col r" style="align-items:center;gap:.6rem;">
+      <svg class="rating-graph" viewBox="0 0 200 80" preserveAspectRatio="none">
+        <polyline points="0,68 28,58 56,62 84,38 112,44 140,18 168,26 200,8" fill="none" stroke="var(--win)" stroke-width="3" pathLength="100" stroke-linecap="round" stroke-linejoin="round"/>
+      </svg>
+      <span class="note">Reytinq tarixçəsi — profil ekranında qrafik</span>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-index="13">
+  <div class="slide-num">13</div>
+  <div class="eyebrow r">13 · Turnirlər</div>
+  <h1 class="h1 r">Arena — Avtomatik Turnir</h1>
+  <p class="lead r">İstifadəçilər öz turnirlərini yaradır, sistem cütləşdirməni və sıralamanı avtomatik idarə edir.</p>
+  <div class="grid-3" style="margin-top:1rem;">
+    <div class="card r" style="text-align:center;">
+      <div class="icon-wrap" style="margin:0 auto .85rem;"><svg class="icon"><use href="#i-layers"/></svg></div>
+      <h3 style="justify-content:center;">Lobbi</h3>
+      <p>İştirakçılar qoşulur, turnir başlayır</p>
+    </div>
+    <div class="card r" style="text-align:center;">
+      <div class="icon-wrap" style="margin:0 auto .85rem;"><svg class="icon"><use href="#i-bolt"/></svg></div>
+      <h3 style="justify-content:center;">Avtomatik Cütləşdirmə</h3>
+      <p>Hər raunddan sonra sıralama yenilənir</p>
+    </div>
+    <div class="card r" style="text-align:center;border-top:3px solid var(--amber);">
+      <div class="icon-wrap" style="margin:0 auto .85rem;"><svg class="icon"><use href="#i-trophy"/></svg></div>
+      <h3 style="justify-content:center;">Qalib</h3>
+      <p>Reytinq yenilənir, nəticə elan olunur</p>
+    </div>
+  </div>
+  <p class="note r" style="margin-top:1.2rem;text-align:center;">Eyni "GameType" arxitekturası — şahmat, dama və domino turnirləri eyni kodla işləyir.</p>
+</section>
+
+<section class="slide" data-index="14">
+  <div class="slide-num">14</div>
+  <div class="eyebrow r">14 · Kampaniya</div>
+  <h1 class="h1 r">100 Fəsil, 10 Akt</h1>
+  <p class="lead r">Hər fəsil tədricən çətinləşən AI rəqibi təmsil edir — irəliləyiş avtomatik saxlanılır.</p>
+  <div class="act-path r" style="margin:1.5rem 0;">
+    <div class="act done">1</div><div class="act-line done"></div>
+    <div class="act done">2</div><div class="act-line done"></div>
+    <div class="act done">3</div><div class="act-line done"></div>
+    <div class="act done">4</div><div class="act-line done"></div>
+    <div class="act done">5</div><div class="act-line done"></div>
+    <div class="act done">6</div><div class="act-line"></div>
+    <div class="act">7</div><div class="act-line"></div>
+    <div class="act">8</div><div class="act-line"></div>
+    <div class="act">9</div><div class="act-line"></div>
+    <div class="act">10</div>
+  </div>
+  <div class="grid-2 r">
+    <div class="card"><div class="icon-wrap"><svg class="icon"><use href="#i-map"/></svg></div><h3>Hekayə Əsaslı İrəliləyiş</h3><p>Hər akt xəritədə fərqli bölgə kimi göstərilir</p></div>
+    <div class="card"><div class="icon-wrap"><svg class="icon"><use href="#i-king"/></svg></div><h3>Tədrici Çətinlik</h3><p>Yeni başlayandan təcrübəliyə qədər uzun məqsəd</p></div>
+  </div>
+</section>
+
+<section class="slide" data-index="15">
+  <div class="slide-num">15</div>
+  <div class="eyebrow r">15 · Sosial</div>
+  <h1 class="h1 r">İctimai Funksiyalar</h1>
+  <div class="grid-3" style="margin-top:1rem;">
+    <div class="card r"><div class="icon-wrap"><svg class="icon"><use href="#i-chat"/></svg></div><h3>Dostlar &amp; Söhbət</h3><p>Dost əlavə etmə, daxili çat, qruplar</p></div>
+    <div class="card r"><div class="icon-wrap" style="--accent:var(--checkers);--accent-soft:rgba(111,180,224,.16)"><svg class="icon"><use href="#i-globe"/></svg></div><h3>Oyunçu Xəritəsi</h3><p>Dünya xəritəsində digər oyunçuların yerləşməsi</p></div>
+    <div class="card r"><div class="icon-wrap" style="--accent:var(--domino);--accent-soft:rgba(95,212,163,.16)"><svg class="icon"><use href="#i-route"/></svg></div><h3>Haversine Formulu</h3><p>Yer kürəsinin əyriliyini nəzərə alan məsafə hesablaması</p></div>
+  </div>
+</section>
+
+<section class="slide" data-index="16">
+  <div class="slide-num">16</div>
+  <div class="eyebrow r">16 · Lokalizasiya</div>
+  <h1 class="h1 r">10 Dil Dəstəyi</h1>
+  <p class="lead r">easy_localization ilə bütün UI mətnləri, bildirişlər və format seçimləri avtomatik dəyişir.</p>
+  <div class="grid-4 r" style="margin-top:1.2rem;max-width:46rem;">
+    <div class="card" style="text-align:center;padding:.9rem;"><strong style="font-family:var(--f-mono);font-size:1.3rem;">AZ</strong><div class="note" style="margin-top:.2rem;">Azərbaycan</div></div>
+    <div class="card" style="text-align:center;padding:.9rem;"><strong style="font-family:var(--f-mono);font-size:1.3rem;">EN</strong><div class="note" style="margin-top:.2rem;">İngilis</div></div>
+    <div class="card" style="text-align:center;padding:.9rem;"><strong style="font-family:var(--f-mono);font-size:1.3rem;">RU</strong><div class="note" style="margin-top:.2rem;">Rus</div></div>
+    <div class="card" style="text-align:center;padding:.9rem;"><strong style="font-family:var(--f-mono);font-size:1.3rem;">TR</strong><div class="note" style="margin-top:.2rem;">Türk</div></div>
+    <div class="card" style="text-align:center;padding:.9rem;"><strong style="font-family:var(--f-mono);font-size:1.3rem;">DE</strong><div class="note" style="margin-top:.2rem;">Alman</div></div>
+    <div class="card" style="text-align:center;padding:.9rem;"><strong style="font-family:var(--f-mono);font-size:1.3rem;">ES</strong><div class="note" style="margin-top:.2rem;">İspan</div></div>
+    <div class="card" style="text-align:center;padding:.9rem;"><strong style="font-family:var(--f-mono);font-size:1.3rem;">FR</strong><div class="note" style="margin-top:.2rem;">Fransız</div></div>
+    <div class="card" style="text-align:center;padding:.9rem;"><strong style="font-family:var(--f-mono);font-size:1.3rem;">HI</strong><div class="note" style="margin-top:.2rem;">Hind</div></div>
+    <div class="card" style="text-align:center;padding:.9rem;"><strong style="font-family:var(--f-mono);font-size:1.3rem;">UR</strong><div class="note" style="margin-top:.2rem;">Urdu</div></div>
+    <div class="card" style="text-align:center;padding:.9rem;"><strong style="font-family:var(--f-mono);font-size:1.3rem;">ZH</strong><div class="note" style="margin-top:.2rem;">Çin</div></div>
+  </div>
+</section>
+
+<section class="slide" data-index="17">
+  <div class="slide-num">17</div>
+  <div class="eyebrow r">17 · Dizayn Sistemi</div>
+  <h1 class="h1 r">Vahid Vizual Dil</h1>
+  <p class="lead r">Bu təqdimatın özü də CheckMate-in dizayn sistemindən istifadə edir.</p>
+  <div class="row r" style="gap:1.4rem;flex-wrap:wrap;margin-top:1rem;">
+    <div class="swatch"><div class="sw-color" style="background:#0A0A0B;"></div><span>#0A0A0B</span></div>
+    <div class="swatch"><div class="sw-color" style="background:#1A1A1E;"></div><span>#1A1A1E</span></div>
+    <div class="swatch"><div class="sw-color" style="background:#E8B960;"></div><span>#E8B960</span></div>
+    <div class="swatch"><div class="sw-color" style="background:#6FB4E0;"></div><span>#6FB4E0</span></div>
+    <div class="swatch"><div class="sw-color" style="background:#5FD4A3;"></div><span>#5FD4A3</span></div>
+    <div class="swatch"><div class="sw-color" style="background:#F5F3EF;"></div><span>#F5F3EF</span></div>
+  </div>
+  <div class="row r" style="gap:1.2rem;flex-wrap:wrap;margin-top:1.4rem;">
+    <div class="type-sample"><div class="Aa" style="font-family:var(--f-display);font-weight:600;">Aa</div><span>Fraunces</span></div>
+    <div class="type-sample"><div class="Aa" style="font-family:var(--f-body);font-weight:500;">Aa</div><span>Inter</span></div>
+    <div class="type-sample"><div class="Aa" style="font-family:var(--f-mono);font-weight:600;">Aa</div><span>JetBrains Mono</span></div>
+  </div>
+</section>
+
+<section class="slide" data-index="18">
+  <div class="slide-num">18</div>
+  <div class="eyebrow r">18 · Nəşr</div>
+  <h1 class="h1 r">Google Play-də Canlı</h1>
+  <div class="split" style="margin-top:.5rem;">
+    <ul class="bullet-list r">
+      <li>Android App Bundle (AAB) — imzalanmış release build</li>
+      <li>Play Console — başlıq, təsvir, skrinşotlar, ikon</li>
+      <li>Google-ın daxili nəzərdən keçirmə prosesindən keçib</li>
+      <li><strong>Versiya 1.0.3</strong> — aktiv olaraq yayımlanır</li>
+    </ul>
+    <div class="phone r" style="justify-self:center;">
+      <div class="app-icon"><svg class="icon" style="width:1.3em;height:1.3em;color:var(--bg);stroke-width:2;"><use href="#i-king"/></svg></div>
+      <strong>CheckMate</strong>
+      <span>com.ludodo.checkmate<br>v1.0.3</span>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-index="19">
+  <div class="slide-num">19</div>
+  <div class="eyebrow r">19 · Statistika</div>
+  <h1 class="h1 r">İlk Həftənin Nəticələri</h1>
+  <div class="split" style="margin-top:.5rem;align-items:start;">
+    <div class="col r">
+      <div class="stat-hero">
+        <span class="stat-num" data-count="97">0</span>
+        <span class="stat-label">yükləmə — ilk 1 həftə (~5/gün, dünyanın müxtəlif ölkələrindən)</span>
+      </div>
+      <div style="margin-top:1rem;">
+        <div class="bar-row"><span class="country">Hindistan</span><div class="bar-track"><div class="bar-fill" data-width="100%"></div></div><span class="count">32</span></div>
+        <div class="bar-row"><span class="country">ABŞ</span><div class="bar-track"><div class="bar-fill" data-width="72%"></div></div><span class="count">23</span></div>
+        <div class="bar-row"><span class="country">Böyük Britaniya</span><div class="bar-track"><div class="bar-fill" data-width="53%"></div></div><span class="count">17</span></div>
+        <div class="bar-row"><span class="country">Rusiya</span><div class="bar-track"><div class="bar-fill" data-width="28%"></div></div><span class="count">9</span></div>
+        <div class="bar-row"><span class="country">Digər (Avropa və s.)</span><div class="bar-track"><div class="bar-fill" data-width="50%"></div></div><span class="count">16</span></div>
+      </div>
+    </div>
+    <div class="card r card-elev" style="text-align:center;">
+      <div class="stars" style="justify-content:center;margin-bottom:.4rem;">
+        <svg class="icon"><use href="#i-star"/></svg><svg class="icon"><use href="#i-star"/></svg><svg class="icon"><use href="#i-star"/></svg><svg class="icon"><use href="#i-star"/></svg><svg class="icon"><use href="#i-star"/></svg>
+      </div>
+      <div class="stat-num" style="font-size:clamp(2.5rem,5vw,4rem);" data-count="5" data-decimals="1">0</div>
+      <p>9 reytinq · 6 yazılı rəy<br>bəzi rəylər Avropadan, xüsusilə Rumıniyadan</p>
+    </div>
+  </div>
+</section>
+
+<section class="slide" data-index="20">
+  <div class="slide-num">20</div>
+  <div class="eyebrow r">20 · Təşəkkür</div>
+  <h1 class="h1 r">Sınayın!</h1>
+  <p class="lead r">QR kodu skan edin, CheckMate-i Google Play-dən yükləyin.</p>
+  <div class="row r" style="gap:2.5rem;align-items:center;margin-top:.5rem;flex-wrap:wrap;">
+    <div class="qr-card">
+      <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 39 39" shape-rendering="crispEdges"><path fill="#F5F3EF" d="M0 0h39v39H0z"/><path stroke="#0A0A0B" d="M1 1.5h7m2 0h1m1 0h1m1 0h1m2 0h1m4 0h3m1 0h1m2 0h1m1 0h7M1 2.5h1m5 0h1m4 0h3m3 0h2m1 0h1m3 0h5m1 0h1m5 0h1M1 3.5h1m1 0h3m1 0h1m1 0h2m1 0h1m1 0h1m2 0h1m4 0h3m2 0h1m3 0h1m1 0h3m1 0h1M1 4.5h1m1 0h3m1 0h1m1 0h2m2 0h1m1 0h1m1 0h3m1 0h1m1 0h1m2 0h3m2 0h1m1 0h3m1 0h1M1 5.5h1m1 0h3m1 0h1m1 0h2m2 0h1m2 0h9m1 0h1m2 0h1m1 0h1m1 0h3m1 0h1M1 6.5h1m5 0h1m1 0h1m1 0h2m1 0h1m1 0h1m1 0h1m3 0h1m5 0h2m1 0h1m5 0h1M1 7.5h7m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h1m1 0h7M9 8.5h1m1 0h1m2 0h3m1 0h2m2 0h1m1 0h1m4 0h1M1 9.5h1m1 0h5m9 0h1m5 0h5m3 0h5M1 10.5h6m1 0h1m1 0h1m4 0h2m1 0h2m1 0h2m1 0h2m3 0h2m1 0h1m3 0h1M1 11.5h3m3 0h1m1 0h6m1 0h3m1 0h1m1 0h2m2 0h3m2 0h1m2 0h1m1 0h2M1 12.5h1m1 0h3m3 0h1m1 0h6m3 0h3m4 0h1m1 0h1m1 0h4m2 0h1M1 13.5h4m2 0h1m2 0h1m1 0h2m2 0h3m1 0h2m1 0h1m1 0h3m2 0h4m1 0h3M2 14.5h1m2 0h2m5 0h1m4 0h1m1 0h3m2 0h2m3 0h1m2 0h1M1 15.5h2m1 0h2m1 0h2m1 0h5m1 0h1m2 0h1m2 0h2m3 0h8m1 0h2M2 16.5h1m2 0h1m4 0h1m2 0h2m1 0h2m4 0h1m4 0h1m1 0h5m2 0h2M1 17.5h3m1 0h3m1 0h1m1 0h1m1 0h3m3 0h1m1 0h1m1 0h6m1 0h2m1 0h1m1 0h1M2 18.5h2m1 0h2m1 0h1m3 0h1m3 0h2m6 0h1m1 0h1m5 0h1m2 0h2M3 19.5h1m1 0h3m2 0h1m2 0h3m5 0h1m1 0h1m1 0h1m1 0h4m2 0h1m2 0h2M2 20.5h2m1 0h1m2 0h2m1 0h1m1 0h1m3 0h1m1 0h1m2 0h2m5 0h1m1 0h3m3 0h1M1 21.5h3m1 0h1m1 0h3m1 0h3m4 0h1m2 0h1m1 0h1m1 0h3m2 0h2m1 0h3M2 22.5h2m6 0h4m1 0h1m1 0h5m1 0h2m4 0h1m4 0h1M2 23.5h3m1 0h3m2 0h2m1 0h5m2 0h2m3 0h1m1 0h1m1 0h5m1 0h2M2 24.5h1m2 0h1m2 0h3m1 0h1m2 0h2m1 0h2m2 0h3m2 0h1m1 0h1m1 0h3m2 0h1M3 25.5h2m2 0h3m1 0h1m1 0h2m2 0h1m6 0h1m1 0h2m2 0h2m1 0h1m1 0h2M1 26.5h1m1 0h1m1 0h1m2 0h1m4 0h4m2 0h1m1 0h4m4 0h1m4 0h1M1 27.5h1m1 0h2m1 0h6m1 0h2m1 0h2m2 0h1m6 0h2m2 0h2m2 0h3M1 28.5h1m2 0h3m5 0h2m2 0h1m3 0h3m2 0h1m1 0h7m3 0h1M1 29.5h1m1 0h1m1 0h3m1 0h2m3 0h3m1 0h1m1 0h1m2 0h1m1 0h2m1 0h8M9 30.5h4m1 0h2m1 0h1m2 0h2m2 0h1m1 0h1m1 0h2m3 0h2m1 0h1M1 31.5h7m2 0h2m1 0h2m1 0h2m1 0h1m1 0h3m2 0h1m2 0h1m1 0h1m1 0h1m1 0h1m1 0h1M1 32.5h1m5 0h1m1 0h5m1 0h2m3 0h6m1 0h3m3 0h2m1 0h1M1 33.5h1m1 0h3m1 0h1m1 0h1m1 0h1m1 0h4m2 0h2m4 0h9m1 0h1m1 0h1M1 34.5h1m1 0h3m1 0h1m1 0h3m1 0h1m2 0h2m4 0h3m1 0h1m3 0h2m1 0h1m1 0h1m1 0h1M1 35.5h1m1 0h3m1 0h1m1 0h1m1 0h1m9 0h3m2 0h5m4 0h3M1 36.5h1m5 0h1m4 0h1m2 0h1m1 0h1m1 0h1m2 0h2m4 0h3m2 0h1m3 0h1M1 37.5h7m1 0h3m1 0h1m1 0h1m2 0h1m5 0h4m2 0h1m2 0h5"/></svg>
+    </div>
+    <div class="stack">
+      <div class="badge"><span class="dot"></span>play.google.com/store/apps/details?id=com.ludodo.checkmate</div>
+      <h2 style="font-family:var(--f-display);font-size:clamp(1.3rem,2.2vw,2rem);font-weight:600;margin-top:.5rem;">Təşəkkür edirik!</h2>
+      <p class="lead">Suallarınızı məmnuniyyətlə dinləyirəm.</p>
+    </div>
+  </div>
+</section>
+
+</div>
+
+<div class="nav-hint"><svg class="icon"><use href="#i-chevron-left"/></svg><svg class="icon"><use href="#i-chevron-right"/></svg> naviqasiya &nbsp;·&nbsp; F — tam ekran</div>
+<div class="nav-controls">
+  <button class="nav-btn" id="prevBtn" aria-label="Əvvəlki"><svg class="icon"><use href="#i-chevron-left"/></svg></button>
+  <div class="slide-counter"><span id="curSlide">1</span> / <span id="totSlide">21</span></div>
+  <button class="nav-btn" id="nextBtn" aria-label="Növbəti"><svg class="icon"><use href="#i-chevron-right"/></svg></button>
+  <button class="nav-btn" id="fsBtn" aria-label="Tam ekran"><svg class="icon"><use href="#i-expand"/></svg></button>
+</div>
+
+<script>
+(function(){
+  const slides = Array.from(document.querySelectorAll('.slide'));
+  const total = slides.length;
+  let current = 0;
+  const curEl = document.getElementById('curSlide');
+  const totEl = document.getElementById('totSlide');
+  const fill = document.getElementById('progressFill');
+  totEl.textContent = total;
+
+  function setReveal(slide, show){
+    const items = slide.querySelectorAll('.r');
+    items.forEach((el,i)=>{
+      if(show){
+        el.style.transitionDelay = (i*90)+'ms';
+        requestAnimationFrame(()=>el.classList.add('show'));
+      } else {
+        el.classList.remove('show');
+        el.style.transitionDelay = '0ms';
+      }
+    });
+  }
+
+  function animateCounters(slide){
+    slide.querySelectorAll('[data-count]').forEach(el=>{
+      const target = parseFloat(el.getAttribute('data-count'));
+      const dec = el.hasAttribute('data-decimals') ? parseInt(el.getAttribute('data-decimals')) : 0;
+      const dur = 1400;
+      const t0 = performance.now();
+      function tick(now){
+        const p = Math.min((now-t0)/dur,1);
+        const e = 1-Math.pow(1-p,3);
+        const val = target*e;
+        el.textContent = dec ? val.toFixed(dec) : Math.round(val);
+        if(p<1) requestAnimationFrame(tick);
+        else el.textContent = dec ? target.toFixed(dec) : target;
+      }
+      requestAnimationFrame(tick);
+    });
+  }
+
+  function animateBars(slide){
+    slide.querySelectorAll('.bar-fill').forEach(el=>{
+      const target = el.getAttribute('data-width');
+      el.style.width='0%';
+      requestAnimationFrame(()=>setTimeout(()=>{el.style.width=target;},150));
+    });
+  }
+
+  function goTo(idx){
+    idx = Math.max(0,Math.min(total-1,idx));
+    if(idx===current && slides[idx].classList.contains('active')) return;
+    setReveal(slides[current], false);
+    slides.forEach((s,i)=>{
+      s.classList.remove('active','prev');
+      if(i===idx) s.classList.add('active');
+      else if(i<idx) s.classList.add('prev');
+    });
+    current = idx;
+    curEl.textContent = current+1;
+    fill.style.width = ((current+1)/total*100)+'%';
+    setTimeout(()=>{
+      setReveal(slides[current], true);
+      animateCounters(slides[current]);
+      animateBars(slides[current]);
+    }, 380);
+  }
+
+  document.addEventListener('keydown',e=>{
+    if(['ArrowRight','ArrowDown','PageDown',' '].includes(e.key)){e.preventDefault();goTo(current+1);}
+    else if(['ArrowLeft','ArrowUp','PageUp'].includes(e.key)){e.preventDefault();goTo(current-1);}
+    else if(e.key==='Home') goTo(0);
+    else if(e.key==='End') goTo(total-1);
+    else if(e.key.toLowerCase()==='f') toggleFs();
+  });
+  document.getElementById('prevBtn').addEventListener('click',()=>goTo(current-1));
+  document.getElementById('nextBtn').addEventListener('click',()=>goTo(current+1));
+  document.getElementById('fsBtn').addEventListener('click',toggleFs);
+
+  function toggleFs(){
+    if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+    else document.exitFullscreen();
+  }
+
+  document.addEventListener('click',e=>{
+    if(e.target.closest('.nav-controls')||e.target.closest('.nav-hint')||e.target.closest('.brand-mark')) return;
+    const w = window.innerWidth;
+    if(e.clientX < w*0.12) goTo(current-1);
+    else if(e.clientX > w*0.88) goTo(current+1);
+  });
+
+  window.addEventListener('load',()=>{
+    setReveal(slides[0], true);
+    animateCounters(slides[0]);
+    animateBars(slides[0]);
+  });
+})();
+</script>
+</body>
+</html>
