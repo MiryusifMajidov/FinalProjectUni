@@ -5,7 +5,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>$(DEVELOPMENT_LANGUAGE)</string>
 	<key>CFBundleDisplayName</key>
-	<string>Chess App</string>
+	<string>Chess Draughts Dominoes</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -45,5 +45,32 @@
 	<true/>
 	<key>UIApplicationSupportsIndirectInputEvents</key>
 	<true/>
+
+	<!-- ===== iOS ucun elave edildi: icazeler & inteqrasiyalar ===== -->
+	<!-- image_picker: kamera & foto kitabxanasi -->
+	<key>NSCameraUsageDescription</key>
+	<string>We use the camera so you can take and set a profile photo.</string>
+	<key>NSPhotoLibraryUsageDescription</key>
+	<string>We access your photos so you can choose a profile picture.</string>
+	<!-- geolocator / flutter_map: mekan -->
+	<key>NSLocationWhenInUseUsageDescription</key>
+	<string>We use your location to show your position and nearby players on the map.</string>
+	<!-- firebase_messaging: arxa fonda push bildirisleri -->
+	<key>UIBackgroundModes</key>
+	<array>
+		<string>remote-notification</string>
+	</array>
+	<!-- google_sign_in: asagidaki deyeri GoogleService-Info.plist-deki REVERSED_CLIENT_ID ile evez edin -->
+	<key>CFBundleURLTypes</key>
+	<array>
+		<dict>
+			<key>CFBundleTypeRole</key>
+			<string>Editor</string>
+			<key>CFBundleURLSchemes</key>
+			<array>
+				<string>REPLACE_WITH_REVERSED_CLIENT_ID</string>
+			</array>
+		</dict>
+	</array>
 </dict>
 </plist>

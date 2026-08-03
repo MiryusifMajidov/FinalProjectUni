@@ -8,3 +8,8 @@ build/
 *.aab
 *.zip
 .DS_Store
+
+# Signing secrets — NEVER commit these
+**/key.properties
+*.jks
+*.keystore
