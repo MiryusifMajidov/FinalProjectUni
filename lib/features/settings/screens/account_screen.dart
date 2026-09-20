@@ -210,15 +210,15 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                       label: 'change_password'.tr(),
                       sub: ref.read(authServiceProvider).hasEmailPasswordProvider
                           ? null
-                          : 'Not available for Google accounts',
+                          : 'Not available for ${_providerLabel()} accounts',
                       onTap: () {
                         if (!ref
                             .read(authServiceProvider)
                             .hasEmailPasswordProvider) {
                           ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
+                            SnackBar(
                               content: Text(
-                                  'Password change is not available for Google accounts.'),
+                                  'Password change is not available for ${_providerLabel()} accounts.'),
                             ),
                           );
                           return;
@@ -496,9 +496,11 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
 
   void _confirmDelete(BuildContext context) {
     final passCtrl = TextEditingController();
-    // Detect whether this is a Google-only account (no email/password provider)
-    final isGoogleOnly =
-        !ref.read(authServiceProvider).hasEmailPasswordProvider;
+    // Only email/password accounts need a password; Google and Apple accounts
+    // re-authenticate through their own provider sheet inside deleteAccount().
+    final auth = ref.read(authServiceProvider);
+    final needsPassword = auth.hasEmailPasswordProvider;
+    final isApple = auth.hasAppleProvider;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -556,7 +558,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   ),
                   const SizedBox(height: 16),
                   // Password field — shown only for email/password accounts
-                  if (!isGoogleOnly) ...[
+                  if (needsPassword) ...[
                     TextField(
                       controller: passCtrl,
                       obscureText: true,
@@ -584,7 +586,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     const SizedBox(height: 16),
                   ] else ...[
                     Text(
-                      'You will be prompted to sign in with Google to confirm.',
+                      isApple
+                          ? 'You will be prompted to sign in with Apple to confirm.'
+                          : 'You will be prompted to sign in with Google to confirm.',
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                           fontSize: 12, color: _kInkMute, height: 1.5),
@@ -597,7 +601,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     child: ElevatedButton(
                       onPressed: () async {
                               if (deleting) return;
-                              if (!isGoogleOnly && passCtrl.text.isEmpty) {
+                              if (needsPassword && passCtrl.text.isEmpty) {
                                 setModal(() => error = 'Password required');
                                 return;
                               }
@@ -609,7 +613,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                                 await ref
                                     .read(authServiceProvider)
                                     .deleteAccount(
-                                      isGoogleOnly ? null : passCtrl.text,
+                                      needsPassword ? passCtrl.text : null,
                                     );
                                 if (ctx.mounted) Navigator.pop(ctx);
                                 if (context.mounted) context.go('/login');
@@ -665,6 +669,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   }
 
   // ── Helpers ─────────────────────────────────────────────────────────────
+
+  /// Name of the federated provider backing a password-less account.
+  String _providerLabel() =>
+      ref.read(authServiceProvider).hasAppleProvider ? 'Apple' : 'Google';
 
   String _maskEmail(String? email) {
     if (email == null || email.isEmpty) return '—';

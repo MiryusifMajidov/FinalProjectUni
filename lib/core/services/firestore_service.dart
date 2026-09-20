@@ -1,4 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../models/game_model.dart';
@@ -13,6 +14,8 @@ class FirestoreService {
       _db.collection('games');
   CollectionReference<Map<String, dynamic>> get _usernames =>
       _db.collection('usernames');
+  CollectionReference<Map<String, dynamic>> get _reports =>
+      _db.collection('reports');
 
   // User operations
   Future<bool> usernameExists(String username) async {
@@ -418,6 +421,36 @@ class FirestoreService {
       _users.doc(uid).update({
         'blockedUsers': FieldValue.arrayRemove([targetUid]),
       });
+
+  // ── Reports ────────────────────────────────────────────────────────────────
+
+  /// File a report against [reportedUid] with the selected [reason].
+  /// Optionally snapshots the chat message that triggered it, so moderation
+  /// can see the content even after the message is deleted.
+  ///
+  /// Clients may only create reports — reading and resolving them happens
+  /// server-side (see firestore.rules).
+  Future<void> reportUser({
+    required String reportedUid,
+    required String reason,
+    String? chatId,
+    String? messageId,
+    String? messageText,
+  }) async {
+    final reporterUid = FirebaseAuth.instance.currentUser?.uid;
+    if (reporterUid == null) {
+      throw Exception('You must be signed in to report a user.');
+    }
+    await _reports.add({
+      'reporterUid': reporterUid,
+      'reportedUid': reportedUid,
+      'reason': reason,
+      if (chatId != null) 'chatId': chatId,
+      if (messageId != null) 'messageId': messageId,
+      if (messageText != null) 'messageText': messageText,
+      'createdAt': FieldValue.serverTimestamp(),
+    });
+  }
 
   // ── Privacy / security fields ──────────────────────────────────────────────
 

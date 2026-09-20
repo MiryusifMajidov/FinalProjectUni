@@ -862,12 +862,68 @@ class _MapView extends StatelessWidget {
         ),
       ),
       children: [
+        // !! TILE BACKEND — MUST BE MIGRATED BEFORE OR SHORTLY AFTER LAUNCH !!
+        //
+        // tile.openstreetmap.org is run by the OpenStreetMap Foundation on
+        // donated capacity. Its Tile Usage Policy
+        // (https://operations.osmfoundation.org/policies/tiles/) PROHIBITS
+        // heavy use, and names distributing an app that draws its tiles from
+        // openstreetmap.org as exactly that — these servers may not be the
+        // tile backend of a mobile app. Traffic from a shipped app can be
+        // throttled or blocked without warning, which breaks this screen for
+        // every user at once.
+        //
+        // Migrate to a keyed provider — MapTiler, Stadia Maps or
+        // Thunderforest — and update _MapAttribution below to whatever
+        // credit that provider requires (OpenStreetMap data credit is still
+        // required on top of the provider's own). Left unchanged here on
+        // purpose: switching needs an API key that a human must obtain and
+        // store outside the repo.
         TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
           userAgentPackageName: 'com.chessapp.chessApp',
         ),
         MarkerLayer(markers: markers),
+        const _MapAttribution(),
       ],
+    );
+  }
+}
+
+// ── OpenStreetMap attribution ─────────────────────────────────────────────────
+
+/// Required credit for OpenStreetMap data. It has to stay visible on the map
+/// itself, so it sits just above the bottom dock rather than behind it, and
+/// carries its own dark chip so it stays readable over pale and dark tiles
+/// alike.
+class _MapAttribution extends StatelessWidget {
+  const _MapAttribution();
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.bottomRight,
+      child: IgnorePointer(
+        child: Padding(
+          // 168 clears the collapsed bottom dock (148 tall + 14 margin).
+          padding: const EdgeInsets.only(right: 10, bottom: 168),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 3),
+            decoration: BoxDecoration(
+              color: const Color(0xCC0D1014),
+              borderRadius: BorderRadius.circular(6),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.14)),
+            ),
+            child: Text('© OpenStreetMap contributors',
+              style: GoogleFonts.inter(
+                fontSize: 9,
+                fontWeight: FontWeight.w500,
+                color: _kInkDim,
+                letterSpacing: 0.2,
+              )),
+          ),
+        ),
+      ),
     );
   }
 }

@@ -15,6 +15,7 @@ import '../../../core/widgets/app_text_field.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/constants/countries.dart';
+import '../widgets/apple_sign_in_button.dart';
 import '../widgets/google_sign_in_button.dart';
 
 /// Skill levels shown on step 2.
@@ -537,6 +538,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               onTap: _goToStep2,
             ).animate(delay: 300.ms).fadeIn().slideY(begin: 0.2),
             const SizedBox(height: 12),
+            // Apple platforms only — hidden everywhere else.
+            if (appleSignInAvailable) ...[
+              AppleSignInButton(
+                onSuccess: () => context.go('/home'),
+              ).animate(delay: 310.ms).fadeIn(),
+              const SizedBox(height: 12),
+            ],
             GoogleSignInButton(
               onSuccess: () => context.go('/home'),
             ).animate(delay: 320.ms).fadeIn(),

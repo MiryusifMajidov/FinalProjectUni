@@ -1,0 +1,298 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Privacy Policy — CheckMate</title>
+<meta name="description" content="How the CheckMate app collects, uses and deletes your data.">
+<meta name="color-scheme" content="dark">
+<style>
+  :root {
+    --bg: #0A0A0B;
+    --surface: #131316;
+    --card: #1A1A1E;
+    --amber: #E8B960;
+    --ink: #F5F3EF;
+    --ink-dim: #B0A898;
+    --ink-mute: #706860;
+    --border: #2A2520;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; padding: 0; background: var(--bg); color: var(--ink-dim); }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.65;
+    -webkit-text-size-adjust: 100%;
+  }
+  main { max-width: 720px; margin: 0 auto; padding: 40px 20px 64px; }
+  a { color: var(--amber); }
+  .back { display: inline-block; margin-bottom: 26px; font-size: 13px; text-decoration: none; }
+  .back:hover { text-decoration: underline; }
+  h1 {
+    font-family: Georgia, "Times New Roman", serif;
+    font-style: italic;
+    font-weight: 600;
+    font-size: 30px;
+    line-height: 1.25;
+    color: var(--ink);
+    margin: 0 0 6px;
+  }
+  .updated { margin: 0 0 28px; color: var(--ink-mute); font-size: 13px; }
+  h2 {
+    font-size: 17px;
+    font-weight: 600;
+    color: var(--ink);
+    margin: 34px 0 10px;
+    padding-top: 22px;
+    border-top: 1px solid var(--border);
+  }
+  h2:first-of-type { border-top: 0; padding-top: 0; }
+  p { margin: 0 0 14px; }
+  ul { margin: 0 0 14px; padding-left: 20px; }
+  li { margin-bottom: 8px; }
+  strong { color: var(--ink); font-weight: 600; }
+  .lede {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 16px 18px;
+    margin-bottom: 30px;
+  }
+  .lede p:last-child { margin-bottom: 0; }
+  table { width: 100%; border-collapse: collapse; margin: 0 0 16px; font-size: 14px; }
+  th, td { text-align: left; padding: 10px 10px 10px 0; border-bottom: 1px solid var(--border); vertical-align: top; }
+  th { color: var(--ink); font-weight: 600; }
+  code {
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+    font-size: 0.9em;
+    color: var(--ink);
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    padding: 1px 5px;
+  }
+  footer {
+    margin-top: 44px;
+    padding-top: 20px;
+    border-top: 1px solid var(--border);
+    color: var(--ink-mute);
+    font-size: 13px;
+  }
+  @media (max-width: 520px) {
+    main { padding: 32px 16px 56px; }
+    h1 { font-size: 26px; }
+    /* Two narrow table columns do not fit a phone — stack them instead. */
+    table, tr, td, th { display: block; width: 100%; }
+    tr:first-child { display: none; }
+    tr { border-bottom: 1px solid var(--border); padding-bottom: 12px; margin-bottom: 12px; }
+    td { border-bottom: 0; padding: 0; }
+    td:last-child { color: var(--ink-mute); }
+    td:last-child::before { content: "Stored in: "; }
+  }
+</style>
+</head>
+<body>
+<main>
+  <a class="back" href="/">&larr; CheckMate</a>
+
+  <h1>Privacy Policy</h1>
+  <p class="updated">Last updated: 21 September 2026</p>
+
+  <div class="lede">
+    <p>This policy covers the <strong>CheckMate</strong> mobile app (listed as
+    &ldquo;Chess Draughts Dominoes&rdquo;, bundle id <code>com.chessapp.chessApp</code>).
+    It describes what the app actually does with your data. It is not a legal
+    guarantee of compliance with any particular regime; it is a factual
+    description of our practices.</p>
+    <p>Short version: we collect what an account and a multiplayer game need.
+    We do not sell your data and there are no advertising networks in the app.
+    Your location is only shared if you switch it on yourself. You can delete
+    everything from inside the app.</p>
+  </div>
+
+  <h2>1. What we collect</h2>
+  <table>
+    <tr>
+      <th>Data</th>
+      <th>Where it lives</th>
+    </tr>
+    <tr>
+      <td><strong>Email address and username</strong> &mdash; required to create an account</td>
+      <td>Firebase Authentication</td>
+    </tr>
+    <tr>
+      <td><strong>Profile photo</strong> &mdash; optional, uploaded by you</td>
+      <td>Firebase Storage</td>
+    </tr>
+    <tr>
+      <td><strong>Chat messages</strong> &mdash; direct messages, group chat and in-game chat</td>
+      <td>Cloud Firestore</td>
+    </tr>
+    <tr>
+      <td><strong>Game data</strong> &mdash; moves, results, ratings, tournament and campaign progress</td>
+      <td>Cloud Firestore and Firebase Realtime Database</td>
+    </tr>
+    <tr>
+      <td><strong>Social data</strong> &mdash; friends, group membership, block list, privacy settings</td>
+      <td>Cloud Firestore</td>
+    </tr>
+    <tr>
+      <td><strong>Precise location</strong> &mdash; opt-in only, see section 2</td>
+      <td>Cloud Firestore</td>
+    </tr>
+    <tr>
+      <td><strong>Notification device token</strong> &mdash; if you allow notifications</td>
+      <td>Firebase Cloud Messaging and Cloud Firestore</td>
+    </tr>
+    <tr>
+      <td><strong>App version and device model</strong> &mdash; attached to feedback and bug reports you send</td>
+      <td>Cloud Firestore</td>
+    </tr>
+  </table>
+  <p>We do not ask for your real name, postal address, phone number or payment
+  details. The app has no in-app purchases.</p>
+
+  <h2>2. Location and the player map</h2>
+  <p>The app has a <strong>nearby players map</strong>. It is
+  <strong>opt-in and off by default</strong>.</p>
+  <ul>
+    <li>Nothing about your location is collected until you turn on
+    <strong>Appear on Player Map</strong> in <strong>Settings &rarr; Privacy</strong>
+    and grant the operating system location permission.</li>
+    <li>Once on, the app stores your <strong>precise coordinates</strong> and
+    shows a pin for you on a <strong>public map</strong>. Any other person using
+    the app can see that pin, along with your username and rating.</li>
+    <li>Your latest position overwrites the previous one. We do not keep a
+    history of where you have been.</li>
+    <li>Turn <strong>Appear on Player Map</strong> off to stop sharing and remove your
+    pin. You can also revoke location permission in your device settings, or
+    use <strong>Invisible Mode</strong> to hide from other players entirely.</li>
+  </ul>
+
+  <h2>3. Notifications</h2>
+  <p>If you allow notifications, Firebase Cloud Messaging issues a device token
+  that we store so we can send game invites, move alerts, friend requests and
+  message alerts to your device. You can turn notifications off in
+  <strong>Settings &rarr; Notifications</strong> inside the app, or in your
+  device&rsquo;s own notification settings. Turning them off in the device
+  settings stops delivery; deleting your account removes the stored token.</p>
+
+  <h2>4. How we use it</h2>
+  <ul>
+    <li>To run your account, your games and your tournaments.</li>
+    <li>To show ratings, leaderboards, profiles and the player map.</li>
+    <li>To deliver the notifications you opted into.</li>
+    <li>To answer support requests, feedback and bug reports.</li>
+    <li>To detect cheating, harassment, spam and other conduct that breaks our
+    <a href="/terms">Terms of Service</a>.</li>
+  </ul>
+  <p>We do not use your data to build advertising profiles, and we do not sell
+  or rent personal information.</p>
+
+  <h2>5. Third parties that receive data</h2>
+  <p><strong>Firebase (Google LLC)</strong> hosts authentication, the databases,
+  file storage, messaging and our server functions. Everything in section 1 is
+  processed by Firebase on our behalf, under Google&rsquo;s privacy policy.</p>
+  <p>Three further services receive data directly from your device:</p>
+  <ul>
+    <li><strong><a href="https://stockfish.online" rel="noopener noreferrer">stockfish.online</a></strong>
+    &mdash; when you play against a bot or run post-game analysis, the app sends
+    the <strong>board position</strong> to this chess engine API over HTTPS. The
+    service also sees your <strong>IP address</strong>, because your device
+    makes the request. We do not send your username, email or account id with
+    it.</li>
+    <li><strong><a href="https://www.openstreetmap.org/copyright" rel="noopener noreferrer">tile.openstreetmap.org</a></strong>
+    &mdash; the player map downloads map images from OpenStreetMap. That server
+    sees your <strong>IP address</strong> and <strong>which part of the map you
+    are looking at</strong>. Map data is &copy; OpenStreetMap contributors.</li>
+    <li><strong>fonts.gstatic.com (Google Fonts)</strong> &mdash; the app
+    downloads its interface fonts from Google&rsquo;s font servers, which see
+    your <strong>IP address</strong>.</li>
+  </ul>
+  <p>Each of those providers handles that data under its own privacy policy. We
+  have no control over what they log.</p>
+
+  <h2>6. What other players can see</h2>
+  <p>Visible to other players: your username, avatar, ratings, game history,
+  online status, group membership, and your map pin if you enabled it. Your
+  email address is never shown publicly.</p>
+  <p><strong>Settings &rarr; Privacy</strong> lets you restrict who can message,
+  challenge or send friend requests to you, hide your online status, and hide
+  yourself from the map.</p>
+
+  <h2>7. Deleting your account</h2>
+  <p>You can delete your account from inside the app:</p>
+  <p><code>Settings &rarr; Account &rarr; Delete account</code></p>
+  <p>Deleting removes your profile, username, email, profile photo, chat
+  messages, friend and block lists, group membership, stored map location and
+  notification tokens. Finished games may be kept in a form that no longer
+  identifies you, so that your opponents&rsquo; own game records and ratings
+  stay correct.</p>
+  <p>If you cannot reach the in-app option &mdash; for example you have lost
+  access to the account &mdash; write to
+  <a href="mailto:privacy@grandmasterapp.com">privacy@grandmasterapp.com</a>
+  from the email address on the account and we will delete it for you.</p>
+
+  <h2>8. How long we keep things</h2>
+  <ul>
+    <li><strong>Account and profile data</strong> &mdash; while the account
+    exists.</li>
+    <li><strong>Chat messages</strong> &mdash; until you delete them, or until
+    the account is deleted.</li>
+    <li><strong>Map coordinates</strong> &mdash; overwritten on each update, and
+    removed when you leave the map or delete the account.</li>
+    <li><strong>Feedback and bug reports</strong> &mdash; up to 24 months, so we
+    can track recurring problems.</li>
+    <li><strong>Backups</strong> &mdash; deleted data may persist in routine
+    backups for up to 30 days before they roll over.</li>
+  </ul>
+
+  <h2>9. Security</h2>
+  <p>Traffic between the app and our services is encrypted with TLS. Access to
+  stored data is restricted by Firebase security rules, so one account cannot
+  read another account&rsquo;s private data. No method of transmission or
+  storage is completely secure, and we cannot guarantee absolute security.</p>
+
+  <h2>10. Children&rsquo;s privacy</h2>
+  <p>CheckMate is not directed to children under 13, and we do not knowingly
+  collect personal information from anyone under 13. The app contains public
+  chat and a public map, which are not suitable for young children. If you
+  believe a child under 13 has created an account, write to
+  <a href="mailto:privacy@grandmasterapp.com">privacy@grandmasterapp.com</a>
+  and we will remove the account and its data.</p>
+
+  <h2>11. Your choices</h2>
+  <ul>
+    <li><strong>See your data</strong> &mdash; Settings &rarr; Privacy &rarr;
+    Request data download shows a copy of your account data that you can
+    copy out.</li>
+    <li><strong>Correct it</strong> &mdash; edit your profile in the app.</li>
+    <li><strong>Limit it</strong> &mdash; Settings &rarr; Privacy controls
+    visibility, messages, challenges, friend requests and the map.</li>
+    <li><strong>Delete it</strong> &mdash; Settings &rarr; Account &rarr; Delete
+    account.</li>
+    <li><strong>Ask us</strong> &mdash; write to the address below for anything
+    the app cannot do for you.</li>
+  </ul>
+
+  <h2>12. Changes to this policy</h2>
+  <p>We may update this policy as the app changes. The current version always
+  carries the &ldquo;Last updated&rdquo; date at the top of this page, and the
+  same text is shown inside the app under <strong>About &rarr; Privacy
+  policy</strong>.</p>
+
+  <h2>13. Contact</h2>
+  <p>Questions about this policy, your data, or a deletion request:
+  <a href="mailto:privacy@grandmasterapp.com">privacy@grandmasterapp.com</a>.
+  We reply within 3 business days.</p>
+
+  <footer>
+    <a href="/">Home</a> &middot;
+    <a href="/support">Support</a> &middot;
+    <a href="/terms">Terms of Service</a>
+    <br>&copy; 2026 CheckMate
+  </footer>
+</main>
+</body>
+</html>

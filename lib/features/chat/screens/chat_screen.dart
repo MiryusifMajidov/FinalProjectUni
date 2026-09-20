@@ -15,6 +15,7 @@ import '../../../core/services/chat_service.dart';
 import '../../../core/services/friends_service.dart';
 import '../../../core/models/chat_message_model.dart';
 import '../../../core/models/user_model.dart';
+import '../../../core/utils/content_filter.dart';
 import '../../../core/widgets/user_avatar.dart';
 
 // ── Design tokens (local) ──────────────────────────────────────────────────────
@@ -30,6 +31,15 @@ const _kInkDim       = AppColors.inkDim;
 const _kInkMute      = AppColors.inkMute;
 const _kBorder       = AppColors.border;
 const _kBorderStrong = AppColors.borderStrong;
+
+// ── Report reasons: stored value → translation key ─────────────────────────────
+const Map<String, String> _kReportReasons = {
+  'spam': 'report_reason_spam',
+  'harassment': 'report_reason_harassment',
+  'inappropriate': 'report_reason_inappropriate',
+  'cheating': 'report_reason_cheating',
+  'other': 'report_reason_other',
+};
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
 
@@ -235,6 +245,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
     final text = _ctrl.text.trim();
     if (text.isEmpty || _myUid.isEmpty) return;
 
+    // Content filter (client-side fast path — the service rejects too)
+    if (!ContentFilter.isClean(text)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('message_blocked_filter'.tr())),
+      );
+      return;
+    }
+
     // Message privacy check (client-side fast path, before any Firestore write)
     final privacy = _otherUser?.messagePrivacy ?? 'everyone';
     if (privacy == 'nobody') {
@@ -383,11 +401,127 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 }
               },
             ),
+            ListTile(
+              leading: Icon(
+                PhosphorIcons.flag(PhosphorIconsStyle.regular),
+                color: _kAmber,
+              ),
+              title: Text(
+                'report_user'.tr(),
+                style: GoogleFonts.inter(
+                    fontSize: 14, fontWeight: FontWeight.w500, color: _kInk),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showReportSheet(context);
+              },
+            ),
             const SizedBox(height: 8),
           ],
         ),
       ),
     );
+  }
+
+  /// Reason picker. Pass [message] to attach a snapshot of the reported
+  /// message to the report.
+  void _showReportSheet(BuildContext context, {ChatMessageModel? message}) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: _kCard,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                  color: _kInkMute, borderRadius: BorderRadius.circular(2)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'report_sheet_title'.tr(),
+                    style: GoogleFonts.inter(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: _kInk),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    'report_sheet_subtitle'.tr(),
+                    style: GoogleFonts.inter(fontSize: 12, color: _kInkMute),
+                  ),
+                ],
+              ),
+            ),
+            for (final entry in _kReportReasons.entries)
+              ListTile(
+                title: Text(
+                  entry.value.tr(),
+                  style: GoogleFonts.inter(fontSize: 14, color: _kInk),
+                ),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _submitReport(entry.key, message: message);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submitReport(String reason,
+      {ChatMessageModel? message}) async {
+    final me = ref.read(currentUserProvider).valueOrNull;
+    final isBlocked = me?.blockedUsers.contains(widget.otherUid) ?? false;
+    try {
+      await ref.read(firestoreServiceProvider).reportUser(
+            reportedUid: widget.otherUid,
+            reason: reason,
+            chatId: _chatId,
+            messageId: message?.id,
+            messageText: message?.text,
+          );
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('report_submitted'.tr()),
+        duration: const Duration(seconds: 5),
+        action: isBlocked
+            ? null
+            : SnackBarAction(
+                label: 'block_user'.tr(),
+                textColor: _kAmber,
+                onPressed: _blockAfterReport,
+              ),
+      ));
+    } catch (_) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('report_failed'.tr())),
+      );
+    }
+  }
+
+  Future<void> _blockAfterReport() async {
+    // The snackbar can outlive this screen — bail out if it already went away.
+    if (_myUid.isEmpty || !mounted) return;
+    await ref.read(firestoreServiceProvider).blockUser(_myUid, widget.otherUid);
+    ref.invalidate(currentUserProvider);
+    if (mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('${_otherUsername ?? 'User'} has been blocked.'),
+      ));
+    }
   }
 
   void _showMessageMenu(BuildContext context, ChatMessageModel msg, bool isMe) {
@@ -433,6 +567,17 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 );
               },
             ),
+            if (!isMe)
+              ListTile(
+                leading: Icon(PhosphorIcons.flag(PhosphorIconsStyle.regular),
+                    color: _kAmber),
+                title: Text('report_user'.tr(),
+                    style: GoogleFonts.inter(fontSize: 14, color: _kInk)),
+                onTap: () {
+                  Navigator.pop(context);
+                  _showReportSheet(context, message: msg);
+                },
+              ),
             if (isMe)
               ListTile(
                 leading:

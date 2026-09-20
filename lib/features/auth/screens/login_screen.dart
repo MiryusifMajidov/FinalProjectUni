@@ -12,6 +12,7 @@ import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/otp_service.dart';
+import '../widgets/apple_sign_in_button.dart';
 import '../widgets/google_sign_in_button.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
@@ -581,6 +582,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ).animate(delay: 370.ms).fadeIn(),
 
           const SizedBox(height: 16),
+
+          // Apple platforms only — hidden everywhere else.
+          if (appleSignInAvailable) ...[
+            AppleSignInButton(
+              onSuccess: () => context.go('/home'),
+            ).animate(delay: 375.ms).fadeIn(),
+            const SizedBox(height: 12),
+          ],
 
           GoogleSignInButton(
             onSuccess: () => context.go('/home'),

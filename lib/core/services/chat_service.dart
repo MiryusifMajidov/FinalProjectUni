@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/chat_message_model.dart';
+import '../utils/content_filter.dart';
 
 class ChatService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -35,6 +36,11 @@ class ChatService {
     if (trimmed.isEmpty) throw Exception('Message cannot be empty.');
     if (trimmed.length > maxMessageLength) {
       throw Exception('Message is too long (max $maxMessageLength characters).');
+    }
+    // Content filter (guideline 1.2). The UI screens text before calling and
+    // shows a localized warning; this is the backstop for every other caller.
+    if (!ContentFilter.isClean(trimmed)) {
+      throw Exception('Message contains inappropriate language.');
     }
 
     // ── Duplicate-send guard ───────────────────────────────────────────────

@@ -90,6 +90,15 @@ TextStyle _inter({
       letterSpacing: letterSpacing,
     );
 
+// ── Report reasons: stored value → translation key ─────────────────────────────
+const Map<String, String> _kReportReasons = {
+  'spam': 'report_reason_spam',
+  'harassment': 'report_reason_harassment',
+  'inappropriate': 'report_reason_inappropriate',
+  'cheating': 'report_reason_cheating',
+  'other': 'report_reason_other',
+};
+
 TextStyle _mono({
   double size = 11,
   FontWeight weight = FontWeight.w400,
@@ -734,11 +743,111 @@ class _OtherProfileLayout extends ConsumerWidget {
                 ref.invalidate(currentUserProvider);
               },
             ),
+            ListTile(
+              leading: Icon(PhosphorIcons.flag(PhosphorIconsStyle.regular),
+                  color: AppColors.amber),
+              title: Text(
+                'report_user'.tr(),
+                style: _inter(size: 14, weight: FontWeight.w500,
+                    color: AppColors.ink),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _showReportSheet(context, ref);
+              },
+            ),
             const SizedBox(height: 8),
           ],
         ),
       ),
     );
+  }
+
+  void _showReportSheet(BuildContext context, WidgetRef ref) {
+    showModalBottomSheet(
+      context: context,
+      backgroundColor: AppColors.card,
+      shape: const RoundedRectangleBorder(
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      builder: (ctx) => SafeArea(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            Container(
+              width: 36, height: 4,
+              margin: const EdgeInsets.symmetric(vertical: 12),
+              decoration: BoxDecoration(
+                  color: AppColors.inkMute,
+                  borderRadius: BorderRadius.circular(2)),
+            ),
+            Padding(
+              padding: const EdgeInsets.fromLTRB(20, 0, 20, 12),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('report_sheet_title'.tr(),
+                      style: _inter(size: 15, weight: FontWeight.w600,
+                          color: AppColors.ink)),
+                  const SizedBox(height: 4),
+                  Text('report_sheet_subtitle'.tr(),
+                      style: _inter(size: 12, color: AppColors.inkMute)),
+                ],
+              ),
+            ),
+            for (final entry in _kReportReasons.entries)
+              ListTile(
+                title: Text(entry.value.tr(),
+                    style: _inter(size: 14, color: AppColors.ink)),
+                onTap: () {
+                  Navigator.pop(ctx);
+                  _submitReport(context, ref, entry.key);
+                },
+              ),
+            const SizedBox(height: 8),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _submitReport(
+      BuildContext context, WidgetRef ref, String reason) async {
+    final me = ref.read(currentUserProvider).valueOrNull;
+    final isBlocked = me?.blockedUsers.contains(user.uid) ?? false;
+    try {
+      await ref.read(firestoreServiceProvider).reportUser(
+            reportedUid: user.uid,
+            reason: reason,
+          );
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+        content: Text('report_submitted'.tr()),
+        duration: const Duration(seconds: 5),
+        action: isBlocked
+            ? null
+            : SnackBarAction(
+                label: 'block_user'.tr(),
+                textColor: AppColors.amber,
+                onPressed: () => _blockAfterReport(context, ref),
+              ),
+      ));
+    } catch (_) {
+      if (!context.mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('report_failed'.tr())),
+      );
+    }
+  }
+
+  Future<void> _blockAfterReport(BuildContext context, WidgetRef ref) async {
+    // The snackbar can outlive the route — bail out if it already went away.
+    if (myUid.isEmpty || !context.mounted) return;
+    await ref.read(firestoreServiceProvider).blockUser(myUid, user.uid);
+    try {
+      await ref.read(friendsServiceProvider).removeFriend(myUid, user.uid);
+    } catch (_) {}
+    ref.invalidate(currentUserProvider);
   }
 
   @override

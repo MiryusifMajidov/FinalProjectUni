@@ -379,13 +379,6 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
                     active: _activeTab == 1,
                     onTap: () => _switchTab(1),
                   ),
-                  const SizedBox(width: 6),
-                  _TabPill(
-                    label: 'groups'.tr(),
-                    count: null,
-                    active: _activeTab == 2,
-                    onTap: () => _switchTab(2),
-                  ),
                 ],
               ),
             ),
@@ -394,8 +387,7 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
             Expanded(
               child: switch (_activeTab) {
                 0 => _buildPlayersTab(hasQuery),
-                1 => _buildCitiesTab(hasQuery),
-                _ => _buildGroupsTab(),
+                _ => _buildCitiesTab(hasQuery),
               },
             ),
           ],
@@ -540,65 +532,6 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
           },
         );
       },
-    );
-  }
-
-  // ── Groups tab ────────────────────────────────────────────────────────────
-
-  Widget _buildGroupsTab() {
-    return Center(
-      child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 32),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Container(
-              width: 64, height: 64,
-              decoration: BoxDecoration(
-                color: _kCard,
-                borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: _kBorder),
-              ),
-              child: Icon(
-                PhosphorIcons.users(PhosphorIconsStyle.regular),
-                color: _kInkMute, size: 28,
-              ),
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'groups'.tr(),
-              style: GoogleFonts.fraunces(
-                fontSize: 18, fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic, color: _kInk,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'Find and join chess groups\nin your area — coming soon.',
-              textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
-                fontSize: 13, color: _kInkMute, height: 1.5),
-            ),
-            const SizedBox(height: 24),
-            Container(
-              padding: const EdgeInsets.symmetric(
-                  horizontal: 20, vertical: 10),
-              decoration: BoxDecoration(
-                color: _kCard,
-                borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _kBorder),
-              ),
-              child: Text(
-                'Notify me when available',
-                style: GoogleFonts.inter(
-                  fontSize: 12, fontWeight: FontWeight.w600,
-                  color: _kInkDim,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
     );
   }
 

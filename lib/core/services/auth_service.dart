@@ -1,10 +1,15 @@
+import 'dart:convert';
+import 'dart:math';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'firestore_service.dart';
 import 'log_service.dart';
 import '../models/user_model.dart';
@@ -14,6 +19,11 @@ class AuthService {
   final FirebaseFirestore _fs = FirebaseFirestore.instance;
   final FirestoreService _firestore;
   final LogService _log = LogService();
+
+  /// Apple hands over the e-mail only on the very first authorization for an
+  /// Apple ID. It is kept here so [completeAppleSignUp] can still store it
+  /// when Firebase itself did not receive one.
+  String? _pendingAppleEmail;
 
   AuthService(this._firestore);
 
@@ -239,12 +249,123 @@ class AuthService {
     return (user: null, isNewUser: true, firebaseUser: fbUser);
   }
 
+  /// Signs in with Apple. Returns (user, isNewUser).
+  /// If isNewUser is true, the caller must prompt for a username.
+  ///
+  /// Only available on Apple platforms.
+  Future<({UserModel? user, bool isNewUser, User firebaseUser})>
+      signInWithApple() async {
+    // Apple requires a nonce: the SHA-256 digest goes to Apple, the raw value
+    // goes to Firebase, which re-hashes it to prove the token is ours.
+    final rawNonce = _generateNonce();
+    final AuthorizationCredentialAppleID appleCredential;
+    try {
+      appleCredential = await SignInWithApple.getAppleIDCredential(
+        scopes: const [
+          AppleIDAuthorizationScopes.email,
+          AppleIDAuthorizationScopes.fullName,
+        ],
+        nonce: _sha256Hex(rawNonce),
+      );
+    } on SignInWithAppleAuthorizationException catch (e) {
+      if (e.code == AuthorizationErrorCode.canceled) {
+        throw Exception('cancelled');
+      }
+      rethrow;
+    }
+
+    final credential = OAuthProvider('apple.com').credential(
+      idToken: appleCredential.identityToken,
+      rawNonce: rawNonce,
+    );
+
+    final userCred = await _auth.signInWithCredential(credential);
+    var fbUser = userCred.user!;
+
+    // givenName / familyName / email arrive ONLY on the first authorization
+    // for this Apple ID — persist them now or they are gone for good.
+    final fullName = [appleCredential.givenName, appleCredential.familyName]
+        .whereType<String>()
+        .map((p) => p.trim())
+        .where((p) => p.isNotEmpty)
+        .join(' ');
+    if (fullName.isNotEmpty && (fbUser.displayName ?? '').isEmpty) {
+      await fbUser.updateDisplayName(fullName);
+      await fbUser.reload();
+      fbUser = _auth.currentUser ?? fbUser;
+    }
+    // A hidden-relay address (…@privaterelay.appleid.com) is a normal e-mail
+    // and is stored like any other.
+    _pendingAppleEmail = appleCredential.email ?? fbUser.email;
+
+    final existing = await _firestore.getUser(fbUser.uid);
+    if (existing != null) {
+      // Returning Apple user — on later sign-ins Apple sends no profile data,
+      // so the stored Firestore profile is the source of truth.
+      _log.log(
+        uid: existing.uid,
+        username: existing.username,
+        type: 'login',
+        metadata: {'platform': 'apple'},
+      );
+      return (user: existing, isNewUser: false, firebaseUser: fbUser);
+    }
+    return (user: null, isNewUser: true, firebaseUser: fbUser);
+  }
+
+  /// Random nonce for the Apple authorization request.
+  String _generateNonce([int length = 32]) {
+    const charset =
+        '0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz-._';
+    final rand = Random.secure();
+    return List.generate(
+      length,
+      (_) => charset[rand.nextInt(charset.length)],
+    ).join();
+  }
+
+  String _sha256Hex(String input) => sha256.convert(utf8.encode(input)).toString();
+
   /// Completes Google sign-in for a new user by creating their Firestore profile.
   Future<UserModel> completeGoogleSignUp({
     required User firebaseUser,
     required String username,
     String? countryCode,
     String? skillLevel,
+  }) =>
+      _completeProviderSignUp(
+        firebaseUser: firebaseUser,
+        username: username,
+        countryCode: countryCode,
+        skillLevel: skillLevel,
+        platform: 'google',
+      );
+
+  /// Completes Apple sign-in for a new user by creating their Firestore profile.
+  /// Falls back to the e-mail captured during the first authorization when
+  /// Firebase has none.
+  Future<UserModel> completeAppleSignUp({
+    required User firebaseUser,
+    required String username,
+    String? countryCode,
+    String? skillLevel,
+  }) =>
+      _completeProviderSignUp(
+        firebaseUser: firebaseUser,
+        username: username,
+        countryCode: countryCode,
+        skillLevel: skillLevel,
+        platform: 'apple',
+        fallbackEmail: _pendingAppleEmail,
+      );
+
+  Future<UserModel> _completeProviderSignUp({
+    required User firebaseUser,
+    required String username,
+    required String platform,
+    String? countryCode,
+    String? skillLevel,
+    String? fallbackEmail,
   }) async {
     final exists = await _firestore.usernameExists(username);
     if (exists) throw Exception('Username already taken');
@@ -253,7 +374,7 @@ class AuthService {
     final user = UserModel(
       uid: firebaseUser.uid,
       username: username,
-      email: firebaseUser.email ?? '',
+      email: firebaseUser.email ?? fallbackEmail ?? '',
       avatarId: 'avatar_01',
       photoUrl: firebaseUser.photoURL,
       countryCode: countryCode,
@@ -268,12 +389,12 @@ class AuthService {
 
     await _firestore.createUser(user);
 
-    // Log registration event for new Google user.
+    // Log registration event for the new provider user.
     _log.log(
       uid: user.uid,
       username: user.username,
       type: 'register',
-      metadata: {'platform': 'google'},
+      metadata: {'platform': platform},
     );
 
     return user;
@@ -303,6 +424,9 @@ class AuthService {
   ///
   /// - Email/password accounts: pass [currentPassword] to re-authenticate.
   /// - Google accounts: [currentPassword] is ignored; re-auth via Google Sign-In.
+  /// - Apple accounts: [currentPassword] is ignored; re-auth via Sign in with
+  ///   Apple. Without it Firebase throws 'requires-recent-login' and the
+  ///   account can never be deleted (App Store guideline 5.1.1(v)).
   Future<void> deleteAccount(String? currentPassword) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not logged in');
@@ -321,6 +445,37 @@ class AuthService {
         idToken:     googleAuth.idToken,
       );
       await user.reauthenticateWithCredential(credential);
+    } else if (providers.contains('apple.com')) {
+      // Apple account — re-authenticate with a fresh Apple credential
+      final rawNonce = _generateNonce();
+      final AuthorizationCredentialAppleID appleCredential;
+      try {
+        appleCredential = await SignInWithApple.getAppleIDCredential(
+          scopes: const [
+            AppleIDAuthorizationScopes.email,
+            AppleIDAuthorizationScopes.fullName,
+          ],
+          nonce: _sha256Hex(rawNonce),
+        );
+      } on SignInWithAppleAuthorizationException catch (e) {
+        if (e.code == AuthorizationErrorCode.canceled) {
+          throw Exception('Apple sign-in cancelled');
+        }
+        rethrow;
+      }
+      final credential = OAuthProvider('apple.com').credential(
+        idToken:  appleCredential.identityToken,
+        rawNonce: rawNonce,
+      );
+      await user.reauthenticateWithCredential(credential);
+      // Apple also requires the sign-in token to be revoked on deletion.
+      // Non-fatal: a failed revocation must not block the deletion itself.
+      final String? authCode = appleCredential.authorizationCode;
+      if (authCode != null && authCode.isNotEmpty) {
+        try {
+          await _auth.revokeTokenWithAuthorizationCode(authCode);
+        } catch (_) {}
+      }
     } else if (providers.contains('password')) {
       // Email/password account
       if (currentPassword == null || currentPassword.isEmpty) {
@@ -376,6 +531,12 @@ class AuthService {
   bool get hasEmailPasswordProvider =>
       _auth.currentUser?.providerData
           .any((p) => p.providerId == 'password') ??
+      false;
+
+  /// Returns true if the current Firebase user signed in with Apple.
+  bool get hasAppleProvider =>
+      _auth.currentUser?.providerData
+          .any((p) => p.providerId == 'apple.com') ??
       false;
 }
 

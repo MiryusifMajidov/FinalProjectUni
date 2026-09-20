@@ -185,6 +185,15 @@ service cloud.firestore {
       allow update, delete: if false;
     }
 
+    // ── Reports (user reports — create-only for clients) ──────────────────────
+    // Moderation reads and resolves these server-side with the Admin SDK,
+    // which bypasses these rules.
+    match /reports/{reportId} {
+      allow create: if isAuth()
+        && request.resource.data.reporterUid == request.auth.uid;
+      allow read, update, delete: if false;
+    }
+
     // ── Logs ──────────────────────────────────────────────────────────────────
     match /logs/{logId} {
       allow create: if isAuth();

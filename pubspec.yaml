@@ -75,6 +75,10 @@ dependencies:
   # Google Sign-In
   google_sign_in: ^6.2.2
 
+  # Sign in with Apple — mandatory on iOS because the app offers Google
+  # Sign-In (App Store Review Guideline 4.8).
+  sign_in_with_apple: ^6.1.4
+
   # Device / App info (sessions)
   device_info_plus: ^10.1.0
   package_info_plus: ^8.1.1

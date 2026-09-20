@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CheckMate</title>
+<meta name="description" content="CheckMate — online chess, draughts and dominoes. Privacy policy, support and terms.">
+<meta name="color-scheme" content="dark">
+<style>
+  :root {
+    --bg: #0A0A0B;
+    --surface: #131316;
+    --card: #1A1A1E;
+    --amber: #E8B960;
+    --ink: #F5F3EF;
+    --ink-dim: #B0A898;
+    --ink-mute: #706860;
+    --border: #2A2520;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    margin: 0;
+    padding: 0;
+    background: var(--bg);
+    color: var(--ink);
+  }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    -webkit-text-size-adjust: 100%;
+    display: flex;
+    min-height: 100vh;
+    align-items: center;
+    justify-content: center;
+  }
+  main {
+    width: 100%;
+    max-width: 640px;
+    padding: 48px 20px 56px;
+    text-align: center;
+  }
+  .mark {
+    width: 76px;
+    height: 76px;
+    margin: 0 auto 18px;
+    border-radius: 22px;
+    background: linear-gradient(135deg, #E8B960, #C49A45);
+    color: #1A1205;
+    font-size: 42px;
+    line-height: 76px;
+    font-family: Georgia, "Times New Roman", serif;
+  }
+  h1 {
+    margin: 0 0 6px;
+    font-family: Georgia, "Times New Roman", serif;
+    font-style: italic;
+    font-weight: 500;
+    font-size: 30px;
+    letter-spacing: -0.5px;
+  }
+  .tag {
+    margin: 0 0 32px;
+    color: var(--ink-mute);
+    font-size: 14px;
+  }
+  nav { display: grid; gap: 12px; text-align: left; }
+  a.card {
+    display: block;
+    padding: 16px 18px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    color: var(--ink);
+    text-decoration: none;
+  }
+  a.card:hover, a.card:focus { border-color: var(--amber); }
+  a.card strong { display: block; font-size: 15px; font-weight: 600; }
+  a.card span { display: block; margin-top: 3px; color: var(--ink-mute); font-size: 13px; }
+  .mail { margin-top: 30px; font-size: 14px; color: var(--ink-dim); }
+  .mail a { color: var(--amber); }
+  footer {
+    margin-top: 34px;
+    color: #3D3530;
+    font-size: 11px;
+    letter-spacing: 0.5px;
+    font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  }
+</style>
+</head>
+<body>
+<main>
+  <div class="mark">&#9822;</div>
+  <h1>CheckMate</h1>
+  <p class="tag">Online chess, draughts and dominoes.</p>
+
+  <nav>
+    <a class="card" href="/privacy">
+      <strong>Privacy Policy</strong>
+      <span>What the app collects, why, and how to delete it</span>
+    </a>
+    <a class="card" href="/support">
+      <strong>Support</strong>
+      <span>Contact us, and answers to common questions</span>
+    </a>
+    <a class="card" href="/terms">
+      <strong>Terms of Service</strong>
+      <span>The licence and rules for using the app</span>
+    </a>
+  </nav>
+
+  <p class="mail">Contact: <a href="mailto:privacy@grandmasterapp.com">privacy@grandmasterapp.com</a></p>
+
+  <footer>&copy; 2026 CHECKMATE &middot; ALL RIGHTS RESERVED</footer>
+</main>
+</body>
+</html>
