@@ -1,0 +1,159 @@
+# ============================================================================
+# Codemagic CI — CheckMate (Chess Draughts Dominoes) Flutter iOS → App Store
+# Mac lazım deyil; build buludda macOS maşınında olur, Windows-dan idarə edilir.
+#
+# Bu fayl D:\laptops.az\codemagic.yaml əsasında yazılıb (həmin tətbiq bu üsulla
+# App Store-da canlıdır), AMMA 3 vacib düzəlişlə — aşağıda ⚠ ilə işarələnib.
+#
+# ---------------------------------------------------------------------------
+# CODEMAGIC UI-da BİR DƏFƏLİK HAZIRLA (bunlarsız build işləmir):
+#
+#   1) Bu repo-nu Codemagic-ə qoş (GitHub: MiryusifMajidov/FinalProjectUni).
+#   2) App settings → Build configuration source = "codemagic.yaml"
+#      (Workflow Editor seçili qalsa, aşağıdakı skriptlərin HEÇ BİRİ işləmir!)
+#   3) Teams → Integrations → App Store Connect-də API açarı olmalıdır.
+#      İnteqrasiyanın ADI aşağıdakı `app_store_connect:` dəyəri ilə eyni olmalıdır.
+#      laptops.az ilə eyni Apple komandasındayıq (PLY98763D4) → eyni açar işləyir.
+#   4) ⚠ Environment variables → qrup adı: ios_signing
+#         CERTIFICATE_PRIVATE_KEY = PEM RSA private key (Secure ✓)
+#         Git Bash-da yarat:  openssl genrsa -out cert_key.pem 2048
+#         BEGIN/END sətirləri daxil olmaqla bütün faylı yapışdır.
+#         Eyni qrupu + eyni dəyəri laptops.az tətbiqinə də əlavə et →
+#         hər iki tətbiq BİR distribution sertifikatını paylaşır, 409 dolmur.
+#   5) App Store Connect-də app record yarat — Bundle ID: com.chessapp.chessApp
+#      (`--create` App ID yaradır, amma app record-u YARATMIR — onsuz build
+#       sonunda "No suitable application records were found" ilə düşür.)
+#   6) developer.apple.com → Identifiers → com.chessapp.chessApp →
+#      Push Notifications + Sign In with Apple AÇIQ olmalıdır, YOXSA yaranan
+#      profil aps-environment daşımır və arxiv imzalanmır.
+#
+# Flutter tətbiqi repo KÖKÜNDƏDİR → `working_directory` YOXDUR (laptops.az-da
+# `mobile/` idi; burada onu yazsaq build mövcud olmayan qovluğa girib düşür).
+# ============================================================================
+workflows:
+  ios-appstore:
+    name: iOS · App Store (TestFlight)
+    instance_type: mac_mini_m2
+    max_build_duration: 90
+    integrations:
+      app_store_connect: laptops_az_asc_key   # ← Codemagic-dəki API key inteqrasiyasının ADI
+    # QEYD: Codemagic webhook-u bu repoda işləmir → hər dəfə UI-dan
+    # "Start new build" → branch: master → workflow: ios-appstore.
+    # Bloku saxlayırıq: webhook nə vaxtsa qurulsa, özü işə düşəcək.
+    # QEYD 2: `when:` buraya (triggering-in içinə) QOYULMUR — Codemagic
+    # "extra fields not permitted" validasiya xətası verir.
+    triggering:
+      events:
+        - push
+      branch_patterns:
+        - pattern: master
+          include: true
+          source: true
+    environment:
+      # ⚠ DÜZƏLİŞ 1 — ƏN VACİBİ.
+      # Codemagic UI-da qurulan dəyişənlər codemagic.yaml build-inə YALNIZ
+      # burada adı çəkilən qrup vasitəsilə çatır. laptops.az-da bu sətir
+      # YOX idi → $CERTIFICATE_PRIVATE_KEY həmişə boş qalırdı → hər build
+      # birdəfəlik açar yaradırdı → Apple-ın distribution limiti (409) məhz
+      # buna görə dolurdu. Qrup adı Codemagic UI-dakı ilə eyni olmalıdır.
+      groups:
+        - ios_signing
+      flutter: stable                          # ilk yaşıl build-dən sonra dəqiq versiyaya pin et
+      xcode: latest
+      cocoapods: default
+    scripts:
+      - name: Keychain hazırla
+        script: keychain initialize
+
+      - name: Sertifikat + provisioning profili yarat/gətir
+        script: |
+          if [ -n "$CERTIFICATE_PRIVATE_KEY" ]; then
+            echo "✓ Sabit imzalama açarı işlədilir (CERTIFICATE_PRIVATE_KEY)."
+            KEY_ARG="--certificate-key=@env:CERTIFICATE_PRIVATE_KEY"
+          else
+            echo "!! XƏBƏRDARLIQ: CERTIFICATE_PRIVATE_KEY boşdur."
+            echo "   Codemagic UI-da 'ios_signing' qrupunu və dəyişəni qur (yuxarıdakı 4-cü bənd),"
+            echo "   yoxsa bu build təzə sertifikat yaradacaq və 409 limiti yenidən dolacaq."
+            openssl genrsa -out /tmp/cert_key.pem 2048
+            KEY_ARG="--certificate-key=@file:/tmp/cert_key.pem"
+          fi
+
+          fetch_signing() {
+            app-store-connect fetch-signing-files "com.chessapp.chessApp" \
+              --type IOS_APP_STORE $KEY_ARG --create
+          }
+
+          if ! fetch_signing; then
+            # ⚠ DÜZƏLİŞ 2 — laptops.az-ı qorumaq üçün.
+            # `certificates list/delete` TƏTBİQ üzrə deyil, APPLE KOMANDASI üzrə işləyir.
+            # laptops.az eyni komandadadır (PLY98763D4). Sabit açar varsa, həmin
+            # sertifikat İŞLƏKDİR və hər iki tətbiqin ehtiyacı olan sertifikatdır —
+            # onu silmək laptops.az-ın imzalamasını qırar. Ona görə sabit açar
+            # mövcud olduqda HEÇ NƏ SİLMİRİK, açıq xəta ilə dayanırıq.
+            if [ -n "$CERTIFICATE_PRIVATE_KEY" ]; then
+              echo "!! fetch-signing-files DÜŞDÜ, amma sabit açar mövcuddur → sertifikat SİLİNMİR."
+              echo "   Səbəbi əl ilə araşdır (laptops.az eyni komandadadır, kor-koranə revoke TƏHLÜKƏLİDİR):"
+              echo "     app-store-connect certificates list --type IOS_DISTRIBUTION --json"
+              echo "   Silmək lazım gəlsə, ƏVVƏLCƏ hansının laptops.az-a aid olduğunu müəyyən et:"
+              echo "     app-store-connect certificates delete <ID> --ignore-not-found"
+              exit 1
+            fi
+
+            # Bura yalnız sabit açar YOXDURSA çatır. Bu halda mövcud sertifikatların
+            # private key-i onsuz da heç kimdə yoxdur (hər build atılan açar) →
+            # istifadəsizdirlər, ləğvi təhlükəsizdir və mağazadakı buraxılışlara təsir etmir.
+            echo "!! İmzalama faylları alınmadı — ehtimal 409 (sertifikat limiti). Təmizlənir..."
+            rm -f /tmp/cert_ids.txt
+            # DİQQƏT: düzgün parametrlər --type və --ignore-not-found-dur
+            # (--certificate-type / --yes YOXDUR; səhv yazılsa komanda susmadan xəta verir).
+            for t in IOS_DISTRIBUTION DISTRIBUTION; do
+              app-store-connect certificates list --type "$t" --json > /tmp/certs.json || true
+              grep -o '"id"[[:space:]]*:[[:space:]]*"[^"]*"' /tmp/certs.json \
+                | sed 's/.*"\([^"]*\)"$/\1/' >> /tmp/cert_ids.txt || true
+            done
+            sort -u /tmp/cert_ids.txt | head -5 > /tmp/cert_ids_uniq.txt
+            echo "   tapılan sertifikatlar: $(tr '\n' ' ' < /tmp/cert_ids_uniq.txt)"
+            while read -r cid; do
+              [ -n "$cid" ] || continue
+              if app-store-connect certificates delete "$cid" --ignore-not-found; then
+                echo "   ləğv edildi: $cid"
+              else
+                echo "   ləğv ALINMADI: $cid"
+              fi
+            done < /tmp/cert_ids_uniq.txt
+            fetch_signing
+          fi
+
+      - name: Sertifikatı keychain-ə əlavə et
+        script: keychain add-certificates
+
+      - name: Xcode imzalamasını qur
+        script: xcode-project use-profiles
+
+      - name: Flutter pub get
+        script: flutter pub get
+
+      - name: CocoaPods install
+        script: cd ios && pod install
+
+      - name: Signed IPA build et
+        # ⚠ DÜZƏLİŞ 3 — təkrar build nömrəsinin qarşısını alır.
+        # Webhook işləmədiyi üçün eyni commit əl ilə dəfələrlə build edilir.
+        # pubspec-dən gələn CFBundleVersion həmişə 8 qalır → App Store Connect
+        # "build number already used" ilə rədd edir və bu xəta build sonundakı
+        # qırmızı blokun içində gizlənir. $BUILD_NUMBER Codemagic-in öz sayğacıdır
+        # və hər başlatmada artır; +8 ofset mövcud pubspec dəyərindən aşağı düşməməyi təmin edir.
+        script: |
+          flutter build ipa --release \
+            --build-number=$(($BUILD_NUMBER + 8)) \
+            --export-options-plist=$HOME/export_options.plist
+    artifacts:
+      - build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+      # Podfile.lock Windows-da yaradıla bilmir. İlk yaşıl build-dən sonra
+      # bunu endirib repo-ya commit et → sonrakı build-lər təkrarlanan olur.
+      - ios/Podfile.lock
+    publishing:
+      app_store_connect:
+        auth: integration
+        submit_to_testflight: true             # TestFlight-a yüklə (App Store-a promote əl ilə)

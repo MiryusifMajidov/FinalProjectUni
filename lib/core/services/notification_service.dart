@@ -1,3 +1,5 @@
+import 'dart:async';
+
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_local_notifications/flutter_local_notifications.dart';
@@ -59,7 +61,14 @@ class NotificationService {
 
     const initSettings = InitializationSettings(
       android: AndroidInitializationSettings('@mipmap/ic_launcher'),
-      iOS: DarwinInitializationSettings(),
+      // FirebaseMessaging.requestPermission() above already asked the user.
+      // DarwinInitializationSettings defaults every request* flag to true, which
+      // triggers a SECOND iOS permission dialog for the same thing.
+      iOS: DarwinInitializationSettings(
+        requestAlertPermission: false,
+        requestBadgePermission: false,
+        requestSoundPermission: false,
+      ),
     );
     await _local.initialize(initSettings);
 
@@ -75,8 +84,19 @@ class NotificationService {
       _onTokenRefreshedCallback?.call(newToken);
     });
 
-    final token = await _messaging.getToken();
-    debugPrint('[FCM] token: $token');
+    // Deliberately NOT awaited. On iOS getToken() throws while APNs has not yet
+    // handed back a device token — precisely the first-cold-start case, and it
+    // also throws outright if the aps-environment entitlement is missing.
+    // initialize() runs before runApp(), so letting this throw means the app
+    // never renders a frame (white screen). Fire it off and log either outcome;
+    // onTokenRefresh above still persists the token once APNs does answer.
+    unawaited(
+      _messaging.getToken().then(
+        (token) => debugPrint('[FCM] token: $token'),
+        onError: (Object e) =>
+            debugPrint('[FCM] getToken failed (non-fatal): $e'),
+      ),
+    );
   }
 
   Future<void> _onForegroundMessage(RemoteMessage message) async {

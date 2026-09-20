@@ -1,5 +1,7 @@
-# Firebase iOS SDK requires iOS 13+
-platform :ios, '13.0'
+# Firebase iOS SDK 12.x requires iOS 15+. Bu deyer project.pbxproj-daki
+# IPHONEOS_DEPLOYMENT_TARGET (15.0) ve AppFrameworkInfo.plist-deki
+# MinimumOSVersion (15.0) ile EYNI olmalidir, yoxsa `pod install` CI-da dusur.
+platform :ios, '15.0'
 
 # CocoaPods analytics sends network stats synchronously affecting flutter build latency.
 ENV['COCOAPODS_DISABLE_STATS'] = 'true'

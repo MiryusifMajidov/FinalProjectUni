@@ -66,8 +66,15 @@ void main() async {
   // Initialize SharedPreferences cache (settings, flags)
   final cache = await CacheService.create();
 
-  // Initialize push notifications (no-op on web)
-  await NotificationService().initialize();
+  // Initialize push notifications (no-op on web).
+  // This runs BEFORE runApp(), so it must never throw: an uncaught exception
+  // here means no UI is ever built and the app looks hung on a white screen.
+  // Push is a degradable feature — losing it must not cost us the launch.
+  try {
+    await NotificationService().initialize();
+  } catch (e) {
+    debugPrint('Push init failed (non-fatal): $e');
+  }
 
   runApp(
     EasyLocalization(

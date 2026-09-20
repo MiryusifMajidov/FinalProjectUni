@@ -1,3 +1,6 @@
+// CupertinoPageTransitionsBuilder moved out of material.dart into cupertino.dart
+// in newer Flutter. Imported narrowly so material/cupertino names cannot clash.
+import 'package:flutter/cupertino.dart' show CupertinoPageTransitionsBuilder;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -74,7 +77,7 @@ class AppTheme {
           color: AppColors.ink,
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.card,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -173,7 +176,7 @@ class AppTheme {
         // the framework handle would produce a duplicate second line.
         showDragHandle: false,
       ),
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: AppColors.surface,
         elevation: 24,
         shape: RoundedRectangleBorder(
@@ -301,7 +304,7 @@ class AppTheme {
           color: AppColors.lightTextPrimary,
         ),
       ),
-      cardTheme: CardTheme(
+      cardTheme: CardThemeData(
         color: AppColors.lightCard,
         elevation: 0,
         shape: RoundedRectangleBorder(
@@ -355,7 +358,7 @@ class AppTheme {
         showDragHandle: true,
         dragHandleColor: AppColors.lightTextHint,
       ),
-      dialogTheme: DialogTheme(
+      dialogTheme: DialogThemeData(
         backgroundColor: AppColors.lightSurface,
         elevation: 8,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),

@@ -47,6 +47,11 @@
 	<true/>
 
 	<!-- ===== iOS ucun elave edildi: icazeler & inteqrasiyalar ===== -->
+	<!-- Export compliance: tetbiq yalniz OS-un standart HTTPS/TLS-ini islefdir
+	     (Firebase, stockfish.online, OpenStreetMap - hamisi HTTPS).
+	     Bu acar olmasa HER TestFlight/App Store upload-i "Missing Compliance"-da ilisir. -->
+	<key>ITSAppUsesNonExemptEncryption</key>
+	<false/>
 	<!-- image_picker: kamera & foto kitabxanasi -->
 	<key>NSCameraUsageDescription</key>
 	<string>We use the camera so you can take and set a profile photo.</string>
