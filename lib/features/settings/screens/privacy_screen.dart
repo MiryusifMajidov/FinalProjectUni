@@ -9,6 +9,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/cache_service.dart';
 import '../../../core/services/firestore_service.dart';
 import 'settings_screen.dart';
+import '../../../core/legal/legal_texts.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg           = Color(0xFF0A0A0B);
@@ -431,7 +432,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    'Last updated: January 2025',
+                    'Last updated: September 2026',
                     style: GoogleFonts.inter(fontSize: 11, color: _kInkMute),
                   ),
                 ],
@@ -442,7 +443,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
               child: ListView(
                 controller: ctrl,
                 padding: const EdgeInsets.fromLTRB(20, 16, 20, 32),
-                children: _kPolicyParagraphs.map((p) => Padding(
+                children: kPolicyParagraphs.map((p) => Padding(
                   padding: const EdgeInsets.only(bottom: 14),
                   child: Text(
                     p,
@@ -655,34 +656,6 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
     );
   }
 }
-
-// ── Privacy policy content ────────────────────────────────────────────────────
-
-const _kPolicyParagraphs = [
-  '1. Information We Collect\n'
-  'We collect information you provide directly to us, such as when you create an account (username, email address), play games, or contact us for support. We also collect usage data including game history, rating changes, and device information.',
-
-  '2. How We Use Your Information\n'
-  'We use the information we collect to provide, maintain, and improve the app; personalise your experience (e.g. suggested opponents, leaderboard rankings); send you notifications you have opted into; and ensure the security and integrity of our services.',
-
-  '3. Information Sharing\n'
-  'We do not sell your personal information. Your username and rating are visible to other players. Your email address is never displayed publicly. We may share information with service providers (Firebase / Google) who assist us in operating the app, subject to strict confidentiality agreements.',
-
-  '4. Data Retention\n'
-  'We retain your account data for as long as your account is active. You may request deletion of your account and associated data at any time from Account → Delete account. Game records may be retained in anonymised form for statistical purposes.',
-
-  '5. Security\n'
-  'We use industry-standard encryption (TLS in transit, Firebase security rules at rest) to protect your information. No method of transmission over the internet is 100% secure, so we cannot guarantee absolute security.',
-
-  '6. Children\'s Privacy\n'
-  'Our service is not directed to children under the age of 13. We do not knowingly collect personal information from children under 13.',
-
-  '7. Changes to This Policy\n'
-  'We may update this Privacy Policy from time to time. We will notify you of any significant changes by updating the "Last updated" date above.',
-
-  '8. Contact Us\n'
-  'If you have any questions about this Privacy Policy or our data practices, please contact us at privacy@grandmasterapp.com.',
-];
 
 // ── Segmented picker ──────────────────────────────────────────────────────────
 
