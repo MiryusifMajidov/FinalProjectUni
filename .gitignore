@@ -45,3 +45,15 @@ lib/core/config/secrets.dart
 
 # OS
 .DS_Store
+
+# Apple private keys. Both the APNs key and the Sign in with Apple key are
+# one-shot downloads — Apple deletes its copy once you fetch it — and they
+# authenticate as the entire developer team, not just this app. They belong in
+# Firebase and Codemagic, never in the repository.
+*.p8
+AuthKey_*.p8
+
+# Apple signing material.
+*.p12
+*.mobileprovision
+*.cer
