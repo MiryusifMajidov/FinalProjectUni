@@ -110,6 +110,14 @@ flutter_launcher_icons:
     image_path: "assets/images/app_icon.png"
 
 flutter:
+  # Layihə CocoaPods işlədir. Flutter-in Swift Package Manager inteqrasiyası
+  # build 11-i sındırdı: dl.google.com-dan Firebase binarlarını çəkə bilmədi
+  # (FirebaseFirestoreInternal.zip və grpc.zip timeout, openssl_grpc.zip 502).
+  # `pod install` onsuz da işləyir, SPM Flutter-in özü tərəfindən experimental
+  # adlandırılır və bu layihəyə heç nə vermir — sadəcə şəbəkədən asılı bir
+  # uğursuzluq mənbəyidir.
+  config:
+    enable-swift-package-manager: false
   uses-material-design: true
   assets:
     - assets/images/
