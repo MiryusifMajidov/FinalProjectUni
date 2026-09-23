@@ -104,4 +104,4 @@ each family if they are ever vendored into `assets/`.
 
 ## Contact
 
-Questions or licence corrections: privacy@grandmasterapp.com
+Questions or licence corrections: mecidovyusif079@gmail.com

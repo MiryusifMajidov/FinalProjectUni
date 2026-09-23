@@ -306,14 +306,12 @@ class FirestoreService {
   Future<void> updateLastSeen(String uid) =>
       _users.doc(uid).update({'lastSeen': FieldValue.serverTimestamp()});
 
-  /// Updates the user's GPS coordinates and opts them into the map.
-  Future<void> updateUserLocation(String uid, double lat, double lng) =>
-      _users.doc(uid).update({
-        'latitude': lat,
-        'longitude': lng,
-        'showOnMap': true,
-        'lastSeen': FieldValue.serverTimestamp(),
-      });
+  // updateUserLocation() was removed. It wrote coordinates AND forced
+  // showOnMap to true in the same call, which would have silently opted a user
+  // into the player map as a side effect of a location refresh. Nothing called
+  // it, but the privacy policy and the store listing both promise the map is
+  // strictly opt-in, so it should not sit here waiting to be wired up. Write
+  // coordinates and the opt-in separately — see updateMapSettings.
 
   /// Spectator: marks user as currently in a live game.
   Future<void> setCurrentGame(String uid, String gameId) =>

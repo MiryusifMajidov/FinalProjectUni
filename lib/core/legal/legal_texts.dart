@@ -6,7 +6,7 @@
 /// disclose different things.
 library;
 
-const kSupportEmail  = 'privacy@grandmasterapp.com';
+const kSupportEmail  = 'mecidovyusif079@gmail.com';
 const kPrivacyUrl    = 'https://chess-ac4eb.web.app/privacy';
 const kTermsUrl      = 'https://chess-ac4eb.web.app/terms';
 
@@ -61,10 +61,14 @@ const kPolicyParagraphs = [
 
   '7. Deleting Your Account\n'
   'You can delete your account from inside the app: Settings → Account → '
-  'Delete account. Deleting removes your profile, photo, chat messages, '
-  'friend and block lists, map location and device tokens. Finished games may '
-  'be kept in a form that no longer identifies you, so that your opponents\' '
-  'own game records and ratings stay intact.',
+  'Delete account. Deleting removes your profile, your username, your profile '
+  'photo, your friend and block lists, your map location, your device tokens '
+  'and your saved sign-in sessions. Two things outlive the account on purpose. '
+  'Messages you already sent stay in the other person\'s conversation, because '
+  'deleting them would rewrite someone else\'s history; they are no longer '
+  'linked to a profile once the account is gone. Finished games are kept in a '
+  'form that no longer identifies you, so that your opponents\' own records '
+  'and ratings stay intact.',
 
   '8. Data Retention\n'
   'Account and profile data is kept while your account exists. Chat messages '

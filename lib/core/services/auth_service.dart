@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
@@ -509,6 +510,36 @@ class AuthService {
     }
 
     final uid = user.uid;
+
+    // Subcollections first, while users/{uid} still exists: the security rules
+    // key off that document, so deleting the parent first can lock us out of
+    // its own children. Firestore never cascade-deletes, so anything missed
+    // here simply survives the account forever.
+    try {
+      final friendsSnap =
+          await _fs.collection('users').doc(uid).collection('friends').get();
+      for (var i = 0; i < friendsSnap.docs.length; i += 400) {
+        final chunk = friendsSnap.docs.skip(i).take(400);
+        final friendBatch = _fs.batch();
+        for (final doc in chunk) {
+          friendBatch.delete(doc.reference);
+        }
+        await friendBatch.commit();
+      }
+    } catch (e) {
+      debugPrint('[Auth] Deleting friends subcollection failed: $e');
+    }
+
+    // The profile photo lives in Storage, which Firestore deletion never
+    // touches. The privacy policy promises it goes.
+    try {
+      await FirebaseStorage.instance.ref('profile_photos/$uid.jpg').delete();
+    } on FirebaseException catch (e) {
+      // object-not-found just means the user never set one.
+      if (e.code != 'object-not-found') {
+        debugPrint('[Auth] Deleting profile photo failed: $e');
+      }
+    }
 
     // Remove Firestore documents
     final userDoc = await _fs.collection('users').doc(uid).get();

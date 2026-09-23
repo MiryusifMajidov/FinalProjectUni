@@ -1,0 +1,41 @@
+Chess, draughts and dominoes — three classic board games in one app, with real opponents, real ratings and no ads.
+
+THREE GAMES, ONE ACCOUNT
+• CHESS — full rules including castling, en passant, promotion, draw offers and resignation, with a move list you can scroll and replay.
+• DRAUGHTS (CHECKERS) — forced captures, multi-jumps, kings and five variants, with online and bot modes of its own.
+• DOMINOES — classic table play against friends or the bot, with a shared table anyone you invite can join.
+
+PLAY ONLINE
+Join the queue and you are playing in well under a minute: chess looks for an opponent near your rating first, and if no human is free a bot steps in so you are never left waiting. You can also invite any player directly. In chess you pick the time control yourself — bullet, blitz and rapid are all supported, and both sides get a live clock. Draughts and dominoes are played with a 30-second-per-move timer instead.
+
+WATCH A GAME
+Online chess games can be followed live. While you are playing, anyone who opens your profile can tap through and watch the moves as they happen.
+
+TOURNAMENTS AND ARENA
+Create an arena tournament, or join one before it starts. Arena is cumulative rather than knockout: there is no elimination, so after each game you tap Ready to be paired with a new opponent, and every win or draw adds to your running score.
+
+CAMPAIGN
+A chapter-by-chapter single-player campaign for all three games, unlocking act by act as you win. It is a structured way to improve instead of grinding random games.
+
+PLAY THE BOT
+Practice any time without putting a rated game at risk. Chess and draughts each offer six difficulty levels; the dominoes bot plays one regular strength.
+
+FRIENDS, GROUPS AND CHAT
+Add friends, look up players by username, and create groups for your club or your circle. One-to-one chat, group chat, and a chat panel inside online chess games so you can talk a position through while you play it.
+
+LEADERBOARDS AND RATINGS
+Separate ratings for chess, draughts and dominoes, so being sharp at one does not flatter the others. Chess is rated separately for bullet, blitz and rapid, and every game has its own top-100 leaderboard.
+
+NEARBY PLAYERS MAP
+Turn on the map and see other players who have also chosen to appear, then challenge them directly. This is strictly opt-in: your location is never shared until you switch it on yourself, and switching it off takes you off the map again.
+
+TEN LANGUAGES
+English, Azerbaijani, Turkish, Russian, German, Spanish, French, Hindi, Urdu and Chinese.
+
+PRIVACY AND CONTROL
+• No ads, no in-app purchases, no third-party trackers.
+• Block any player, and manage your block list from Settings → Privacy.
+• Two-factor authentication on sign-in, and a list of your active sessions you can review.
+• Delete your account from inside the app: Settings → Account → Delete account.
+
+Free to play. Everything in the app is included.
