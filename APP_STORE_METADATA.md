@@ -30,32 +30,47 @@
 
 ## 1. App Name (max 30 characters)
 
-The store name and `CFBundleDisplayName` should read as the same app. The binary currently
-ships `Chess Draughts Dominoes`, so option A needs no code change at all.
+**Decided: `CheckMate: Chess Dama Domino`** — 28 characters.
 
-| # | Name | Chars | Notes |
-|---|---|---|---|
-| **A (recommended)** | `Chess Draughts Dominoes` | **23** | Exactly matches `CFBundleDisplayName`. Three high-volume search nouns in the name field, which Apple weights most heavily. No punctuation to dilute it. |
-| B | `CheckMate: Chess & Dominoes` | 27 | Leads with the brand used internally and on Play. Loses "draughts" from the strongest-weighted field; you would have to buy that word back with a keyword. |
-| C | `Chess Draughts Dominoes 3in1` | 28 | Same as A plus a differentiator. "3in1" reads as spam to some reviewers and adds no search value. |
+This is the name the app already ships under on Google Play
+(`com.ludodo.checkmate`, live since 5 Aug 2026), so both stores now carry one
+identity. Earlier drafts of this document weighed three invented candidates and
+recommended `Chess Draughts Dominoes` on search-term grounds; that reasoning is
+superseded — matching an established listing is worth more than the keyword
+arbitrage, and a second name for the same app in a second store is a support
+burden forever.
 
-**Decision: use A.** If you pick B or C instead, change `CFBundleDisplayName` in
-`ios/Runner/Info.plist` to match *before* the build you submit — Apple does compare the two and a
-visible mismatch is a routine 2.3.7 ("Accurate Metadata") note.
+`CFBundleDisplayName` in `ios/Runner/Info.plist` is now `CheckMate`. Apple does
+compare the store name with the name under the icon, and a visible mismatch is a
+routine 2.3.7 ("Accurate Metadata") note. `CheckMate` is the leading word of the
+store name, so the two read as the same app, and at 9 characters it survives the
+truncation iOS applies under the home-screen icon — the full 28-character store
+name would not.
+
+**Known inconsistency, left alone deliberately:** Android's `android:label` is
+still `Chess Draughts Dominoes`, so the Play listing and the Android icon already
+disagree. Google has not objected and the app is live with users on it; changing
+the label would alter what 88 monthly-active users see on their home screen. That
+is a product decision, not a release blocker, and it does not affect App Review.
 
 ---
 
 ## 2. Subtitle (max 30 characters)
 
-| Subtitle | Chars |
-|---|---|
-| **`Chess, draughts & dominoes`** (recommended if App Name = B) | 26 |
-| **`3 board games, one account`** (recommended if App Name = A) | 26 |
-| `Play online, join tournaments` | 29 |
+The name now spends "Chess", "Dama" and "Domino". Apple indexes App Name +
+Subtitle + Keywords as one pool, so the subtitle must buy terms the name does
+not already own. The gap is the English words for the other two games: an
+English-speaking searcher types **draughts** or **checkers**, not "dama", and
+**dominoes** rather than "domino".
 
-With App Name A the three game nouns are already spent, so the subtitle should buy new terms —
-hence "3 board games, one account". Apple indexes the subtitle at nearly the same weight as the
-name, so do not waste it on a restatement.
+| Subtitle | Chars | Buys |
+|---|---|---|
+| **`Draughts, checkers & online`** (recommended) | 27 | Both English words for the game the name calls "Dama", plus the online hook |
+| `Play draughts & chess online` | 28 | "draughts" + "online", but re-spends "chess", which the name already owns |
+| `Online tournaments & friends` | 28 | The social hook, but buys no game noun — weakest for search |
+
+Do not restate the name here. The subtitle carries nearly the name's own search
+weight, and a restatement spends it on nothing.
 
 ---
 
