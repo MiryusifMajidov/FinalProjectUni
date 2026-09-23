@@ -1,4 +1,4 @@
-# iOS Build Notes — CheckMate (Chess Draughts Dominoes)
+# iOS Build Notes — CheckMate: Chess Dama Domino
 
 Operational runbook for getting `com.ludodo.checkmate` from this repo to TestFlight and then to
 the App Store, **built on Codemagic's macOS machines from a Windows workstation**. No Mac required.

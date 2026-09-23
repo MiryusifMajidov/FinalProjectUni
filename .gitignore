@@ -58,3 +58,6 @@ AuthKey_*.p8
 *.mobileprovision
 *.cer
 *.pem
+
+# Firebase CLI local cache.
+.firebase/

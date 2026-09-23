@@ -1,5 +1,5 @@
 # ============================================================================
-# Codemagic CI — CheckMate (Chess Draughts Dominoes) Flutter iOS → App Store
+# Codemagic CI — CheckMate: Chess Dama Domino — Flutter iOS → App Store
 # Mac lazım deyil; build buludda macOS maşınında olur, Windows-dan idarə edilir.
 #
 # Bu fayl D:\laptops.az\codemagic.yaml əsasında yazılıb (həmin tətbiq bu üsulla
