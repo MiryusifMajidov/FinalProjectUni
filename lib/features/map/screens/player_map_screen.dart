@@ -881,7 +881,7 @@ class _MapView extends StatelessWidget {
         // store outside the repo.
         TileLayer(
           urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
-          userAgentPackageName: 'com.chessapp.chessApp',
+          userAgentPackageName: 'com.ludodo.checkmate',
         ),
         MarkerLayer(markers: markers),
         const _MapAttribution(),

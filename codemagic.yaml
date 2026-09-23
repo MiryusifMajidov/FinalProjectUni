@@ -20,10 +20,10 @@
 #         BEGIN/END sətirləri daxil olmaqla bütün faylı yapışdır.
 #         Eyni qrupu + eyni dəyəri laptops.az tətbiqinə də əlavə et →
 #         hər iki tətbiq BİR distribution sertifikatını paylaşır, 409 dolmur.
-#   5) App Store Connect-də app record yarat — Bundle ID: com.chessapp.chessApp
+#   5) App Store Connect-də app record yarat — Bundle ID: com.ludodo.checkmate
 #      (`--create` App ID yaradır, amma app record-u YARATMIR — onsuz build
 #       sonunda "No suitable application records were found" ilə düşür.)
-#   6) developer.apple.com → Identifiers → com.chessapp.chessApp →
+#   6) developer.apple.com → Identifiers → com.ludodo.checkmate →
 #      Push Notifications + Sign In with Apple AÇIQ olmalıdır, YOXSA yaranan
 #      profil aps-environment daşımır və arxiv imzalanmır.
 #
@@ -79,7 +79,7 @@ workflows:
           fi
 
           fetch_signing() {
-            app-store-connect fetch-signing-files "com.chessapp.chessApp" \
+            app-store-connect fetch-signing-files "com.ludodo.checkmate" \
               --type IOS_APP_STORE $KEY_ARG --create
           }
 

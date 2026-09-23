@@ -1,6 +1,6 @@
 # iOS Build Notes — CheckMate (Chess Draughts Dominoes)
 
-Operational runbook for getting `com.chessapp.chessApp` from this repo to TestFlight and then to
+Operational runbook for getting `com.ludodo.checkmate` from this repo to TestFlight and then to
 the App Store, **built on Codemagic's macOS machines from a Windows workstation**. No Mac required.
 
 Read this together with `APP_STORE_METADATA.md` (listing copy, privacy answers, reviewer notes) and
@@ -48,7 +48,7 @@ and the in-app privacy text (both screens now render one canonical policy from
 
 | # | Item | Owner | Impact if ignored |
 |---|---|---|---|
-| O1 | **`ios/Runner/GoogleService-Info.plist` is not in the repo.** | You (Firebase Console) | Core Firebase still initialises from `lib/firebase_options.dart`, so the app runs — but Google Sign-In has no iOS OAuth client and fails on device. This also breaks the delete-account re-auth path for Google users, which reopens Guideline 5.1.1(v). |
+| O1 | **The Firebase iOS app has to be re-registered, and `ios/Runner/GoogleService-Info.plist` is not in the repo.** The original iOS app in project `chess-ac4eb` was registered under `com.chessapp.chessApp`, which Apple reports as unavailable — that bundle id is taken by another account. The app is now `com.ludodo.checkmate`, matching the Android `applicationId`. | You (Firebase Console) | A Firebase iOS app is keyed by bundle id, so the old registration (`1:544347300592:ios:9cacaa8632a5e8919f1835`) is dead. Add a **new** iOS app under `com.ludodo.checkmate`, download its `GoogleService-Info.plist`, and refresh `apiKey` + `appId` in `lib/firebase_options.dart` — on iOS `Firebase.initializeApp()` reads those values, not the plist, so stale ones fail at runtime even with the plist present. Until then Google Sign-In has no iOS OAuth client and fails on device, which also breaks the delete-account re-auth path for Google users and reopens Guideline 5.1.1(v). |
 | O2 | **`Info.plist` still contains the placeholder** `REPLACE_WITH_REVERSED_CLIENT_ID` in `CFBundleURLSchemes`. Depends on O1. | You, then me | Google Sign-In cannot complete its callback. A reviewer tapping the Google button sees a broken feature — Guideline 2.1. |
 | O3 | **`assets/pieces/alpha/` may not be licensed for commercial distribution.** Eric Bentzen's chess fonts were historically released "free for personal, non-commercial use". | You (decision) | App Store Connect makes you affirm content rights on every submission. Either obtain written permission or delete the set and its picker entry. **This is the one bundled asset with a genuine licence problem** — see `assets/licenses/NOTICE.md`. `merida` also needs its exact licence confirmed against Lichess's `public/piece/COPYING.md`. |
 | O4 | **The map uses `tile.openstreetmap.org` directly.** The required "© OpenStreetMap contributors" credit is now displayed, but OSM's tile usage policy **prohibits** using their servers as an app backend. | You (needs an API key) | OSM can block the tile requests, which breaks the map for every user, not just reviewers. Migrate to MapTiler / Stadia / Thunderforest. The warning comment is at the `TileLayer` in `player_map_screen.dart`. |
@@ -73,7 +73,7 @@ later, or worse, pass the build and fail the review.
 
 ### Step 1 — Apple Developer, Certificates Identifiers & Profiles, Identifiers
 
-Register the App ID `com.chessapp.chessApp` (Team `PLY98763D4`) and, **in the same visit, before
+Register the App ID `com.ludodo.checkmate` (Team `PLY98763D4`) and, **in the same visit, before
 any provisioning profile exists**, tick:
 
 - **Push Notifications**
@@ -96,7 +96,7 @@ archive fails to sign with a provisioning-profile-mismatch error.
    must revoke the key and create a new one.
 3. Note the **Key ID** shown on that page.
 4. Firebase Console → project `chess-ac4eb` → Project settings → **Cloud Messaging** → iOS app
-   `com.chessapp.chessApp` → **APNs Authentication Key** → Upload, supplying:
+   `com.ludodo.checkmate` → **APNs Authentication Key** → Upload, supplying:
    - the `.p8` file,
    - the **Key ID** from step 3,
    - **Team ID `PLY98763D4`**.
@@ -146,8 +146,8 @@ My Apps → **+** → New App:
 - Platform: **iOS**
 - Name: see `APP_STORE_METADATA.md` section 1 (recommended: `Chess Draughts Dominoes`)
 - Primary language: English
-- **Bundle ID: `com.chessapp.chessApp`** — it only appears in the dropdown after step 1
-- SKU: anything unique, e.g. `chessapp-ios-001`
+- **Bundle ID: `com.ludodo.checkmate`** — it only appears in the dropdown after step 1
+- SKU: anything unique, e.g. `checkmate-ios-001`
 
 **Read this twice.** `app-store-connect fetch-signing-files --create` in `codemagic.yaml` creates
 the **App ID / bundle identifier**. It does **not** create the **app record**. They are different

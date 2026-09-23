@@ -13,7 +13,7 @@
 
 | Field | Value | Source of truth |
 |---|---|---|
-| iOS Bundle ID | `com.chessapp.chessApp` | `ios/Runner.xcodeproj/project.pbxproj`, `lib/firebase_options.dart` |
+| iOS Bundle ID | `com.ludodo.checkmate` | `ios/Runner.xcodeproj/project.pbxproj`, `lib/firebase_options.dart` |
 | Android package (live on Play) | `com.ludodo.checkmate` | Play listing; Android build |
 | Apple Team ID | `PLY98763D4` | shared with `laptops.az` |
 | Firebase project | `chess-ac4eb` (iOS appId `1:544347300592:ios:9cacaa8632a5e8919f1835`) | `lib/firebase_options.dart` |
@@ -518,7 +518,7 @@ disabled and it is easy to lose an afternoon looking for the real error somewher
 
 ## 13. Pre-submit checklist
 
-- [ ] App record exists in App Store Connect with Bundle ID `com.chessapp.chessApp`
+- [ ] App record exists in App Store Connect with Bundle ID `com.ludodo.checkmate`
 - [ ] `https://chess-ac4eb.web.app/privacy` and `/support` both load in a browser
 - [ ] In-app privacy text no longer says "Grandmaster"
 - [ ] Review account: registered, **email verified**, **`twoFactorEnabled: false`**, photo + friend

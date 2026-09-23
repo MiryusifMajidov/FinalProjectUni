@@ -1,6 +1,6 @@
 # Third-Party Notices — CheckMate
 
-CheckMate (package `chess_app`, bundle id `com.chessapp.chessApp`) bundles
+CheckMate (package `chess_app`, bundle id `com.ludodo.checkmate`) bundles
 artwork and relies on network services created by other people. This file
 records what is included, who made it, and under which terms.
 
