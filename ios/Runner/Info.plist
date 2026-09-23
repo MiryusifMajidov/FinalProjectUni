@@ -65,7 +65,7 @@
 	<array>
 		<string>remote-notification</string>
 	</array>
-	<!-- google_sign_in: asagidaki deyeri GoogleService-Info.plist-deki REVERSED_CLIENT_ID ile evez edin -->
+	<!-- google_sign_in: REVERSED_CLIENT_ID from ios/Runner/GoogleService-Info.plist. If that file is ever regenerated, this must be updated to match. -->
 	<key>CFBundleURLTypes</key>
 	<array>
 		<dict>
@@ -73,7 +73,7 @@
 			<string>Editor</string>
 			<key>CFBundleURLSchemes</key>
 			<array>
-				<string>REPLACE_WITH_REVERSED_CLIENT_ID</string>
+				<string>com.googleusercontent.apps.544347300592-65e0dtrk1pid6orjp73bsjaratspl2tl</string>
 			</array>
 		</dict>
 	</array>

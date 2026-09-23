@@ -34,29 +34,35 @@ had in flight at the time of writing. Check each one before you start a build.
 | 1024 marketing icon is opaque | `ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png` is PNG colour type 2 (RGB, no alpha); `pubspec.yaml` sets `remove_alpha_ios: true` | An alpha channel on the marketing icon is an automatic upload rejection. Verified — nothing to do. |
 | Sign in with Apple | `pubspec.yaml` (`sign_in_with_apple ^6.1.4`), `lib/core/services/auth_service.dart` (`signInWithApple`, `completeAppleSignUp`, `apple.com` re-auth in `deleteAccount`), `lib/features/auth/widgets/apple_sign_in_button.dart`, both auth screens, `Runner.entitlements` (`com.apple.developer.applesignin`) | Guideline 4.8 makes this mandatory because the app offers Google Sign-In; its absence is an automatic rejection. The nonce is SHA-256 on the Apple request and raw on the Firebase credential. Apple returns name/email only on the *first* authorization, so they are persisted immediately. The `deleteAccount` branch matters for 5.1.1(v): without it an Apple account hits `requires-recent-login` and cannot be deleted. |
 | Report user / content + profanity filter | `firestore_service.dart` (`reportUser`), `lib/core/utils/content_filter.dart`, Report actions beside Block in `chat_screen.dart` and `profile_screen.dart`, `reports` rules in `firestore.rules` | Guideline 1.2 wants four things for user-generated content: a filter, reporting, blocking and published contact. Blocking already existed; the other three are now in place. Rules allow create-as-yourself only, with no client read/update/delete. |
-| Hosted legal pages | `public/privacy.html`, `support.html`, `terms.html`, `index.html`; `hosting` block with clean URLs in `firebase.json` | App Store Connect requires a Privacy Policy URL **and** a Support URL that both return HTTP 200. Apple fetches them during review. Still needs deploying — see O7. |
+| Hosted legal pages | `public/privacy.html`, `support.html`, `terms.html`, `index.html`; `hosting` block with clean URLs in `firebase.json` | App Store Connect requires a Privacy Policy URL **and** a Support URL that both return HTTP 200. Apple fetches them during review. Still needs deploying — see O5. |
 | One canonical legal text | `lib/core/legal/legal_texts.dart`, used by both `about_screen.dart` and `privacy_screen.dart` | The app briefly carried two different privacy policies that disclosed different things — the About one complete, the Settings one missing location, FCM and third-party flows. App Review penalises exactly that. There is now a single source, matching the hosted page. |
-| Third-party attribution is visible in-app | `about_screen.dart` registers asset licences with `LicenseRegistry` (shown by `showLicensePage`); `assets/licenses/NOTICE.md`; OpenStreetMap credit on the map | The bundled `cburnett` piece set is CC BY-SA 3.0 and *requires* visible attribution — a repo file alone does not satisfy it. Note `alpha` is still an open licence risk (O3). |
+| Third-party attribution is visible in-app | `about_screen.dart` registers asset licences with `LicenseRegistry` (shown by `showLicensePage`); `assets/licenses/NOTICE.md`; OpenStreetMap credit on the map | The bundled `cburnett` piece set is CC BY-SA 3.0 and *requires* visible attribution — a repo file alone does not satisfy it. Note `alpha` is still an open licence risk (O1). |
 | No placeholder UI left | Six dead "coming soon" rows in `about_screen.dart` now open real Terms / Privacy / licence content; the fake **Groups** tab and its non-functional "Notify me when available" button were removed from `map_search_screen.dart` | Guideline 2.1 cites placeholder content and non-functional controls as an incomplete app. `grep -rn "coming soon" lib/` now returns nothing. The real Groups feature is untouched. |
+
+| Bundle id `com.ludodo.checkmate` | `project.pbxproj` (3 Runner + 3 RunnerTests configs), `codemagic.yaml` `fetch-signing-files`, `firebase_options.dart`, the OSM `userAgentPackageName`, the hosted privacy/terms pages | `com.chessapp.chessApp` is held by another Apple account, so it could not be registered. The new id matches the Android `applicationId`, so both stores carry one identifier. The `codemagic.yaml` occurrence is load-bearing — CI mints the profile from that exact string. |
+| Firebase iOS app re-registered | `ios/Runner/GoogleService-Info.plist` (`GOOGLE_APP_ID 1:544347300592:ios:61a92917b3d6402c9f1835`), mirrored into `lib/firebase_options.dart` | A Firebase iOS app is keyed by bundle id, so the original registration died with the old id. On iOS `Firebase.initializeApp()` reads `firebase_options.dart`, **not** the plist, so both had to be updated — a plist alone would still fail at runtime. |
+| `GoogleService-Info.plist` wired into the Xcode project | `project.pbxproj` — `PBXBuildFile`, `PBXFileReference`, the Runner `PBXGroup` children, and the **Runner** `PBXResourcesBuildPhase` (not RunnerTests) | Flutter does **not** do this automatically. Dropping the file into `ios/Runner/` compiles and ships perfectly cleanly while the file never reaches `Runner.app`, so Google Sign-In fails on device with no build error. Verified by count: the file ref appears 3× and the build file 2×. |
+| Real `REVERSED_CLIENT_ID` in `Info.plist` | `CFBundleURLSchemes` → `com.googleusercontent.apps.544347300592-65e0dtrk1pid6orjp73bsjaratspl2tl` | Without it Google Sign-In launches but cannot complete its callback — the reviewer sees a broken feature, Guideline 2.1. |
 
 ### 1.2 Outstanding — must be resolved before the build you submit
 
-Items O3, O5, O6 and O7 in an earlier draft of this table are now **done** and have moved to 1.1:
-the Sign in with Apple entitlement, the in-app report flow, the `hosting` block in `firebase.json`,
-and the in-app privacy text (both screens now render one canonical policy from
-`lib/core/legal/legal_texts.dart`).
+Everything Firebase- and identifier-related is now **done** and has moved to 1.1: the bundle id
+move to `com.ludodo.checkmate`, the re-registered Firebase iOS app, `GoogleService-Info.plist`
+committed and wired into the Xcode project, and the real `REVERSED_CLIENT_ID` in `Info.plist`.
+Earlier drafts also listed the Sign in with Apple entitlement, the in-app report flow, the
+`hosting` block in `firebase.json` and the in-app privacy text — all done.
+
+What remains below is work only you can do, plus one item that waits for the first green build.
 
 | # | Item | Owner | Impact if ignored |
 |---|---|---|---|
-| O1 | **The Firebase iOS app has to be re-registered, and `ios/Runner/GoogleService-Info.plist` is not in the repo.** The original iOS app in project `chess-ac4eb` was registered under `com.chessapp.chessApp`, which Apple reports as unavailable — that bundle id is taken by another account. The app is now `com.ludodo.checkmate`, matching the Android `applicationId`. | You (Firebase Console) | A Firebase iOS app is keyed by bundle id, so the old registration (`1:544347300592:ios:9cacaa8632a5e8919f1835`) is dead. Add a **new** iOS app under `com.ludodo.checkmate`, download its `GoogleService-Info.plist`, and refresh `apiKey` + `appId` in `lib/firebase_options.dart` — on iOS `Firebase.initializeApp()` reads those values, not the plist, so stale ones fail at runtime even with the plist present. Until then Google Sign-In has no iOS OAuth client and fails on device, which also breaks the delete-account re-auth path for Google users and reopens Guideline 5.1.1(v). |
-| O2 | **`Info.plist` still contains the placeholder** `REPLACE_WITH_REVERSED_CLIENT_ID` in `CFBundleURLSchemes`. Depends on O1. | You, then me | Google Sign-In cannot complete its callback. A reviewer tapping the Google button sees a broken feature — Guideline 2.1. |
-| O3 | **`assets/pieces/alpha/` may not be licensed for commercial distribution.** Eric Bentzen's chess fonts were historically released "free for personal, non-commercial use". | You (decision) | App Store Connect makes you affirm content rights on every submission. Either obtain written permission or delete the set and its picker entry. **This is the one bundled asset with a genuine licence problem** — see `assets/licenses/NOTICE.md`. `merida` also needs its exact licence confirmed against Lichess's `public/piece/COPYING.md`. |
-| O4 | **The map uses `tile.openstreetmap.org` directly.** The required "© OpenStreetMap contributors" credit is now displayed, but OSM's tile usage policy **prohibits** using their servers as an app backend. | You (needs an API key) | OSM can block the tile requests, which breaks the map for every user, not just reviewers. Migrate to MapTiler / Stadia / Thunderforest. The warning comment is at the `TileLayer` in `player_map_screen.dart`. |
-| O5 | **No App Review demo account exists.** The app has no guest mode: a reviewer hits a login wall, email verification, and possibly the OTP/2FA screen. | You | Automatic "unable to review" rejection, costing a full 24–48h cycle each time. See `APP_STORE_METADATA.md` → App Review Information for exactly what to seed. |
-| O6 | **`ios/Podfile.lock` does not exist.** It cannot be generated on Windows. | Me, after build 1 | Pod versions float between builds, so a build that was green yesterday can break today with no repo change. Fixed by section 5. |
-| O7 | **The hosted legal pages are written but not deployed.** `public/` holds them; `firebase.json` serves them. | You | `firebase deploy --only hosting --project chess-ac4eb`, then confirm `/privacy`, `/support` and `/terms` return HTTP 200. Apple fetches the privacy URL during review; a 404 is an automatic 5.1.1 rejection. |
-| O8 | **`firestore.rules` changed** (the new `reports` collection) and is not deployed. | You | Report submissions are rejected by the old rules, so the Guideline 1.2 reporting flow silently fails. `firebase deploy --only firestore:rules --project chess-ac4eb`. |
-| O9 | Codemagic UI one-time setup (steps 6 and 7 below) has not been done. | You | No build can start at all. |
+| O1 | **`assets/pieces/alpha/` may not be licensed for commercial distribution.** Eric Bentzen's chess fonts were historically released "free for personal, non-commercial use". | You (decision) | App Store Connect makes you affirm content rights on every submission. Either obtain written permission or delete the set and its picker entry. **This is the one bundled asset with a genuine licence problem** — see `assets/licenses/NOTICE.md`. `merida` also needs its exact licence confirmed against Lichess's `public/piece/COPYING.md`. |
+| O2 | **The map uses `tile.openstreetmap.org` directly.** The required "© OpenStreetMap contributors" credit is now displayed, but OSM's tile usage policy **prohibits** using their servers as an app backend. | You (needs an API key) | OSM can block the tile requests, which breaks the map for every user, not just reviewers. Migrate to MapTiler / Stadia / Thunderforest. The warning comment is at the `TileLayer` in `player_map_screen.dart`. |
+| O3 | **No App Review demo account exists.** The app has no guest mode: a reviewer hits a login wall, email verification, and possibly the OTP/2FA screen. | You | Automatic "unable to review" rejection, costing a full 24–48h cycle each time. See `APP_STORE_METADATA.md` → App Review Information for exactly what to seed. |
+| O4 | **`ios/Podfile.lock` does not exist.** It cannot be generated on Windows. | Me, after build 1 | Pod versions float between builds, so a build that was green yesterday can break today with no repo change. Fixed by section 5. |
+| O5 | **The hosted legal pages are written but not deployed.** `public/` holds them; `firebase.json` serves them. | You | `firebase deploy --only hosting --project chess-ac4eb`, then confirm `/privacy`, `/support` and `/terms` return HTTP 200. Apple fetches the privacy URL during review; a 404 is an automatic 5.1.1 rejection. |
+| O6 | **`firestore.rules` changed** (the new `reports` collection) and is not deployed. | You | Report submissions are rejected by the old rules, so the Guideline 1.2 reporting flow silently fails. `firebase deploy --only firestore:rules --project chess-ac4eb`. |
+| O7 | Codemagic UI one-time setup (steps 6 and 7 below) has not been done. | You | No build can start at all. |
 
 `DEVELOPMENT_TEAM` is deliberately **not** set in `project.pbxproj`. Codemagic's
 `xcode-project use-profiles` writes the team and the profile into the project at build time from
@@ -122,13 +128,24 @@ OAuth client (Authentication → Sign-in method → Google → iOS configuration
 of Google Cloud project `chess-ac4eb`), and re-download. Discovering this after a green build costs
 a whole cycle.
 
-Once verified, resolve **O1** and **O2** together:
+**This is all done** — the section is kept because it is the part people get wrong, and because it
+has to be redone from scratch if the plist is ever regenerated.
 
-- Put the file at `ios/Runner/GoogleService-Info.plist` and commit it. `codemagic.yaml` builds from
-  the repo, and the Flutter iOS build copies it in as a bundle resource. **[VERIFY]** that the
-  first archive really contains it, by checking the build log or unzipping the IPA.
-- Copy the `REVERSED_CLIENT_ID` value and replace the `REPLACE_WITH_REVERSED_CLIENT_ID` string in
-  `ios/Runner/Info.plist` → `CFBundleURLTypes` → `CFBundleURLSchemes`.
+- The file is committed at `ios/Runner/GoogleService-Info.plist`.
+- It is **wired into `project.pbxproj` by hand**, in four places: `PBXBuildFile`,
+  `PBXFileReference`, the Runner `PBXGroup` children, and the **Runner** `PBXResourcesBuildPhase`
+  (not RunnerTests). Flutter does **not** do this for you, and this is the failure worth
+  understanding: drop the file into `ios/Runner/` without the pbxproj entries and everything
+  compiles, signs, uploads and passes validation while the file never reaches `Runner.app`. Google
+  Sign-In then fails on device with no build error anywhere to explain it. Skipping the fourth
+  entry — the resources phase — fails the same silent way.
+  Verify by count, not by eye: the file reference id must appear **3×** and the build file id
+  **2×**. `grep -c A1C2D3E41F0A00010000F001 ios/Runner.xcodeproj/project.pbxproj` → 3, and
+  `...F002` → 2.
+- `REVERSED_CLIENT_ID` is in `ios/Runner/Info.plist` → `CFBundleURLTypes` → `CFBundleURLSchemes`.
+- `apiKey` and `appId` in `lib/firebase_options.dart` mirror the plist's `API_KEY` and
+  `GOOGLE_APP_ID`. **On iOS, `Firebase.initializeApp()` reads `firebase_options.dart`, not the
+  plist**, so a correct plist with stale Dart values still fails at runtime. Both must move together.
 
 ### Step 4 — App Store Connect, Business: accept the Free Applications agreement
 
