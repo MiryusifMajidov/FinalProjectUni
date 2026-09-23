@@ -58,15 +58,14 @@ workflows:
       # buna görə dolurdu. Qrup adı Codemagic UI-dakı ilə eyni olmalıdır.
       groups:
         - ios_signing
-      # ⚠ PIN — `stable` OLMAZ. Build 9 `flutter: stable` ilə sındı:
-      #   phosphor_flutter-2.1.0/lib/src/phosphor_icon_data.dart:5:32: Error:
-      #   The class 'IconData' can't be extended outside of its library
-      #   because it's a final class.
-      # Yeni Flutter-də IconData `final class` oldu. phosphor_flutter-in son
-      # versiyası 2.1.0-dır (2024-05-10) və paket dəstəklənmir — yeniləmək
-      # mümkün deyil. Tətbiqdə 56 faylda 375 istinad var, ona görə əvəzləmək
-      # ayrıca bir işdir. 3.44.8 lokalda işləyən versiyadır.
-      # Bunu `stable`-a qaytarmayın — build eyni yerdə sınacaq.
+      # PIN — qəsdən sabitdir, `stable` yazmayın.
+      # `stable` hər build-də fərqli SDK çəkir və bu layihə məhz belə iki dəfə
+      # sındı: əvvəlcə intl/app_theme, sonra build 9 və 10-da phosphor_flutter
+      # (IconData yeni Flutter-də `final class` oldu). Sonuncu artıq həll olunub
+      # — paket saxlanılan phosphor_icons ^3.0.1 ilə əvəz edildi — amma dərs
+      # qalır: CI yeni SDK-nı iş masasından əvvəl görür, ona görə versiya
+      # lokalda kompilyasiya olunduğu təsdiqlənmiş dəyərdə qalmalıdır.
+      # 3.44.8 lokalda `flutter build bundle` ilə yoxlanılıb.
       flutter: 3.44.8
       xcode: latest
       cocoapods: default

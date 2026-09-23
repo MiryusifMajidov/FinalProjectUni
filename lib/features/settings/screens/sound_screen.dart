@@ -6,7 +6,7 @@ import '../../../core/services/cache_service.dart';
 import '../../../core/services/sound_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:phosphor_flutter/phosphor_flutter.dart';
+import 'package:phosphor_icons/phosphor_icons.dart';
 import 'settings_screen.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────

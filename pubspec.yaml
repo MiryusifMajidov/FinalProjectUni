@@ -30,7 +30,7 @@ dependencies:
   # UI & Fonts
   cupertino_icons: ^1.0.8
   google_fonts: ^6.2.1
-  phosphor_flutter: ^2.1.0
+  phosphor_icons: ^3.0.1
   shimmer: ^3.0.0
   flutter_animate: ^4.5.0
   cached_network_image: ^3.4.1
