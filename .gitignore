@@ -57,3 +57,4 @@ AuthKey_*.p8
 *.p12
 *.mobileprovision
 *.cer
+*.pem
