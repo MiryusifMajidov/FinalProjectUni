@@ -277,6 +277,12 @@ class AuthService {
     final credential = OAuthProvider('apple.com').credential(
       idToken: appleCredential.identityToken,
       rawNonce: rawNonce,
+      // Apple's authorizationCode goes in accessToken. firebase_auth 5.x on
+      // iOS rejects the credential with
+      // [firebase_auth/invalid-credential] Invalid OAuth response from apple.com
+      // when this is absent, so Apple sign-in fails outright — and the error
+      // points at the provider config rather than at this line.
+      accessToken: appleCredential.authorizationCode,
     );
 
     final userCred = await _auth.signInWithCredential(credential);
@@ -466,6 +472,10 @@ class AuthService {
       final credential = OAuthProvider('apple.com').credential(
         idToken:  appleCredential.identityToken,
         rawNonce: rawNonce,
+        // Same as in signInWithApple: without accessToken the credential is
+        // rejected, so the account could never be re-authenticated and so
+        // never deleted — which is the guideline 5.1.1(v) path.
+        accessToken: appleCredential.authorizationCode,
       );
       await user.reauthenticateWithCredential(credential);
       // Apple also requires the sign-in token to be revoked on deletion.
@@ -474,7 +484,14 @@ class AuthService {
       if (authCode != null && authCode.isNotEmpty) {
         try {
           await _auth.revokeTokenWithAuthorizationCode(authCode);
-        } catch (_) {}
+        } catch (e) {
+          // Still non-fatal — a failed revocation must not block the deletion.
+          // But it is logged rather than swallowed: revocation depends on the
+          // Apple provider's OAuth code flow being configured in Firebase
+          // (services id, team id, key id, private key), and when that is
+          // wrong this is the only signal that anything went wrong at all.
+          debugPrint('[Auth] Apple token revocation failed: $e');
+        }
       }
     } else if (providers.contains('password')) {
       // Email/password account
