@@ -34,7 +34,14 @@ const _kBorderStrong  = AppColors.borderStrong;
 // on this screen. Disposed automatically when the screen leaves the tree.
 final _chatsProvider =
     StreamProvider.autoDispose.family<List<ChatModel>, String>(
-  (ref, uid) => ref.watch(chatServiceProvider).watchChats(uid),
+  (ref, uid) {
+    // Watched, not read: blocking someone should take their conversation off
+    // the list straight away rather than at the next cold start.
+    final blocked =
+        ref.watch(currentUserProvider).valueOrNull?.blockedUsers ??
+            const <String>[];
+    return ref.watch(chatServiceProvider).watchChats(uid, blockedUids: blocked);
+  },
 );
 
 // ── Screen ─────────────────────────────────────────────────────────────────────

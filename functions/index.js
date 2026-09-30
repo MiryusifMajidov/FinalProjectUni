@@ -170,10 +170,16 @@ const messaging = getMessaging();
 async function getUserData(userId) {
   try {
     const snap = await db.collection('users').doc(userId).get();
-    if (!snap.exists) return { fcmToken: null, notifPrefs: {} };
+    if (!snap.exists) return { fcmToken: null, notifPrefs: {}, blockedUsers: [] };
     const data = snap.data() ?? {};
     return {
       fcmToken: data.fcmToken ?? null,
+      // Returned so every notification sender can check it. Blocking used to
+      // stop nothing on this side: the blocked person's name and the first
+      // hundred characters of their message still arrived on the recipient's
+      // lock screen. Guideline 1.2 expects blocking to work, and App Review
+      // tests it.
+      blockedUsers: data.blockedUsers ?? [],
       notifPrefs: {
         notifGameInvites:    data.notifGameInvites    !== false,
         notifYourTurn:       data.notifYourTurn       !== false,
@@ -184,7 +190,7 @@ async function getUserData(userId) {
     };
   } catch (err) {
     console.error(`[FCM] getUserData(${userId}) failed:`, err.message);
-    return { fcmToken: null, notifPrefs: {} };
+    return { fcmToken: null, notifPrefs: {}, blockedUsers: [] };
   }
 }
 
@@ -257,7 +263,12 @@ exports.sendGameInviteNotification = onDocumentCreated(
     const recipientIsWhite = !isWhite;
     const colorText = recipientIsWhite ? 'Ağ' : 'Qara';
 
-    const { fcmToken: token, notifPrefs } = await getUserData(userId);
+    const { fcmToken: token, notifPrefs, blockedUsers } =
+      await getUserData(userId);
+    if (fromUid && blockedUsers.includes(fromUid)) {
+      console.log(`[FCM] Skipping invite push — ${userId} blocked ${fromUid}`);
+      return;
+    }
     if (!notifPrefs.notifGameInvites) {
       console.log(`[FCM] User ${userId} disabled game invite notifications`);
       return;
@@ -335,7 +346,15 @@ exports.sendChatNotification = onDocumentCreated(
       senderUsername = senderSnap.data()?.username ?? 'Someone';
     } catch (_) {}
 
-    const { fcmToken: token, notifPrefs } = await getUserData(recipientUid);
+    const { fcmToken: token, notifPrefs, blockedUsers } =
+      await getUserData(recipientUid);
+    // The client refuses to send a message to someone who blocked you, but a
+    // message written before the block, or one sent by anything that does not
+    // go through ChatService, must still not light up a lock screen.
+    if (blockedUsers.includes(senderUid)) {
+      console.log(`[FCM] Skipping chat push — ${recipientUid} blocked ${senderUid}`);
+      return;
+    }
     if (!notifPrefs.notifMessages) {
       console.log(`[FCM] User ${recipientUid} disabled message notifications`);
       return;
@@ -462,7 +481,12 @@ exports.sendFriendRequestNotification = onDocumentCreated(
       fromUsername = fromSnap.data()?.username ?? 'Someone';
     }
 
-    const { fcmToken: token, notifPrefs } = await getUserData(userId);
+    const { fcmToken: token, notifPrefs, blockedUsers } =
+      await getUserData(userId);
+    if (fromUserId && blockedUsers.includes(fromUserId)) {
+      console.log(`[FCM] Skipping friend push — ${userId} blocked ${fromUserId}`);
+      return;
+    }
     if (!notifPrefs.notifFriendRequests) {
       console.log(`[FCM] User ${userId} disabled friend request notifications`);
       return;

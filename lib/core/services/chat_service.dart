@@ -55,6 +55,22 @@ class ChatService {
         .doc(otherUid)
         .get();
     if (targetDoc.exists) {
+      // Blocking is checked BEFORE messagePrivacy, and it is checked here at
+      // all because it used to be checked nowhere: blockUser() wrote to
+      // blockedUsers and nothing ever read it, so a blocked person could keep
+      // sending messages and the push notification still arrived. Guideline
+      // 1.2 requires blocking to actually block, and App Review tests it.
+      // targetDoc is already fetched, so this costs no extra read.
+      final blockedByTarget =
+          (targetDoc.data()?['blockedUsers'] as List<dynamic>? ?? const [])
+              .cast<String>();
+      if (blockedByTarget.contains(myUid)) {
+        // Deliberately the same wording as messagePrivacy 'nobody'. Telling
+        // someone they have been blocked specifically is an invitation to work
+        // around it with a second account.
+        throw Exception('This user is not accepting messages.');
+      }
+
       final privacy =
           targetDoc.data()?['messagePrivacy'] as String? ?? 'everyone';
       if (privacy == 'nobody') {
@@ -199,7 +215,11 @@ class ChatService {
   /// NOTE: No server-side orderBy — that would require a composite index
   /// (participants array-contains + lastMessageAt desc) which may not exist.
   /// We sort client-side instead; the single-field array index is automatic.
-  Stream<List<ChatModel>> watchChats(String uid) {
+  /// [blockedUids] are dropped from the result. Blocking someone should take
+  /// their conversation off your list and stop their unread badge, not merely
+  /// stop you replying — the send-side check in [sendMessage] is the other half
+  /// of the same guarantee.
+  Stream<List<ChatModel>> watchChats(String uid, {List<String> blockedUids = const []}) {
     return _chats
         .where('participants', arrayContains: uid)
         .limit(50)
@@ -207,6 +227,8 @@ class ChatService {
         .map((snap) {
           final chats = snap.docs
               .map((d) => ChatModel.fromMap(d.id, d.data()))
+              .where((c) => !c.participants
+                  .any((p) => p != uid && blockedUids.contains(p)))
               .toList();
           // Sort newest-first on the client so no composite index is needed.
           chats.sort((a, b) {
@@ -220,12 +242,19 @@ class ChatService {
   }
 
   /// Get unread count for a user across all chats.
-  Stream<int> watchTotalUnread(String uid) {
+  /// [blockedUids] are excluded, so a blocked person cannot keep a badge
+  /// lit on the recipient's home screen.
+  Stream<int> watchTotalUnread(String uid, {List<String> blockedUids = const []}) {
     return _chats.where('participants', arrayContains: uid).snapshots().map(
       (snap) {
         int total = 0;
         for (final doc in snap.docs) {
           final data = doc.data();
+          final participants =
+              (data['participants'] as List<dynamic>? ?? const []).cast<String>();
+          if (participants.any((p) => p != uid && blockedUids.contains(p))) {
+            continue;
+          }
           final unread = data['unreadCount'] as Map<String, dynamic>?;
           total += (unread?[uid] as num?)?.toInt() ?? 0;
         }

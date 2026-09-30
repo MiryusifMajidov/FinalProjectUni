@@ -2486,5 +2486,12 @@ class _NavBadge extends StatelessWidget {
 // ── Providers ─────────────────────────────────────────────────────────────────
 
 final _chatUnreadProvider = StreamProvider.family<int, String>((ref, uid) {
-  return ref.read(chatServiceProvider).watchTotalUnread(uid);
+  // Watched rather than read, so blocking someone clears their contribution to
+  // the badge immediately instead of at the next cold start.
+  final blocked =
+      ref.watch(currentUserProvider).valueOrNull?.blockedUsers ??
+          const <String>[];
+  return ref
+      .read(chatServiceProvider)
+      .watchTotalUnread(uid, blockedUids: blocked);
 });
