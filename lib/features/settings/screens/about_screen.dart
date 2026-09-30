@@ -681,7 +681,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
 
 // ── Legal content ─────────────────────────────────────────────────────────────
 
-const _kLegalUpdated  = '21 September 2026';
+const _kLegalUpdated  = '30 September 2026';
 
 const _kWhatsNewParagraphs = [
   'Arena Tournaments\n'

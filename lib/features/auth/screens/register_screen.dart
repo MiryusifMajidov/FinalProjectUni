@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
+import '../../../core/legal/legal_consent.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme_extension.dart';
@@ -531,7 +532,16 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               selectedCode: _selectedCountryCode,
               onTap: _showCountryPicker,
             ).animate(delay: 280.ms).fadeIn().slideY(begin: 0.15),
-            const SizedBox(height: 32),
+            const SizedBox(height: 24),
+
+            // Guideline 1.2: the terms have to be in front of the user before
+            // they register, not three taps deep in Settings. Above the buttons
+            // rather than below, so it cannot be missed by someone who taps the
+            // first control they see.
+            const LegalConsentNotice()
+                .animate(delay: 290.ms)
+                .fadeIn(),
+            const SizedBox(height: 16),
 
             AppButton(
               label: 'next'.tr(),

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:google_fonts/google_fonts.dart';
+import '../../../core/legal/legal_consent.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
@@ -531,7 +532,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             ).animate().shake(),
           ],
 
-          const SizedBox(height: 24),
+          const SizedBox(height: 20),
+
+          // Guideline 1.2: the terms have to be in front of the user before
+          // they sign in, whichever of the three methods below they use.
+          const LegalConsentNotice().animate(delay: 340.ms).fadeIn(),
+
+          const SizedBox(height: 16),
 
           // Sign In button
           GestureDetector(

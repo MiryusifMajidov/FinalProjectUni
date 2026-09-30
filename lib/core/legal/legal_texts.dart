@@ -123,7 +123,11 @@ const kTermsParagraphs = [
   'and tell us at $kSupportEmail if you believe someone else is using your '
   'account. You must be at least 13 years old to hold an account.',
 
-  '4. Acceptable Use\n'
+  '4. Acceptable Use — zero tolerance\n'
+  'There is NO TOLERANCE for objectionable content or abusive users on '
+  'CheckMate. Post or send objectionable content, or abuse another player, and '
+  'your account is removed — on a first offence, without warning, and without '
+  'a refund of anything.\n\n'
   'While using CheckMate you must not: harass, threaten, stalk or abuse other '
   'players; use a chess engine, external assistance or another person to '
   'choose your moves in rated or tournament play; use multiple accounts, '
@@ -139,7 +143,12 @@ const kTermsParagraphs = [
   'opponents. You are responsible for having the rights to whatever you '
   'upload.',
 
-  '6. Moderation and Termination\n'
+  '6. Reporting, Moderation and Termination\n'
+  'Report any user or message from the menu in the top-right corner of a '
+  'profile or a chat, and block any player from the same menu. Every report '
+  'is reviewed and acted on within 24 hours; content that breaks these terms '
+  'is removed and the account behind it is ejected. You can also write to '
+  '$kSupportEmail.\n\n'
   'We may limit, suspend or terminate an account that breaks these terms, '
   'including for cheating or harassment, and may remove content that breaks '
   'them. You may stop using the app at any time and delete your account from '
