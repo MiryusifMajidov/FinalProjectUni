@@ -1,6 +1,11 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/tournament_model.dart';
+
+/// Outcome of an arena game from the reporting player's point of view.
+enum ArenaOutcome { win, draw, loss }
 
 class TournamentService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
@@ -13,6 +18,9 @@ class TournamentService {
 
   // ── Create / Join / Leave ──────────────────────────────────────────────────
 
+  /// Creates a player-hosted arena. The `onArenaCreated` Cloud Function then
+  /// fills it with bots and starts it within about half a minute, so nobody
+  /// waits in an empty lobby for players who are not coming.
   Future<String> createTournament(TournamentModel tournament) async {
     final ref = _tournaments.doc();
     await ref.set(tournament.toMap());
@@ -37,6 +45,9 @@ class TournamentService {
       'gamesPlayed': 0,
       'joinedAt': FieldValue.serverTimestamp(),
     });
+    // Allowed for every participant by the rules (participantCount ±1 only).
+    // It used to be creator-only, so for everyone else the whole batch was
+    // rejected and joining someone else's arena always failed.
     batch.update(_tournaments.doc(tournamentId), {
       'participantCount': FieldValue.increment(1),
     });
@@ -59,7 +70,9 @@ class TournamentService {
 
   // ── Arena lifecycle ────────────────────────────────────────────────────────
 
-  /// Activates the tournament: sets status → active, records endsAt.
+  /// Creator's "Start now": status → active, records endsAt. (Arenas also
+  /// start on their own — see `onArenaCreated` / `arenaTick` on the server —
+  /// and the server closes them when endsAt passes.)
   Future<void> startArena(String tournamentId, int durationMinutes) async {
     final endsAt = DateTime.now().add(Duration(minutes: durationMinutes));
     await _tournaments.doc(tournamentId).update({
@@ -68,75 +81,46 @@ class TournamentService {
     });
   }
 
-  /// Marks the tournament as finished (idempotent via transaction).
-  Future<void> finishArena(String tournamentId) async {
-    await _db.runTransaction((tx) async {
-      final doc = await tx.get(_tournaments.doc(tournamentId));
-      if (!doc.exists) return;
-      final status = doc.data()?['status'] as String?;
-      if (status == TournamentStatus.finished.name) return;
-      tx.update(_tournaments.doc(tournamentId), {
-        'status': TournamentStatus.finished.name,
-      });
-    });
-  }
-
   // ── Arena result recording ─────────────────────────────────────────────────
 
-  /// Updates participant scores for a completed arena game.
-  /// Win = 2 pts, Draw = 1 pt, Loss = 0 pts.
-  /// Call from only ONE side (white player) to avoid double-counting.
-  Future<void> recordArenaResult({
+  /// Reports a finished arena game to the `reportArenaResult` Cloud Function,
+  /// which scores it (win 2, draw 1, loss 0) for both sides.
+  ///
+  /// Scores used to be written straight from the client, but the security
+  /// rules have never allowed updating participant documents — every result
+  /// was silently rejected and standings stayed at zero. The server also
+  /// de-duplicates by [gameId], so both players can safely report the same
+  /// game, and it credits the bot when the opponent was one.
+  ///
+  /// [opponentUid] is the other player's uid, or the arena bot's `bot_…` id.
+  Future<void> reportArenaResult({
     required String tournamentId,
-    required String whiteUid,
-    required String blackUid,
-    required String? winnerUid, // null if draw
-    required bool isDraw,
+    required String gameId,
+    required ArenaOutcome outcome,
+    String? opponentUid,
   }) async {
-    final whiteWon = winnerUid == whiteUid;
-    final blackWon = winnerUid == blackUid;
-
-    final whiteDelta = isDraw ? 1.0 : (whiteWon ? 2.0 : 0.0);
-    final blackDelta = isDraw ? 1.0 : (blackWon ? 2.0 : 0.0);
-
-    final batch = _db.batch();
-
-    batch.update(_participants(tournamentId).doc(whiteUid), {
-      'score': FieldValue.increment(whiteDelta),
-      'wins': FieldValue.increment(whiteWon ? 1 : 0),
-      'draws': FieldValue.increment(isDraw ? 1 : 0),
-      'losses': FieldValue.increment(!whiteWon && !isDraw ? 1 : 0),
-      'gamesPlayed': FieldValue.increment(1),
-    });
-
-    batch.update(_participants(tournamentId).doc(blackUid), {
-      'score': FieldValue.increment(blackDelta),
-      'wins': FieldValue.increment(blackWon ? 1 : 0),
-      'draws': FieldValue.increment(isDraw ? 1 : 0),
-      'losses': FieldValue.increment(!blackWon && !isDraw ? 1 : 0),
-      'gamesPlayed': FieldValue.increment(1),
-    });
-
-    await batch.commit();
-  }
-
-  /// Records an arena result for a single participant (used for the bot
-  /// fallback games where the opponent has no participant document).
-  /// Win = 2 pts, Draw = 1 pt, Loss = 0 pts.
-  Future<void> recordArenaResultSingle({
-    required String tournamentId,
-    required String uid,
-    required bool won,
-    required bool isDraw,
-  }) async {
-    final delta = isDraw ? 1.0 : (won ? 2.0 : 0.0);
-    await _participants(tournamentId).doc(uid).update({
-      'score': FieldValue.increment(delta),
-      'wins': FieldValue.increment(won ? 1 : 0),
-      'draws': FieldValue.increment(isDraw ? 1 : 0),
-      'losses': FieldValue.increment(!won && !isDraw ? 1 : 0),
-      'gamesPlayed': FieldValue.increment(1),
-    });
+    for (var attempt = 1; attempt <= 3; attempt++) {
+      try {
+        await FirebaseFunctions.instance
+            .httpsCallable('reportArenaResult')
+            .call<void>({
+          'tournamentId': tournamentId,
+          'gameId': gameId,
+          'outcome': outcome.name,
+          if (opponentUid != null) 'opponentUid': opponentUid,
+        });
+        return;
+      } on FirebaseFunctionsException catch (e) {
+        // Rejections (duplicate, arena over, not a participant) are final.
+        if (e.code != 'unavailable' && e.code != 'internal' &&
+            e.code != 'deadline-exceeded') {
+          debugPrint('[Arena] result not counted: ${e.code} ${e.message}');
+          return;
+        }
+        if (attempt == 3) rethrow;
+        await Future<void>.delayed(Duration(seconds: attempt * 2));
+      }
+    }
   }
 
   // ── Streams ────────────────────────────────────────────────────────────────
@@ -174,3 +158,10 @@ class TournamentService {
 
 final tournamentServiceProvider =
     Provider<TournamentService>((ref) => TournamentService());
+
+/// Live list of arenas, shared by the Arena tab and the home teaser so the
+/// query runs once.
+final tournamentsStreamProvider =
+    StreamProvider<List<TournamentModel>>((ref) {
+  return ref.read(tournamentServiceProvider).watchTournaments();
+});

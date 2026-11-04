@@ -24,6 +24,7 @@ import '../widgets/chess_board_widget.dart';
 import '../widgets/clock_widget.dart';
 import '../widgets/game_chat_panel.dart';
 
+import '../../../core/utils/text_case.dart';
 class GameScreen extends ConsumerStatefulWidget {
   final String gameId;
   final Map<String, dynamic>? extra;
@@ -64,6 +65,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       myUsername: extra['myUsername'] as String?,
       opponentUsername: extra['opponentUsername'] as String?,
       arenaId: extra['arenaId'] as String?,
+      arenaBotUid: extra['arenaBotUid'] as String?,
       isFakeBotFallback: extra['isFakeBotFallback'] as bool? ?? false,
       gameType: extra['gameType'] as String? ?? 'chess',
     );
@@ -387,6 +389,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                     moveCount: gameState.engine.moveHistory.length,
                     isRated: _config.isRated,
                     isFakeBotFallback: _isFakeBotFallback,
+                    isArena: _config.arenaId != null,
                     onBack: isOnlineActive
                         ? () => _confirmLeave(context, notifier)
                         : () => context.pop(),
@@ -514,8 +517,10 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                         : null,
                     onDraw: () => notifier.offerDraw(),
                     onResign: () => _confirmResign(context, notifier),
-                    onHint: null,
-                    onUndo: null,
+                    // Arena games keep to the same rules as online ones.
+                    isArena: _config.arenaId != null,
+                    onHint: notifier.canHint ? () => _showHint(notifier) : null,
+                    onUndo: notifier.canUndo ? notifier.undoMove : null,
                     onFlip: () => setState(() => _manualFlip = !_manualFlip),
                   ),
                 ],
@@ -550,10 +555,32 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     if (_isFakeBotFallback) {
       return extra['opponentUsername'] as String? ?? 'Opponent';
     }
+    // Arena bot games: the bot is a named player in the standings.
+    if (_config.arenaId != null && extra['opponentUsername'] != null) {
+      return extra['opponentUsername'] as String;
+    }
     if (_config.mode == GameMode.bot || _config.mode == GameMode.campaign) {
       return 'Bot (${_config.botRating ?? 1200})';
     }
     return extra['opponentUsername'] as String? ?? 'Opponent';
+  }
+
+  Future<void> _showHint(GameNotifier notifier) async {
+    final messenger = ScaffoldMessenger.of(context);
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      content: Text('hint_thinking'.tr()),
+      duration: const Duration(seconds: 2),
+    ));
+    final move = await notifier.requestHint();
+    if (!mounted) return;
+    messenger.hideCurrentSnackBar();
+    messenger.showSnackBar(SnackBar(
+      content: Text(move == null
+          ? 'hint_unavailable'.tr()
+          : 'hint_move'.tr(namedArgs: {'move': move})),
+      duration: const Duration(seconds: 3),
+    ));
   }
 
   void _confirmResign(BuildContext context, GameNotifier notifier) {
@@ -664,6 +691,7 @@ class _MinimalHeader extends StatelessWidget {
   final int moveCount;
   final bool isRated;
   final bool isFakeBotFallback;
+  final bool isArena;
   final VoidCallback onBack;
   final VoidCallback onMore;
   final VoidCallback? onMoves;
@@ -674,6 +702,7 @@ class _MinimalHeader extends StatelessWidget {
     required this.moveCount,
     required this.isRated,
     this.isFakeBotFallback = false,
+    this.isArena = false,
     required this.onBack,
     required this.onMore,
     this.onMoves,
@@ -681,7 +710,9 @@ class _MinimalHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final modeLabel = isFakeBotFallback
+    final modeLabel = isArena
+        ? '${'arena'.tr().toUpperCaseFor(context)} · ${timeControl.label.toUpperCase()}'
+        : isFakeBotFallback
         ? '${timeControl.label.toUpperCase()} · RATED'
         : switch (gameMode) {
             GameMode.online   => '${timeControl.label.toUpperCase()} · ${isRated ? 'RATED' : 'CASUAL'}',
@@ -1053,6 +1084,7 @@ class _QuietActionRow extends StatelessWidget {
   final VoidCallback? onHint;
   final VoidCallback? onUndo;
   final VoidCallback? onFlip;
+  final bool isArena;
 
   const _QuietActionRow({
     required this.isOnline,
@@ -1064,20 +1096,35 @@ class _QuietActionRow extends StatelessWidget {
     this.onHint,
     this.onUndo,
     this.onFlip,
+    this.isArena = false,
   });
 
   @override
   Widget build(BuildContext context) {
-    final actions = isBot
+    // A null onTap renders as a disabled (dimmed) action.
+    final List<({IconData icon, String label, bool danger, VoidCallback? onTap})>
+        actions = isBot && isArena
+        ? [
+            // Arena games are scored: no hints, no take-backs.
+            (icon: PhosphorIcons.arrowsLeftRight(PhosphorIconsStyle.regular),
+             label: 'flip_board'.tr(),
+             danger: false,
+             onTap: onFlip),
+            (icon: PhosphorIcons.flag(PhosphorIconsStyle.regular),
+             label: 'resign'.tr(),
+             danger: true,
+             onTap: onResign),
+          ]
+        : isBot
         ? [
             (icon: PhosphorIcons.lightbulb(PhosphorIconsStyle.regular),
-             label: 'Hint',
+             label: 'hint'.tr(),
              danger: false,
-             onTap: onHint ?? () {}),
+             onTap: onHint),
             (icon: PhosphorIcons.arrowCounterClockwise(PhosphorIconsStyle.regular),
-             label: 'Undo',
+             label: 'undo'.tr(),
              danger: false,
-             onTap: onUndo ?? () {}),
+             onTap: onUndo),
             (icon: PhosphorIcons.flag(PhosphorIconsStyle.regular),
              label: 'resign'.tr(),
              danger: true,
@@ -1102,11 +1149,11 @@ class _QuietActionRow extends StatelessWidget {
                 (icon: PhosphorIcons.arrowsLeftRight(PhosphorIconsStyle.regular),
                  label: 'flip_board'.tr(),
                  danger: false,
-                 onTap: onFlip ?? () {}),
+                 onTap: onFlip),
                 (icon: PhosphorIcons.arrowCounterClockwise(PhosphorIconsStyle.regular),
-                 label: 'Undo',
+                 label: 'undo'.tr(),
                  danger: false,
-                 onTap: onUndo ?? () {}),
+                 onTap: onUndo),
                 (icon: PhosphorIcons.flag(PhosphorIconsStyle.regular),
                  label: 'resign'.tr(),
                  danger: true,
@@ -1116,41 +1163,51 @@ class _QuietActionRow extends StatelessWidget {
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
       child: Row(
-        children: actions.map((a) => Expanded(
-          child: GestureDetector(
-            onTap: a.onTap,
-            behavior: HitTestBehavior.opaque,
-            child: Container(
-              padding: const EdgeInsets.symmetric(vertical: 12),
-              margin: const EdgeInsets.symmetric(horizontal: 3),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.04),
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: Column(
-                children: [
-                  Icon(
-                    a.icon,
-                    size: 16,
-                    color: a.danger
-                        ? AppColors.loss.withValues(alpha: 0.85)
-                        : AppColors.inkDim,
-                  ),
-                  const SizedBox(height: 4),
-                  Text(
-                    a.label,
-                    style: GoogleFonts.inter(
-                      fontSize: 11, fontWeight: FontWeight.w600,
-                      color: a.danger
-                          ? AppColors.loss.withValues(alpha: 0.85)
-                          : AppColors.inkDim,
+        children: actions.map((a) {
+          final enabled = a.onTap != null;
+          final color = a.danger
+              ? AppColors.loss.withValues(alpha: 0.85)
+              : AppColors.inkDim;
+          return Expanded(
+            child: Semantics(
+              button: true,
+              enabled: enabled,
+              label: a.label,
+              excludeSemantics: true,
+              child: GestureDetector(
+                onTap: a.onTap,
+                behavior: HitTestBehavior.opaque,
+                child: Opacity(
+                  opacity: enabled ? 1 : 0.38,
+                  child: Container(
+                    padding: const EdgeInsets.symmetric(vertical: 12),
+                    margin: const EdgeInsets.symmetric(horizontal: 3),
+                    decoration: BoxDecoration(
+                      color: Colors.white.withValues(alpha: 0.04),
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Column(
+                      children: [
+                        Icon(a.icon, size: 16, color: color),
+                        const SizedBox(height: 4),
+                        Text(
+                          a.label,
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                          style: GoogleFonts.inter(
+                            fontSize: 11,
+                            fontWeight: FontWeight.w600,
+                            color: color,
+                          ),
+                        ),
+                      ],
                     ),
                   ),
-                ],
+                ),
               ),
             ),
-          ),
-        )).toList(),
+          );
+        }).toList(),
       ),
     );
   }

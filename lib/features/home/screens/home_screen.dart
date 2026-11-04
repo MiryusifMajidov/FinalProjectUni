@@ -1,6 +1,7 @@
 import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
@@ -23,11 +24,15 @@ import '../../../core/widgets/shimmer_box.dart';
 import '../../chat/screens/chat_list_screen.dart';
 import '../../game/widgets/recent_game_tile.dart';
 import '../../tournaments/screens/tournament_list_screen.dart';
+import '../../../core/models/tournament_model.dart';
+import '../../../core/services/tournament_service.dart';
+import '../../../core/widgets/guest_notice.dart';
 import '../../../core/widgets/invite_listener.dart';
 import '../../../core/services/log_service.dart';
 import '../../../core/constants/countries.dart';
 import '../../../core/models/game_type.dart';
 import '../../../core/widgets/game_switch.dart';
+import '../../../core/utils/text_case.dart';
 // Bot setup screens navigated via GoRouter (activeGame.botSetupRoute)
 
 // ── Global rank provider ───────────────────────────────────────────────────────
@@ -105,9 +110,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // Run after the first frame so that navigation is fully settled
     // and ref.watch(currentUserProvider) in build() keeps the provider alive.
     WidgetsBinding.instance.addPostFrameCallback((_) {
+      _showGuestWelcomeIfPending();
       _checkPhotoPrompt();
       _ensureGameFields();
     });
+  }
+
+  /// Right after "Play as guest": explain once that the account lives only on
+  /// this phone until an e-mail is added.
+  void _showGuestWelcomeIfPending() {
+    if (!mounted || !ref.read(pendingGuestWelcomeProvider)) return;
+    ref.read(pendingGuestWelcomeProvider.notifier).state = false;
+    showGuestWelcomeDialog(context);
   }
 
   /// Patches legacy Firestore docs so checkersStats/dominoStats exist.
@@ -143,7 +157,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     if (ref.read(photoPromptDismissedProvider)) return;
     if (user == null) return;
 
+    // Firebase Auth is the source of truth for guest-ness; repair the flag on
+    // the profile if an earlier link-account write did not land.
+    ref.read(authServiceProvider).syncGuestFlag(user);
+
     _photoPromptShown = true;
+    // A guest came to play, not to fill in a profile — they get the welcome
+    // dialog instead, and can add a photo from Account any time.
+    if (user.isGuest || ref.read(isGuestProvider)) return;
     if ((user.photoUrl ?? '').isEmpty) {
       context.push('/auth/profile-photo');
     }
@@ -245,7 +266,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     final myUid = userAsync.valueOrNull?.uid;
 
     if (authUser != null && userAsync.hasValue && userAsync.value == null) {
-      return _GoogleUsernameSetup(firebaseUser: authUser);
+      return _CompleteProfileScreen(firebaseUser: authUser);
     }
 
     // Stream runs continuously for admin history tracking.
@@ -848,12 +869,14 @@ class _HomeContent extends ConsumerWidget {
                     const GameSwitch(),
                     const SizedBox(height: 16),
                     _buildGreeting(context),
+                    const GuestBanner(margin: EdgeInsets.only(top: 16)),
                     const SizedBox(height: 20),
                     _HeroRatingCard(user: user, activeGame: activeGame)
                         .animate(delay: 80.ms)
                         .fadeIn(duration: 350.ms),
                     const SizedBox(height: 12),
                     if (activeGame == GameType.chess) _buildRatingPills(context),
+                    _ArenaTeaser(gameType: activeGame),
                     const SizedBox(height: 24),
                     _buildPlaySection(context, isOnline, activeGame),
                     const SizedBox(height: 32),
@@ -910,6 +933,7 @@ class _HomeContent extends ConsumerWidget {
               const GameSwitch(),
               const SizedBox(height: 16),
               _buildGreeting(context),
+              const GuestBanner(margin: EdgeInsets.only(top: 16)),
               const SizedBox(height: 20),
               _HeroRatingCard(user: user, activeGame: activeGame)
                   .animate(delay: 80.ms)
@@ -917,6 +941,7 @@ class _HomeContent extends ConsumerWidget {
                   .slideY(begin: 0.1),
               const SizedBox(height: 12),
               if (activeGame == GameType.chess) _buildRatingPills(context),
+              _ArenaTeaser(gameType: activeGame),
               const SizedBox(height: 24),
               _buildPlaySection(context, isOnline, activeGame),
               const SizedBox(height: 28),
@@ -1006,7 +1031,9 @@ class _HomeContent extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'welcome_back'.tr(),
+          DateTime.now().difference(user.createdAt).inHours < 24
+              ? 'welcome_new'.tr()
+              : 'welcome_back'.tr(),
           style: GoogleFonts.inter(
             fontSize: 13,
             fontWeight: FontWeight.w500,
@@ -1035,7 +1062,7 @@ class _HomeContent extends ConsumerWidget {
       children: [
         Expanded(
           child: _RatingPill(
-            label: 'Bullet',
+            label: 'bullet'.tr(),
             icon: PhosphorIcons.lightning(PhosphorIconsStyle.fill),
             color: const Color(0xFFF5A462),
             rating: user.bulletStats.rating,
@@ -1046,7 +1073,7 @@ class _HomeContent extends ConsumerWidget {
         const SizedBox(width: 8),
         Expanded(
           child: _RatingPill(
-            label: 'Blitz',
+            label: 'blitz'.tr(),
             icon: PhosphorIcons.flame(PhosphorIconsStyle.fill),
             color: const Color(0xFF6FB4E0),
             rating: user.blitzStats.rating,
@@ -1057,7 +1084,7 @@ class _HomeContent extends ConsumerWidget {
         const SizedBox(width: 8),
         Expanded(
           child: _RatingPill(
-            label: 'Rapid',
+            label: 'rapid'.tr(),
             icon: PhosphorIcons.timer(PhosphorIconsStyle.fill),
             color: AppColors.win,
             rating: user.rapidStats.rating,
@@ -1074,7 +1101,7 @@ class _HomeContent extends ConsumerWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          'play'.tr().toUpperCase(),
+          'play'.tr().toUpperCaseFor(context),
           style: GoogleFonts.inter(
             fontSize: 11,
             fontWeight: FontWeight.w700,
@@ -1468,8 +1495,8 @@ class _HeroRatingCard extends ConsumerWidget {
             children: [
               Text(
                 activeGame.isPointBased
-                    ? '${identity.name} ${'Points'.toUpperCase()}'
-                    : '${identity.name} ${'overall_rating'.tr()}'.toUpperCase(),
+                    ? '${activeGame.name.tr()} · ${'points_label'.tr()}'.toUpperCaseFor(context)
+                    : '${activeGame.name.tr()} · ${'overall_rating'.tr()}'.toUpperCaseFor(context),
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -1547,7 +1574,9 @@ class _HeroRatingCard extends ConsumerWidget {
                   const Spacer(),
                   rankAsync.when(
                     data: (rank) => Text(
-                      rank > 0 ? '#${_formatRating(rank)} global' : '— global',
+                      rank > 0
+                          ? 'rank_global'.tr(namedArgs: {'rank': '#$rank'})
+                          : 'rank_global'.tr(namedArgs: {'rank': '—'}),
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -1555,7 +1584,7 @@ class _HeroRatingCard extends ConsumerWidget {
                       ),
                     ),
                     loading: () => Text(
-                      '... global',
+                      'rank_global'.tr(namedArgs: {'rank': '…'}),
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -1563,7 +1592,7 @@ class _HeroRatingCard extends ConsumerWidget {
                       ),
                     ),
                     error: (_, __) => Text(
-                      '— global',
+                      'rank_global'.tr(namedArgs: {'rank': '—'}),
                       style: GoogleFonts.inter(
                         fontSize: 11,
                         fontWeight: FontWeight.w600,
@@ -1581,13 +1610,9 @@ class _HeroRatingCard extends ConsumerWidget {
   );
   }
 
-  String _formatRating(int r) {
-    if (r >= 1000) {
-      final s = r.toString();
-      return '${s.substring(0, s.length - 3)},${s.substring(s.length - 3)}';
-    }
-    return r.toString();
-  }
+  // Ratings are written without a thousands separator (1200, not 1,200) —
+  // that is the chess convention and what every other screen shows.
+  String _formatRating(int r) => r.toString();
 }
 
 class _StatChip extends StatelessWidget {
@@ -1684,7 +1709,7 @@ class _RatingPill extends StatelessWidget {
               Icon(icon, color: color, size: 14),
               const SizedBox(width: 6),
               Text(
-                label.toUpperCase(),
+                label.toUpperCaseFor(context),
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w600,
@@ -1756,8 +1781,8 @@ class _PlayVsBotCardState extends State<_PlayVsBotCard> {
           final identity = widget.gameType.identity;
           final accentDark = Color.lerp(identity.accent, Colors.black, 0.55)!;
           final subtitles = {
-            GameType.chess: 'Stockfish · 6 difficulty tiers',
-            GameType.checkers: 'Minimax AI · 6 difficulty tiers',
+            GameType.chess: 'Stockfish · ${'bot_tiers'.tr()}',
+            GameType.checkers: 'Minimax AI · ${'bot_tiers'.tr()}',
             GameType.domino: 'Smart Bot · Block Domino',
           };
           return Container(
@@ -2085,7 +2110,7 @@ class _RecentGames extends ConsumerWidget {
                 ),
                 const SizedBox(width: 12),
                 Text(
-                  'No games yet. Start playing!',
+                  'no_games_start_playing'.tr(),
                   style: AppTextStyles.bodyMedium
                       .copyWith(color: AppColors.inkDim),
                 ),
@@ -2181,28 +2206,66 @@ class _OptionTile extends StatelessWidget {
   }
 }
 
-// ── Google new-user username setup ────────────────────────────────────────────
+// ── Complete profile (signed in, but no users/{uid} document) ────────────────
 
-
-class _GoogleUsernameSetup extends ConsumerStatefulWidget {
-  final dynamic firebaseUser;
-  const _GoogleUsernameSetup({required this.firebaseUser});
+/// Shown when the account is signed in but has no profile document yet: a
+/// new Google/Apple user, a guest whose setup was interrupted, or an e-mail
+/// account from before registration became atomic.
+///
+/// Guests get their random-name profile created automatically. Everyone else
+/// picks a username. (This used to be "Google username setup" for every case,
+/// with a button labelled "Verify" and no way out except force-closing the app.)
+class _CompleteProfileScreen extends ConsumerStatefulWidget {
+  final User firebaseUser;
+  const _CompleteProfileScreen({required this.firebaseUser});
 
   @override
-  ConsumerState<_GoogleUsernameSetup> createState() =>
-      _GoogleUsernameSetupState();
+  ConsumerState<_CompleteProfileScreen> createState() =>
+      _CompleteProfileScreenState();
 }
 
-class _GoogleUsernameSetupState extends ConsumerState<_GoogleUsernameSetup> {
+class _CompleteProfileScreenState
+    extends ConsumerState<_CompleteProfileScreen> {
   final _ctrl = TextEditingController();
   bool _loading = false;
   String? _error;
   String? _countryCode;
+  bool _creatingGuest = false;
+
+  @override
+  void initState() {
+    super.initState();
+    final region = WidgetsBinding.instance.platformDispatcher.locale.countryCode
+        ?.toUpperCase();
+    if (region != null && kCountries.any((c) => c.$1 == region)) {
+      _countryCode = region;
+    }
+    if (widget.firebaseUser.isAnonymous) {
+      _creatingGuest = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) => _createGuestProfile());
+    }
+  }
 
   @override
   void dispose() {
     _ctrl.dispose();
     super.dispose();
+  }
+
+  Future<void> _createGuestProfile() async {
+    setState(() { _creatingGuest = true; _error = null; });
+    try {
+      // The profile stream picks the new document up and swaps this screen
+      // for home on its own.
+      await ref.read(authServiceProvider).ensureGuestProfile(widget.firebaseUser);
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _creatingGuest = false;
+          _error = 'guest_failed'.tr();
+        });
+      }
+    }
   }
 
   String _flagEmoji(String code) => UserModel.flagEmoji(code);
@@ -2261,11 +2324,15 @@ class _GoogleUsernameSetupState extends ConsumerState<_GoogleUsernameSetup> {
   Future<void> _submit() async {
     final username = _ctrl.text.trim();
     if (username.length < 3) {
-      setState(() => _error = 'Username must be at least 3 characters');
+      setState(() => _error = 'err_username_min'.tr());
+      return;
+    }
+    if (username.length > 20) {
+      setState(() => _error = 'err_username_max'.tr());
       return;
     }
     if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(username)) {
-      setState(() => _error = 'Only letters, numbers and underscores');
+      setState(() => _error = 'err_username_chars'.tr());
       return;
     }
     setState(() {
@@ -2273,7 +2340,7 @@ class _GoogleUsernameSetupState extends ConsumerState<_GoogleUsernameSetup> {
       _error = null;
     });
     try {
-      await ref.read(authServiceProvider).completeGoogleSignUp(
+      await ref.read(authServiceProvider).completeProfile(
             firebaseUser: widget.firebaseUser,
             username: username,
             countryCode: _countryCode,
@@ -2286,15 +2353,43 @@ class _GoogleUsernameSetupState extends ConsumerState<_GoogleUsernameSetup> {
         setState(() {
           _loading = false;
           _error = e.toString().contains('already taken')
-              ? 'Username already taken'
-              : 'Something went wrong. Try again.';
+              ? 'err_username_taken'.tr()
+              : 'err_generic'.tr();
         });
       }
     }
   }
 
+  Future<void> _signOut() async {
+    await ref.read(authServiceProvider).signOut();
+    if (mounted) context.go('/login');
+  }
+
   @override
   Widget build(BuildContext context) {
+    if (_creatingGuest) {
+      return Scaffold(
+        backgroundColor: AppColors.background,
+        body: Center(
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const SizedBox(
+                width: 28,
+                height: 28,
+                child: CircularProgressIndicator(
+                    strokeWidth: 2.5, color: AppColors.amber),
+              ),
+              const SizedBox(height: 16),
+              Text('guest_setting_up'.tr(),
+                  style: GoogleFonts.inter(
+                      fontSize: 14, color: AppColors.inkDim)),
+            ],
+          ),
+        ),
+      );
+    }
+
     final (countryFlag, countryName) = _countryCode != null
         ? (_flagEmoji(_countryCode!),
             kCountries
@@ -2302,95 +2397,305 @@ class _GoogleUsernameSetupState extends ConsumerState<_GoogleUsernameSetup> {
                     orElse: () => (_countryCode!, _countryCode!))
                 .$2)
         : ('', '');
+    final isAnon = widget.firebaseUser.isAnonymous;
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: SafeArea(
-        child: SingleChildScrollView(
-          padding: const EdgeInsets.all(28),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              const SizedBox(height: 40),
-              Text('♟',
-                  style: GoogleFonts.fraunces(
-                      fontSize: 48, color: AppColors.amber)),
-              const SizedBox(height: 20),
-              Text('choose_username'.tr(), style: AppTextStyles.titleLarge),
-              const SizedBox(height: 8),
-              Text(
-                'choose_username_subtitle'.tr(),
-                style: AppTextStyles.bodyMedium
-                    .copyWith(color: AppColors.inkDim),
-              ),
-              const SizedBox(height: 32),
-              TextField(
-                controller: _ctrl,
-                autofocus: true,
-                decoration: InputDecoration(
-                  labelText: 'username'.tr(),
-                  hintText: 'e.g. chess_master',
-                  filled: true,
-                  fillColor: AppColors.card,
-                  errorText: _error,
-                ),
-                style: AppTextStyles.bodyLarge,
-                textInputAction: TextInputAction.done,
-                onSubmitted: (_) => _submit(),
-              ),
-              const SizedBox(height: 16),
-
-              // Country picker
-              GestureDetector(
-                onTap: _pickCountry,
-                child: Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(
-                      horizontal: 16, vertical: 14),
-                  decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
+        child: Center(
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 440),
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(28),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const SizedBox(height: 28),
+                  Container(
+                    width: 56,
+                    height: 56,
+                    decoration: BoxDecoration(
+                      color: AppColors.amberGlow,
+                      borderRadius: BorderRadius.circular(16),
+                    ),
+                    child: Center(
+                      child: Text('♞',
+                          style: GoogleFonts.fraunces(
+                              fontSize: 32, color: AppColors.amber)),
+                    ),
                   ),
-                  child: Row(
+                  const SizedBox(height: 20),
+                  Text(
+                    'choose_username'.tr(),
+                    style: GoogleFonts.fraunces(
+                      fontSize: 28,
+                      fontWeight: FontWeight.w600,
+                      fontStyle: FontStyle.italic,
+                      color: AppColors.ink,
+                    ),
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'choose_username_subtitle'.tr(),
+                    style: AppTextStyles.bodyMedium
+                        .copyWith(color: AppColors.inkDim),
+                  ),
+                  if ((widget.firebaseUser.email ?? '').isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text(
+                      widget.firebaseUser.email!,
+                      style: GoogleFonts.inter(
+                          fontSize: 13,
+                          color: AppColors.amber,
+                          fontWeight: FontWeight.w600),
+                    ),
+                  ],
+                  const SizedBox(height: 28),
+                  TextField(
+                    controller: _ctrl,
+                    autofocus: !isAnon,
+                    maxLength: 20,
+                    autocorrect: false,
+                    decoration: InputDecoration(
+                      labelText: 'username'.tr(),
+                      hintText: 'e.g. chess_master',
+                      filled: true,
+                      fillColor: AppColors.card,
+                      errorText: _error,
+                      counterText: '',
+                    ),
+                    style: AppTextStyles.bodyLarge,
+                    textInputAction: TextInputAction.done,
+                    onSubmitted: (_) => _submit(),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Country picker
+                  GestureDetector(
+                    onTap: _pickCountry,
+                    child: Container(
+                      width: double.infinity,
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 16, vertical: 14),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(14),
+                        border: Border.all(color: AppColors.border),
+                      ),
+                      child: Row(
+                        children: [
+                          if (_countryCode != null) ...[
+                            Text(countryFlag,
+                                style: const TextStyle(fontSize: 20)),
+                            const SizedBox(width: 10),
+                            Expanded(
+                              child: Text(countryName,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: AppTextStyles.bodyMedium),
+                            ),
+                          ] else
+                            Expanded(
+                              child: Text('country_optional'.tr(),
+                                  style: AppTextStyles.bodyMedium.copyWith(
+                                      color: AppColors.inkMute)),
+                            ),
+                          Icon(Icons.arrow_drop_down_rounded,
+                              color: AppColors.inkMute),
+                        ],
+                      ),
+                    ),
+                  ),
+
+                  const SizedBox(height: 28),
+                  SizedBox(
+                    width: double.infinity,
+                    height: 52,
+                    child: ElevatedButton(
+                      onPressed: _loading ? null : _submit,
+                      child: _loading
+                          ? const SizedBox(
+                              width: 20,
+                              height: 20,
+                              child: CircularProgressIndicator(
+                                  strokeWidth: 2,
+                                  color: Color(0xFF0A0A0B)),
+                            )
+                          : Text('continue'.tr(),
+                              style: AppTextStyles.buttonLarge
+                                  .copyWith(color: const Color(0xFF0A0A0B))),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: TextButton(
+                      onPressed: _loading ? null : _signOut,
+                      child: Text(
+                        'use_different_account'.tr(),
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.inkDim,
+                        ),
+                      ),
+                    ),
+                  ),
+                  if (isAnon && _error != null) ...[
+                    const SizedBox(height: 8),
+                    Center(
+                      child: TextButton(
+                        onPressed: _createGuestProfile,
+                        child: Text('retry'.tr()),
+                      ),
+                    ),
+                  ],
+                ],
+              ),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+// ── Arena teaser ──────────────────────────────────────────────────────────────
+
+/// The live (or next) arena for the selected game, one tap from home. The
+/// hourly arenas only help if people notice them; they used to live two
+/// taps deep in the Arena tab.
+class _ArenaTeaser extends ConsumerStatefulWidget {
+  final GameType gameType;
+  const _ArenaTeaser({required this.gameType});
+
+  @override
+  ConsumerState<_ArenaTeaser> createState() => _ArenaTeaserState();
+}
+
+class _ArenaTeaserState extends ConsumerState<_ArenaTeaser> {
+  late final Timer _tick =
+      Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+
+  @override
+  void initState() {
+    super.initState();
+    _tick; // start the countdown
+  }
+
+  @override
+  void dispose() {
+    _tick.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final arenas = ref.watch(tournamentsStreamProvider).valueOrNull ?? const [];
+    final open = sortArenas(arenas.where((t) =>
+        t.gameType == widget.gameType.name && !t.isFinished));
+    if (open.isEmpty) return const SizedBox.shrink();
+    final t = open.first;
+    final accent = widget.gameType.accent;
+    final now = DateTime.now();
+    final live = t.isActive;
+    final timing = live && t.endsAt != null
+        ? 'arena_ends_in'.tr(
+            namedArgs: {'time': formatCountdown(t.endsAt!.difference(now))})
+        : t.startsAt != null
+            ? 'arena_starts_in_short'.tr(namedArgs: {
+                'time': formatCountdown(t.startsAt!.difference(now))
+              })
+            : 'arena_status_waiting'.tr();
+
+    return Padding(
+      padding: const EdgeInsets.only(top: 14),
+      child: Semantics(
+        button: true,
+        label: tournamentDisplayName(t),
+        child: GestureDetector(
+          onTap: () => context.push('/home/tournaments/${t.id}'),
+          child: Container(
+            padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.08),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: accent.withValues(alpha: 0.3)),
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 40,
+                  height: 40,
+                  decoration: BoxDecoration(
+                    color: accent.withValues(alpha: 0.16),
+                    borderRadius: BorderRadius.circular(12),
+                  ),
+                  child: Icon(PhosphorIcons.trophy(PhosphorIconsStyle.fill),
+                      color: accent, size: 20),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      if (_countryCode != null) ...[
-                        Text(countryFlag,
-                            style: const TextStyle(fontSize: 20)),
-                        const SizedBox(width: 10),
-                        Text(countryName, style: AppTextStyles.bodyMedium),
-                      ] else
-                        Text('country_optional'.tr(),
-                            style: AppTextStyles.bodyMedium.copyWith(
-                                color: AppColors.inkMute)),
-                      const Spacer(),
-                      Icon(Icons.arrow_drop_down_rounded,
-                          color: AppColors.inkMute),
+                      Row(
+                        children: [
+                          if (live) ...[
+                            Container(
+                              width: 7,
+                              height: 7,
+                              decoration: const BoxDecoration(
+                                color: AppColors.live,
+                                shape: BoxShape.circle,
+                              ),
+                            ),
+                            const SizedBox(width: 6),
+                          ],
+                          Flexible(
+                            child: Text(
+                              tournamentDisplayName(t),
+                              maxLines: 1,
+                              overflow: TextOverflow.ellipsis,
+                              style: GoogleFonts.inter(
+                                fontSize: 14,
+                                fontWeight: FontWeight.w700,
+                                color: AppColors.ink,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                      const SizedBox(height: 3),
+                      Text(
+                        '${t.timeControlLabel} · $timing',
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.jetBrainsMono(
+                          fontSize: 11,
+                          color: AppColors.inkDim,
+                        ),
+                      ),
                     ],
                   ),
                 ),
-              ),
-
-              const SizedBox(height: 32),
-              SizedBox(
-                width: double.infinity,
-                height: 52,
-                child: ElevatedButton(
-                  onPressed: _loading ? null : _submit,
-                  child: _loading
-                      ? const SizedBox(
-                          width: 20,
-                          height: 20,
-                          child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: Color(0xFF0A0A0B)),
-                        )
-                      : Text('verify'.tr(),
-                          style: AppTextStyles.buttonLarge
-                              .copyWith(color: const Color(0xFF0A0A0B))),
+                const SizedBox(width: 8),
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: accent,
+                    borderRadius: BorderRadius.circular(10),
+                  ),
+                  child: Text(
+                    'join'.tr(),
+                    style: GoogleFonts.inter(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF0A0A0B),
+                    ),
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

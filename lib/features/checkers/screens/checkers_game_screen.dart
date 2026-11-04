@@ -63,6 +63,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
   late String _gameId;
   late final CheckersVariant _variant;
   late final String? _arenaId;
+  late final String? _arenaBotUid;
   late final int? _campaignChapter;
 
   // ── Online sync (ordered action log) ─────────────────────────────────────
@@ -116,6 +117,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
     _isRated = e['isRated'] as bool? ?? false;
     _isFakeBotFallback = e['isFakeBotFallback'] as bool? ?? false;
     _arenaId = e['arenaId'] as String?;
+    _arenaBotUid = e['arenaBotUid'] as String?;
     _campaignChapter = e['campaignChapter'] as int?;
     _gameId = widget.gameId ?? e['gameId'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString();
 
@@ -689,40 +691,27 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
     }
   }
 
+  /// Reports the arena result to the server, which scores both sides once
+  /// per game (and credits the arena bot when the opponent was one).
   Future<void> _recordArenaResult(GameResult result,
       {required bool won,
       required bool isDraw,
       required String myUid,
       String? oppUid}) async {
     try {
-      final tournaments = ref.read(tournamentServiceProvider);
-      if (_isOnline && oppUid != null) {
-        // Only the white side records to avoid double-counting.
-        if (!_playerIsWhite) return;
-        final whiteUid = _playerIsWhite ? myUid : oppUid;
-        final blackUid = _playerIsWhite ? oppUid : myUid;
-        final winnerUid = isDraw
-            ? null
-            : (result == GameResult.white ? whiteUid : blackUid);
-        await tournaments.recordArenaResult(
-          tournamentId: _arenaId!,
-          whiteUid: whiteUid,
-          blackUid: blackUid,
-          winnerUid: winnerUid,
-          isDraw: isDraw,
-        );
-      } else {
-        // Bot fallback game — only the human has a participant doc.
-        await tournaments.recordArenaResultSingle(
-          tournamentId: _arenaId!,
-          uid: myUid,
-          won: won,
-          isDraw: isDraw,
-        );
-      }
-      debugPrint('[Checkers] arena result recorded for $_arenaId');
+      await ref.read(tournamentServiceProvider).reportArenaResult(
+            tournamentId: _arenaId!,
+            gameId: _gameId,
+            outcome: isDraw
+                ? ArenaOutcome.draw
+                : won
+                    ? ArenaOutcome.win
+                    : ArenaOutcome.loss,
+            opponentUid: _isOnline ? oppUid : _arenaBotUid,
+          );
+      debugPrint('[Checkers] arena result reported for $_arenaId');
     } catch (e) {
-      debugPrint('[Checkers] failed to record arena result: $e');
+      debugPrint('[Checkers] failed to report arena result: $e');
     }
   }
 

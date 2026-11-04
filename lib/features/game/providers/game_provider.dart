@@ -183,6 +183,9 @@ class GameNotifier extends StateNotifier<GameState> {
   final String? myUsername;
   final String? opponentUsername;
   final String? arenaId; // non-null when this is an arena tournament game
+  /// The arena bot (`bot_…`) a bot-mode arena game is played against, so the
+  /// server can score that bot too. Null outside arenas / for online games.
+  final String? arenaBotUid;
   final bool isFakeBotFallback; // true → disguise bot game as online
   final String gameType; // 'chess', 'checkers', 'domino'
   final Ref _ref;
@@ -221,6 +224,7 @@ class GameNotifier extends StateNotifier<GameState> {
     this.myUsername,
     this.opponentUsername,
     this.arenaId,
+    this.arenaBotUid,
     this.isFakeBotFallback = false,
     this.gameType = 'chess',
     required Ref ref,
@@ -337,7 +341,7 @@ class GameNotifier extends StateNotifier<GameState> {
       if ((isRated && mode == GameMode.online) || isFakeBotFallback) {
         await _processRatingChange(result);
       }
-      if (arenaId != null && playerIsWhite) await _recordArenaResult(result);
+      if (arenaId != null) await _recordArenaResult(result);
     } catch (e) {
       debugPrint('[Online] stale game-over check failed: $e');
     }
@@ -481,8 +485,8 @@ class GameNotifier extends StateNotifier<GameState> {
     // it reads games/{gameId} to validate the result server-side.
     await _saveGame(result);
     if (isRated) await _processRatingChange(result);
-    // White always records arena score (prevents double-counting)
-    if (arenaId != null && playerIsWhite) await _recordArenaResult(result);
+    // Both sides report; the server counts each game once.
+    if (arenaId != null) await _recordArenaResult(result);
   }
 
   void _onRematchUpdate(DatabaseEvent event) {
@@ -942,6 +946,83 @@ class GameNotifier extends StateNotifier<GameState> {
     }
   }
 
+  // ── Bot / local helpers: undo & hint ──────────────────────────────────────
+  //
+  // The game screen always showed "Hint" and "Undo" in bot games, but both
+  // were wired to empty callbacks — two buttons that did nothing. Neither is
+  // offered in online or arena games.
+
+  bool get _assistAllowed =>
+      arenaId == null && (mode == GameMode.bot || mode == GameMode.local);
+
+  /// Whether [undoMove] would do anything right now.
+  bool get canUndo =>
+      _assistAllowed &&
+      state.status == GameStatus.playing &&
+      !state.isBotThinking &&
+      state.engine.moveHistory.isNotEmpty &&
+      // Vs the bot: only on your own turn (then the bot's reply goes too).
+      (mode == GameMode.local || state.engine.isWhiteTurn == playerIsWhite);
+
+  /// Takes back the last move — against the bot, your move and its reply.
+  void undoMove() {
+    if (!canUndo) return;
+    final engine = state.engine;
+    engine.undo();
+    if (mode == GameMode.bot &&
+        engine.isWhiteTurn != playerIsWhite &&
+        engine.moveHistory.isNotEmpty) {
+      engine.undo();
+    }
+    // The engine is mutable; a fresh state object is what triggers the rebuild.
+    state = state.copyWith(
+      clearSelection: true,
+      clearReview: true,
+      clearPendingMove: true,
+      clearPremove: true,
+    );
+    // Undid back past the bot's first move as black → the bot moves again.
+    if (mode == GameMode.bot && engine.isWhiteTurn != playerIsWhite) {
+      _requestBotMove();
+    }
+  }
+
+  /// Whether [requestHint] is available right now.
+  bool get canHint =>
+      _assistAllowed &&
+      state.status == GameStatus.playing &&
+      !state.isBotThinking &&
+      (mode == GameMode.local || state.engine.isWhiteTurn == playerIsWhite);
+
+  /// Finds a good move for the side to play and selects its piece, so the
+  /// board shows it with its legal targets. Returns the move as "e2 → e4"
+  /// (null when no move could be found).
+  Future<String?> requestHint() async {
+    if (!canHint) return null;
+    final fen = state.engine.fen;
+    String? uci;
+    try {
+      final online = await _stockfish
+          .evaluatePositionOnline(fen)
+          .timeout(const Duration(seconds: 6), onTimeout: () => null);
+      uci = online?.bestMove;
+    } catch (_) {}
+    if (uci == null) {
+      try {
+        uci = (await _stockfish.evaluatePositionLocal(fen, depth: 2)).bestMove;
+      } catch (_) {}
+    }
+    if (!mounted || state.engine.fen != fen) return null;
+    if (uci == null || uci.length < 4) return null;
+    final from = uci.substring(0, 2);
+    final to = uci.substring(2, 4);
+    state = state.copyWith(
+      selectedSquare: from,
+      legalMoveSquares: state.engine.legalMovesFrom(from),
+    );
+    return '$from → $to';
+  }
+
   // ── Game control ───────────────────────────────────────────────────────────
 
   void resign() {
@@ -1061,8 +1142,11 @@ class GameNotifier extends StateNotifier<GameState> {
       }
     }
 
-    // Record arena score — only white side to prevent double-counting
-    if (arenaId != null && playerIsWhite && mode == GameMode.online) {
+    // Record the arena score — online games and the bot games the arena
+    // lobby falls back to (those were never recorded at all before). Both
+    // sides report; the server counts each game once.
+    if (arenaId != null &&
+        (mode == GameMode.online || mode == GameMode.bot)) {
       await _recordArenaResult(result);
     }
 
@@ -1131,29 +1215,32 @@ class GameNotifier extends StateNotifier<GameState> {
     }
   }
 
-  /// Records the arena score (win=2, draw=1, loss=0) for both players.
-  /// Only called by the white-side player to avoid double-counting.
+  /// Reports the arena result (win=2, draw=1, loss=0) to the server, which
+  /// scores both sides once per game.
   Future<void> _recordArenaResult(GameResult result) async {
     if (arenaId == null) return;
+    if (result != GameResult.white &&
+        result != GameResult.black &&
+        result != GameResult.draw) {
+      return; // aborted / ongoing — nothing to score
+    }
+    final iWon = (playerIsWhite && result == GameResult.white) ||
+        (!playerIsWhite && result == GameResult.black);
+    final outcome = result == GameResult.draw
+        ? ArenaOutcome.draw
+        : iWon
+            ? ArenaOutcome.win
+            : ArenaOutcome.loss;
     try {
-      final myUid = _myUid ?? '';
-      final oppUid = opponentUid ?? '';
-      final whiteUid = playerIsWhite ? myUid : oppUid;
-      final blackUid = playerIsWhite ? oppUid : myUid;
-      final isDraw = result == GameResult.draw;
-      final winnerUid = isDraw
-          ? null
-          : (result == GameResult.white ? whiteUid : blackUid);
-      await _ref.read(tournamentServiceProvider).recordArenaResult(
+      await _ref.read(tournamentServiceProvider).reportArenaResult(
             tournamentId: arenaId!,
-            whiteUid: whiteUid,
-            blackUid: blackUid,
-            winnerUid: winnerUid,
-            isDraw: isDraw,
+            gameId: _gameId,
+            outcome: outcome,
+            opponentUid: mode == GameMode.online ? opponentUid : arenaBotUid,
           );
-      debugPrint('[Arena] result recorded for $arenaId');
+      debugPrint('[Arena] result reported for $arenaId');
     } catch (e) {
-      debugPrint('[Arena] failed to record result: $e');
+      debugPrint('[Arena] failed to report result: $e');
     }
   }
 
@@ -1358,6 +1445,7 @@ final gameProvider = StateNotifierProvider.autoDispose
     myUsername: config.myUsername,
     opponentUsername: config.opponentUsername,
     arenaId: config.arenaId,
+    arenaBotUid: config.arenaBotUid,
     isFakeBotFallback: config.isFakeBotFallback,
     gameType: config.gameType,
     ref: ref,
@@ -1379,6 +1467,7 @@ class GameConfig {
   final String? myUsername;
   final String? opponentUsername;
   final String? arenaId;
+  final String? arenaBotUid;
   final bool isFakeBotFallback;
   final String gameType; // 'chess', 'checkers', 'domino'
 
@@ -1396,6 +1485,7 @@ class GameConfig {
     this.myUsername,
     this.opponentUsername,
     this.arenaId,
+    this.arenaBotUid,
     this.isFakeBotFallback = false,
     this.gameType = 'chess',
   });
@@ -1416,11 +1506,12 @@ class GameConfig {
       myUsername == other.myUsername &&
       opponentUsername == other.opponentUsername &&
       arenaId == other.arenaId &&
+      arenaBotUid == other.arenaBotUid &&
       isFakeBotFallback == other.isFakeBotFallback;
 
   @override
   int get hashCode => Object.hash(mode, timeControl, playerIsWhite, botRating,
       isRated, gameId, campaignChapter, opponentUid, opponentRating,
       opponentCountryCode, myUsername, opponentUsername, arenaId,
-      isFakeBotFallback);
+      arenaBotUid, isFakeBotFallback);
 }

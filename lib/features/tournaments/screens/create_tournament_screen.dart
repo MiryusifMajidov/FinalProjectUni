@@ -1,3 +1,4 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +10,7 @@ import '../../../core/services/tournament_service.dart';
 import '../../../core/models/tournament_model.dart';
 import '../../../core/models/game_type.dart';
 
+import '../../../core/utils/text_case.dart';
 class CreateTournamentScreen extends ConsumerStatefulWidget {
   const CreateTournamentScreen({super.key});
 
@@ -53,7 +55,7 @@ class _CreateTournamentScreenState
   Future<void> _create() async {
     final name = _nameCtrl.text.trim();
     if (name.isEmpty) {
-      setState(() => _error = 'Please enter a tournament name.');
+      setState(() => _error = 'arena_name_required'.tr());
       return;
     }
     final me = ref.read(currentUserProvider).valueOrNull;
@@ -118,7 +120,7 @@ class _CreateTournamentScreenState
       if (mounted) context.replace('/home/tournaments/$id');
     } catch (e) {
       setState(() {
-        _error = 'Failed to create tournament. Please try again.';
+        _error = 'arena_create_failed'.tr();
         _loading = false;
       });
     }
@@ -193,7 +195,7 @@ class _CreateTournamentScreenState
                   ),
                   const SizedBox(width: 14),
                   Text(
-                    'Create Arena',
+                    'create_arena'.tr(),
                     style: GoogleFonts.fraunces(
                       fontSize: 22,
                       fontWeight: FontWeight.w600,
@@ -219,7 +221,7 @@ class _CreateTournamentScreenState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'TOURNAMENT NAME',
+                            'arena_name_label'.tr().toUpperCaseFor(context),
                             style: GoogleFonts.jetBrainsMono(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
@@ -237,8 +239,8 @@ class _CreateTournamentScreenState
                             ),
                             decoration: InputDecoration(
                               hintText: _gameType == GameType.chess
-                                  ? 'e.g. Friday Night Blitz'
-                                  : 'e.g. Friday Night Arena',
+                                  ? 'arena_name_hint_chess'.tr()
+                                  : 'arena_name_hint'.tr(),
                               hintStyle: GoogleFonts.inter(
                                 fontSize: 15,
                                 color: AppColors.inkMute,
@@ -269,7 +271,7 @@ class _CreateTournamentScreenState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'DESCRIPTION (OPTIONAL)',
+                            'arena_description_label'.tr().toUpperCaseFor(context),
                             style: GoogleFonts.jetBrainsMono(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
@@ -286,7 +288,7 @@ class _CreateTournamentScreenState
                               color: AppColors.ink,
                             ),
                             decoration: InputDecoration(
-                              hintText: 'Brief description…',
+                              hintText: 'arena_description_hint'.tr(),
                               hintStyle: GoogleFonts.inter(
                                 fontSize: 14,
                                 color: AppColors.inkMute,
@@ -312,7 +314,7 @@ class _CreateTournamentScreenState
                     // Chess arenas pick a clock; checkers/domino arenas pick
                     // their ruleset instead (those games use per-move timers).
                     if (_gameType == GameType.chess) ...[
-                      _SectionLabel(label: 'TIME CONTROL'),
+                      _SectionLabel(label: 'arena_time_control'.tr().toUpperCaseFor(context)),
                       const SizedBox(height: 10),
                       _choiceChips(
                         options: [for (final tc in _timeControls) (tc, tc)],
@@ -320,7 +322,7 @@ class _CreateTournamentScreenState
                         onSelect: (v) => setState(() => _timeControl = v),
                       ),
                     ] else if (_gameType == GameType.checkers) ...[
-                      _SectionLabel(label: 'GAME VARIANT'),
+                      _SectionLabel(label: 'arena_variant'.tr().toUpperCaseFor(context)),
                       const SizedBox(height: 10),
                       _choiceChips(
                         options: GameTypeX.checkersVariants,
@@ -328,7 +330,7 @@ class _CreateTournamentScreenState
                         onSelect: (v) => setState(() => _checkersVariant = v),
                       ),
                     ] else ...[
-                      _SectionLabel(label: 'RULESET'),
+                      _SectionLabel(label: 'arena_rules'.tr().toUpperCaseFor(context)),
                       const SizedBox(height: 10),
                       _choiceChips(
                         options: GameTypeX.dominoVariants,
@@ -340,7 +342,7 @@ class _CreateTournamentScreenState
                     const SizedBox(height: 24),
 
                     // ── Tournament Duration ──────────────────────────────
-                    _SectionLabel(label: 'TOURNAMENT DURATION'),
+                    _SectionLabel(label: 'arena_duration'.tr().toUpperCaseFor(context)),
                     const SizedBox(height: 10),
                     Row(
                       children: _durations.map((d) {
@@ -365,7 +367,7 @@ class _CreateTournamentScreenState
                                 ),
                               ),
                               child: Text(
-                                '${d}m',
+                                'arena_minutes_short'.tr(namedArgs: {'minutes': '$d'}),
                                 style: GoogleFonts.jetBrainsMono(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
@@ -383,7 +385,7 @@ class _CreateTournamentScreenState
                     const SizedBox(height: 24),
 
                     // ── Max Players ──────────────────────────────────────
-                    _SectionLabel(label: 'MAX PLAYERS'),
+                    _SectionLabel(label: 'arena_max_players'.tr().toUpperCaseFor(context)),
                     const SizedBox(height: 10),
                     Row(
                       children: _maxPlayerOptions.map((n) {
@@ -457,7 +459,29 @@ class _CreateTournamentScreenState
                       ),
                     ],
 
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
+
+                    // What happens next — so nobody expects to wait alone.
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Icon(PhosphorIcons.robot(PhosphorIconsStyle.regular),
+                            size: 16, color: AppColors.inkMute),
+                        const SizedBox(width: 8),
+                        Expanded(
+                          child: Text(
+                            'arena_create_note'.tr(),
+                            style: GoogleFonts.inter(
+                              fontSize: 12.5,
+                              color: AppColors.inkMute,
+                              height: 1.45,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
+
+                    const SizedBox(height: 20),
 
                     // ── Create button ────────────────────────────────────
                     GestureDetector(
@@ -498,7 +522,7 @@ class _CreateTournamentScreenState
                                   ),
                                   const SizedBox(width: 10),
                                   Text(
-                                    'Create Tournament',
+                                    'create_tournament'.tr(),
                                     style: GoogleFonts.inter(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
@@ -552,7 +576,7 @@ class _SectionLabel extends StatelessWidget {
     return Text(
       label,
       style: GoogleFonts.jetBrainsMono(
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: FontWeight.w600,
         color: AppColors.inkMute,
         letterSpacing: 0.8,

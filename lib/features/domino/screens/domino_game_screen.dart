@@ -61,6 +61,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
   late int _playerCount;
   late DominoConfig _config;
   late final String? _arenaId;
+  late final String? _arenaBotUid;
   late final int? _campaignChapter;
 
   int _mySeat = 0;
@@ -146,6 +147,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
     _isRated = e['isRated'] as bool? ?? false;
     _isFakeBotFallback = e['isFakeBotFallback'] as bool? ?? false;
     _arenaId = e['arenaId'] as String?;
+    _arenaBotUid = e['arenaBotUid'] as String?;
     _campaignChapter = e['campaignChapter'] as int?;
     _gameId = widget.gameId ?? e['gameId'] as String? ?? DateTime.now().millisecondsSinceEpoch.toString();
 
@@ -1176,37 +1178,27 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
     }
   }
 
+  /// Reports the arena result to the server, which scores both sides once
+  /// per game (and credits the arena bot when the opponent was one).
   Future<void> _recordArenaResult(GameResult result,
       {required bool won,
       required bool isDraw,
       required String myUid,
       String? oppUid}) async {
     try {
-      final tournaments = ref.read(tournamentServiceProvider);
-      if (_isOnline && oppUid != null && _playerCount == 2) {
-        if (_mySeat != 0) return; // only seat 0 records online games
-        final whiteUid = myUid;
-        final blackUid = oppUid;
-        final winnerUid =
-            isDraw ? null : (result == GameResult.white ? whiteUid : blackUid);
-        await tournaments.recordArenaResult(
-          tournamentId: _arenaId!,
-          whiteUid: whiteUid,
-          blackUid: blackUid,
-          winnerUid: winnerUid,
-          isDraw: isDraw,
-        );
-      } else {
-        await tournaments.recordArenaResultSingle(
-          tournamentId: _arenaId!,
-          uid: myUid,
-          won: won,
-          isDraw: isDraw,
-        );
-      }
-      debugPrint('[Domino] arena result recorded for $_arenaId');
+      await ref.read(tournamentServiceProvider).reportArenaResult(
+            tournamentId: _arenaId!,
+            gameId: _gameId,
+            outcome: isDraw
+                ? ArenaOutcome.draw
+                : won
+                    ? ArenaOutcome.win
+                    : ArenaOutcome.loss,
+            opponentUid: _isOnline && _playerCount == 2 ? oppUid : _arenaBotUid,
+          );
+      debugPrint('[Domino] arena result reported for $_arenaId');
     } catch (e) {
-      debugPrint('[Domino] failed to record arena result: $e');
+      debugPrint('[Domino] failed to report arena result: $e');
     }
   }
 

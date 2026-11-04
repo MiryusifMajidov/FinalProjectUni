@@ -32,6 +32,21 @@ class TournamentModel {
   final DateTime createdAt;
   final int participantCount;
 
+  /// Created by the server's hourly schedule rather than by a player.
+  final bool isSystem;
+
+  /// Translation key for server-created arenas ("hourly_arena_blitz"), so the
+  /// name shows in the player's language. [name] is the English fallback.
+  final String? nameKey;
+
+  /// When a waiting arena goes live (set by the server for hourly arenas and
+  /// for player-created arenas once bots have joined). Null = creator starts.
+  final DateTime? startsAt;
+
+  /// Set by the server when the arena finishes.
+  final String? winnerUid;
+  final String? winnerUsername;
+
   const TournamentModel({
     required this.id,
     required this.name,
@@ -49,11 +64,34 @@ class TournamentModel {
     this.endsAt,
     required this.createdAt,
     this.participantCount = 0,
+    this.isSystem = false,
+    this.nameKey,
+    this.startsAt,
+    this.winnerUid,
+    this.winnerUsername,
   });
 
-  bool get isActive => status == TournamentStatus.active;
-  bool get isFinished => status == TournamentStatus.finished;
+  bool get isActive => status == TournamentStatus.active && !hasEnded;
   bool get isWaiting => status == TournamentStatus.waiting;
+
+  /// Finished — or past its end time and waiting for the server to close it
+  /// (the server sweeps once a minute; the UI should not show "LIVE 00:00").
+  bool get isFinished => status == TournamentStatus.finished || hasEnded;
+
+  bool get hasEnded =>
+      status == TournamentStatus.active &&
+      endsAt != null &&
+      DateTime.now().isAfter(endsAt!);
+
+  /// The status to display, folding [hasEnded] into finished.
+  TournamentStatus get effectiveStatus =>
+      hasEnded ? TournamentStatus.finished : status;
+
+  bool get isFull => participantCount >= maxPlayers;
+
+  /// Players may join until the arena ends (arena format — late joiners
+  /// simply have fewer games), as long as there is room.
+  bool get canJoin => !isFinished && !isFull;
 
   factory TournamentModel.fromMap(String id, Map<String, dynamic> map) {
     final label = map['timeControlLabel'] as String? ?? '5+0';
@@ -78,6 +116,11 @@ class TournamentModel {
       endsAt: (map['endsAt'] as Timestamp?)?.toDate(),
       createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
       participantCount: (map['participantCount'] as num?)?.toInt() ?? 0,
+      isSystem: (map['isSystem'] as bool?) ?? false,
+      nameKey: map['nameKey'] as String?,
+      startsAt: (map['startsAt'] as Timestamp?)?.toDate(),
+      winnerUid: map['winnerUid'] as String?,
+      winnerUsername: map['winnerUsername'] as String?,
     );
   }
 
@@ -108,6 +151,9 @@ class ArenaParticipant {
   final String uid;
   final String username;
   final int rating;
+
+  /// Server-run bot that fills the arena (uid starts with `bot_`).
+  final bool isBot;
   final double score;
   final int wins;
   final int draws;
@@ -119,6 +165,7 @@ class ArenaParticipant {
     required this.uid,
     required this.username,
     required this.rating,
+    this.isBot = false,
     this.score = 0.0,
     this.wins = 0,
     this.draws = 0,
@@ -132,6 +179,8 @@ class ArenaParticipant {
       uid: map['uid'] as String? ?? '',
       username: map['username'] as String? ?? '',
       rating: (map['rating'] as num?)?.toInt() ?? 1200,
+      isBot: (map['isBot'] as bool?) ??
+          ((map['uid'] as String?)?.startsWith('bot_') ?? false),
       score: (map['score'] as num?)?.toDouble() ?? 0.0,
       wins: (map['wins'] as num?)?.toInt() ?? 0,
       draws: (map['draws'] as num?)?.toInt() ?? 0,

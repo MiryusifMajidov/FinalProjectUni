@@ -13,16 +13,17 @@ import '../engine/chess_engine.dart';
 import '../providers/game_provider.dart';
 import '../widgets/chess_board_widget.dart';
 
+import '../../../core/theme/app_colors.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
-const _kBg        = Color(0xFF0A0908);   // slightly warm near-black
-const _kCard      = Color(0xFF1A1A1E);
-const _kAmber     = Color(0xFFE8B960);
-const _kAmberGlow = Color(0x24E8B960);
-const _kInk       = Color(0xFFF5F3EF);
-const _kInkDim    = Color(0xFFB0A898);
-const _kInkMute   = Color(0xFF706860);
-const _kBorder    = Color(0xFF2A2520);
-const _kDanger    = Color(0xFFF07079);
+const _kBg        = AppColors.background;   // slightly warm near-black
+const _kCard      = AppColors.card;
+const _kAmber     = AppColors.amber;
+const _kAmberGlow = AppColors.amberGlow;
+const _kInk       = AppColors.ink;
+const _kInkDim    = AppColors.inkDim;
+const _kInkMute   = AppColors.inkMute;
+const _kBorder    = AppColors.border;
+const _kDanger    = AppColors.loss;
 
 /// Calm redesign of the game screen — used for both online multiplayer and
 /// bot games.  The mode is read from [GameConfig.mode]; when it is
@@ -66,6 +67,7 @@ class _InGameCalmScreenState extends ConsumerState<InGameCalmScreen> {
       myUsername: e['myUsername'] as String?,
       opponentUsername: e['opponentUsername'] as String?,
       arenaId: e['arenaId'] as String?,
+      arenaBotUid: e['arenaBotUid'] as String?,
     );
   }
 

@@ -14,9 +14,16 @@ import '../../../core/services/auth_service.dart'; // firestoreServiceProvider
 import '../../../core/services/tournament_service.dart';
 import '../../../core/services/realtime_game_service.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../core/theme/app_theme_extension.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../../core/utils/text_case.dart';
+import 'tournament_list_screen.dart' show tournamentDisplayName, formatCountdown;
+
+const _kDark = Color(0xFF1A1205);
+
+/// Seconds in the ready queue before the arena pairs you with one of its
+/// bots. Short on purpose: with few people online, waiting 30 s (the old
+/// value) for a human who never comes is why players gave up on arenas.
+const _botFallbackSeconds = 10;
 
 class ArenaLobbyScreen extends ConsumerStatefulWidget {
   final String tournamentId;
@@ -35,7 +42,7 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
   bool _isPairing = false;    // currently running claim transaction
   bool _joining = false;      // joining the Firestore tournament
   bool _starting = false;     // creator starting the tournament
-  Duration _timeRemaining = Duration.zero;
+  bool _notFound = false;
 
   // ── Player info ────────────────────────────────────────────────────────────
   String? _myUid;
@@ -47,8 +54,7 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
   StreamSubscription<List<ArenaParticipant>>? _participantsSub;
   StreamSubscription<DatabaseEvent>? _queueSub;
   StreamSubscription<DatabaseEvent>? _pairingSub;
-  Timer? _uiTimer;
-  Timer? _endTimer;
+  Timer? _clockTimer;
   Timer? _botFallbackTimer;
   int _queueSeconds = 0;
 
@@ -73,6 +79,13 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
   @override
   void initState() {
     super.initState();
+    // One clock for every countdown on the screen.
+    _clockTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (!mounted) return;
+      setState(() {});
+      final t = _tournament;
+      if (t != null && t.isFinished && _isReady) _leaveQueue();
+    });
     _init();
   }
 
@@ -82,8 +95,7 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
     _participantsSub?.cancel();
     _queueSub?.cancel();
     _pairingSub?.cancel();
-    _uiTimer?.cancel();
-    _endTimer?.cancel();
+    _clockTimer?.cancel();
     _botFallbackTimer?.cancel();
     // Leave queue cleanly
     if (_isReady && _myUid != null) {
@@ -100,16 +112,15 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
 
     _myUid = user.uid;
     _myUsername = user.username;
-    // Rating will be updated once tournament loads and gameType is known
     _myRating = user.overallRating;
 
-    // Watch tournament document
     _tournamentSub = ref
         .read(tournamentServiceProvider)
         .watchTournament(widget.tournamentId)
-        .listen(_onTournamentUpdate, onError: (_) {});
+        .listen(_onTournamentUpdate, onError: (_) {
+      if (mounted) setState(() => _notFound = true);
+    });
 
-    // Watch leaderboard
     _participantsSub = ref
         .read(tournamentServiceProvider)
         .watchParticipants(widget.tournamentId)
@@ -121,7 +132,6 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
       });
     }, onError: (_) {});
 
-    // Watch my pairing result
     _pairingSub = ref
         .read(realtimeGameServiceProvider)
         .watchMyArenaPairing(widget.tournamentId, _myUid!)
@@ -130,55 +140,19 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
 
   void _onTournamentUpdate(TournamentModel t) {
     if (!mounted) return;
-    setState(() => _tournament = t);
-
-    if (t.isActive && t.endsAt != null) {
-      _setupCountdown(t);
-    }
-
-    // Tournament just ended — leave queue if needed
-    if (t.isFinished && _isReady) {
-      _leaveQueue();
-    }
-  }
-
-  void _setupCountdown(TournamentModel t) {
-    _uiTimer?.cancel();
-    _endTimer?.cancel();
-
-    final endsAt = t.endsAt!;
-    final remaining = endsAt.difference(DateTime.now());
-
-    if (remaining.isNegative) {
-      _checkAndFinish(t);
-      return;
-    }
-
-    // Update remaining time every second
-    _uiTimer = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (!mounted) return;
-      final rem = endsAt.difference(DateTime.now());
-      setState(() => _timeRemaining = rem.isNegative ? Duration.zero : rem);
-      if (rem.isNegative && _tournament?.isActive == true) {
-        _uiTimer?.cancel();
-        _checkAndFinish(_tournament!);
+    final user = ref.read(currentUserProvider).valueOrNull;
+    setState(() {
+      _tournament = t;
+      if (user != null) {
+        _myRating = switch (GameTypeX.fromString(t.gameType)) {
+          GameType.checkers => user.checkersStats.rating,
+          GameType.domino => user.dominoStats.rating,
+          GameType.chess => user.overallRating,
+        };
       }
     });
-
-    // One-shot timer at exact end
-    _endTimer = Timer(remaining, () => _checkAndFinish(t));
-
-    setState(() => _timeRemaining = remaining);
-  }
-
-  Future<void> _checkAndFinish(TournamentModel t) async {
-    if (t.isFinished) return;
-    if (_isReady) _leaveQueue();
-    try {
-      await ref
-          .read(tournamentServiceProvider)
-          .finishArena(widget.tournamentId);
-    } catch (_) {}
+    // Arena closed by the server — leave the queue.
+    if (t.isFinished && _isReady) _leaveQueue();
   }
 
   // ── Queue management ───────────────────────────────────────────────────────
@@ -203,12 +177,12 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
         .watchArenaQueue(widget.tournamentId)
         .listen(_onQueueUpdate);
 
-    // Bot fallback: if no real opponent found in 30 s, pair with a bot
+    // No free human soon → play one of the arena's bots.
     _botFallbackTimer?.cancel();
     _botFallbackTimer = Timer.periodic(const Duration(seconds: 1), (t) {
       if (!_isReady || !mounted) { t.cancel(); return; }
-      _queueSeconds++;
-      if (_queueSeconds >= 30) {
+      setState(() => _queueSeconds++);
+      if (_queueSeconds >= _botFallbackSeconds) {
         t.cancel();
         _matchWithBot();
       }
@@ -219,10 +193,22 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
     if (_myUid == null) return;
     _queueSub?.cancel();
     _botFallbackTimer?.cancel();
-    setState(() => _isReady = false);
+    if (mounted) setState(() => _isReady = false);
     ref
         .read(realtimeGameServiceProvider)
         .leaveArenaQueue(widget.tournamentId, _myUid!);
+  }
+
+  /// The arena bot closest to my rating, so the game is a fair one and the
+  /// server credits that bot with the other half of the result.
+  ArenaParticipant? _pickBotOpponent() {
+    final bots = _participants.where((p) => p.isBot).toList();
+    if (bots.isEmpty) return null;
+    bots.sort((a, b) =>
+        (a.rating - _myRating).abs().compareTo((b.rating - _myRating).abs()));
+    // A little variety: one of the three closest.
+    final pool = bots.take(3).toList()..shuffle();
+    return pool.first;
   }
 
   void _matchWithBot() {
@@ -234,7 +220,9 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
 
     final gt = _gameType;
     final gameId = const Uuid().v4();
-    final botName = (gt.fakeBotNames.toList()..shuffle()).first;
+    final bot = _pickBotOpponent();
+    final botName = bot?.username ?? (gt.fakeBotNames.toList()..shuffle()).first;
+    final botRating = bot?.rating ?? _myRating;
     final tc = TimeControl(
       minutes: t.timeSeconds ~/ 60,
       incrementSeconds: t.incrementSeconds,
@@ -248,9 +236,13 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
       'isRated': false,
       'gameId': gameId,
       'opponentUsername': botName,
-      'opponentRating': _myRating + (50 - (DateTime.now().second % 100)),
+      'opponentRating': botRating,
+      'botRating': botRating,
+      // Checkers/domino bots take a search depth instead of a rating.
+      'botDepth': (1 + (botRating - 150) ~/ 110).clamp(1, 6),
       'myUsername': _myUsername,
       'arenaId': widget.tournamentId,
+      if (bot != null) 'arenaBotUid': bot.uid,
       ..._rulesExtras,
     });
   }
@@ -301,32 +293,11 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
     });
 
     if (!ok) return; // Opponent was already claimed; stay in queue
+    _botFallbackTimer?.cancel();
+    _queueSub?.cancel();
 
-    // I'm the claimer → I play white. Navigate to game.
-    final gt = _gameType;
-    final tc = TimeControl(
-      minutes: t.timeSeconds ~/ 60,
-      incrementSeconds: t.incrementSeconds,
-    );
-
-    final opponent =
-        await ref.read(firestoreServiceProvider).getUser(opponentUid);
-    if (!mounted) return;
-
-    context.push(gt.gameRoute(gameId), extra: {
-      'mode': GameMode.online.name,
-      'gameType': gt.name,
-      'timeControl': tc.toMap(),
-      'playerIsWhite': true,
-      'isRated': true,
-      'gameId': gameId,
-      'opponentUid': opponentUid,
-      'opponentUsername': opponent?.username ?? 'Opponent',
-      'opponentRating': opponent?.overallRating ?? 1200,
-      'myUsername': _myUsername,
-      'arenaId': widget.tournamentId,
-      ..._rulesExtras,
-    });
+    // I'm the claimer → I play white.
+    await _navigateToGame(gameId: gameId, isWhite: true, opponentUid: opponentUid);
   }
 
   void _onPairingUpdate(DatabaseEvent event) {
@@ -346,6 +317,8 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
         .read(realtimeGameServiceProvider)
         .clearArenaPairing(widget.tournamentId, _myUid!);
 
+    _botFallbackTimer?.cancel();
+    _queueSub?.cancel();
     setState(() => _isReady = false);
     _navigateToGame(gameId: gameId, isWhite: isWhite, opponentUid: opponentUid);
   }
@@ -384,15 +357,14 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
     });
   }
 
-  // ── Join / Start ───────────────────────────────────────────────────────────
+  // ── Join / Leave / Start ───────────────────────────────────────────────────
 
   Future<void> _join() async {
     if (_joining) return;
     final user = await ref.read(currentUserProvider.future);
     if (user == null) return;
     setState(() => _joining = true);
-    final gt = _gameType;
-    final rating = switch (gt) {
+    final rating = switch (_gameType) {
       GameType.checkers => user.checkersStats.rating,
       GameType.domino   => user.dominoStats.rating,
       GameType.chess    => user.overallRating,
@@ -407,12 +379,22 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to join tournament.')),
+          SnackBar(content: Text('arena_join_failed'.tr())),
         );
       }
     } finally {
       if (mounted) setState(() => _joining = false);
     }
+  }
+
+  Future<void> _leave() async {
+    if (_myUid == null) return;
+    if (_isReady) _leaveQueue();
+    try {
+      await ref
+          .read(tournamentServiceProvider)
+          .leaveTournament(widget.tournamentId, _myUid!);
+    } catch (_) {}
   }
 
   Future<void> _startTournament() async {
@@ -426,7 +408,7 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Failed to start tournament.')),
+          SnackBar(content: Text('arena_start_failed'.tr())),
         );
       }
     } finally {
@@ -445,32 +427,24 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            // ── Custom header ────────────────────────────────────────────
+            // ── Header ───────────────────────────────────────────────────
             Padding(
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Row(
                 children: [
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 36,
-                      height: 36,
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Icon(
-                        PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
-                        color: AppColors.inkDim,
-                        size: 18,
-                      ),
-                    ),
-                  ),
+                  _BackButton(onTap: () {
+                    if (context.canPop()) {
+                      context.pop();
+                    } else {
+                      context.go('/home');
+                    }
+                  }),
                   const SizedBox(width: 14),
                   Expanded(
                     child: Text(
-                      t?.name ?? 'arena'.tr(),
+                      t == null ? 'arena'.tr() : tournamentDisplayName(t),
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
                       style: GoogleFonts.fraunces(
                         fontSize: 20,
                         fontWeight: FontWeight.w600,
@@ -479,16 +453,25 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
                       ),
                     ),
                   ),
-                  if (t != null) _StatusBadge(t.status),
+                  if (t != null) ...[
+                    const SizedBox(width: 10),
+                    ArenaStatusBadge(t.effectiveStatus),
+                  ],
                 ],
               ),
             ),
-            // ── Body ────────────────────────────────────────────────────
             Expanded(
-              child: t == null
-                  ? const Center(
-                      child: CircularProgressIndicator(color: AppColors.amber))
-                  : _buildBody(t),
+              child: _notFound
+                  ? Center(
+                      child: Text('arena_not_found'.tr(),
+                          style: GoogleFonts.inter(
+                              fontSize: 14, color: AppColors.inkDim)),
+                    )
+                  : t == null
+                      ? const Center(
+                          child:
+                              CircularProgressIndicator(color: AppColors.amber))
+                      : _buildBody(t),
             ),
           ],
         ),
@@ -497,6 +480,8 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
   }
 
   Widget _buildBody(TournamentModel t) {
+    final accent = _gameType.accent;
+    final me = _participants.where((p) => p.uid == _myUid).firstOrNull;
     return CustomScrollView(
       slivers: [
         SliverToBoxAdapter(
@@ -505,144 +490,71 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                // ── Countdown / info card ──────────────────────────────
-                _CountdownCard(
-                  tournament: t,
-                  timeRemaining: _timeRemaining,
-                ),
-
+                _CountdownCard(tournament: t, accent: accent),
                 const SizedBox(height: 16),
 
-                // ── Waiting: join / start section ─────────────────────
-                if (t.isWaiting) ...[
-                  if (!_isParticipant)
-                    _AmberCTAButton(
+                if (t.isFinished)
+                  _WinnerCard(tournament: t, participants: _participants)
+                else if (!_isParticipant) ...[
+                  if (t.canJoin)
+                    _CTAButton(
                       label: 'join_arena'.tr(),
                       icon: PhosphorIcons.trophy(PhosphorIconsStyle.bold),
-                      trailingIcon:
-                          PhosphorIcons.arrowRight(PhosphorIconsStyle.bold),
+                      color: accent,
                       loading: _joining,
                       onTap: _join,
                     )
                   else
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                      decoration: BoxDecoration(
-                        color: AppColors.amberGlow,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                            color: AppColors.amber.withOpacity(0.3)),
-                      ),
-                      child: Row(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          Icon(
-                            PhosphorIcons.checkCircle(
-                                PhosphorIconsStyle.fill),
-                            size: 18,
-                            color: AppColors.amber,
-                          ),
-                          const SizedBox(width: 8),
-                          Text(
-                            'You have joined',
-                            style: GoogleFonts.inter(
-                              fontSize: 15,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.amber,
-                            ),
-                          ),
-                        ],
-                      ),
+                    _InfoBox(
+                      icon: PhosphorIcons.usersThree(PhosphorIconsStyle.regular),
+                      text: 'arena_full'.tr(),
                     ),
-
-                  // Waiting for creator to start
-                  if (_isParticipant && _myUid != t.creatorUid) ...[
+                  const SizedBox(height: 10),
+                  _HintText(t.isActive
+                      ? 'arena_join_late_hint'.tr()
+                      : 'arena_how_it_works'.tr()),
+                ] else if (t.isWaiting) ...[
+                  _JoinedBox(
+                    accent: accent,
+                    text: t.startsAt != null
+                        ? 'arena_starts_auto'.tr()
+                        : 'arena_waiting_players'.tr(),
+                  ),
+                  if (_myUid == t.creatorUid) ...[
                     const SizedBox(height: 10),
-                    Container(
-                      width: double.infinity,
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 12),
-                      decoration: BoxDecoration(
-                        color: AppColors.card,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: AppColors.border),
-                      ),
-                      child: Row(
-                        children: [
-                          const SizedBox(
-                            width: 16,
-                            height: 16,
-                            child: CircularProgressIndicator(
-                              strokeWidth: 2,
-                              color: AppColors.inkMute,
-                            ),
-                          ),
-                          const SizedBox(width: 10),
-                          Expanded(
-                            child: RichText(
-                              text: TextSpan(
-                                style: GoogleFonts.inter(
-                                  fontSize: 12,
-                                  color: AppColors.inkMute,
-                                ),
-                                children: [
-                                  const TextSpan(text: 'Waiting for '),
-                                  TextSpan(
-                                    text: t.creatorUsername,
-                                    style: const TextStyle(
-                                      color: AppColors.ink,
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  const TextSpan(
-                                      text: ' to start the tournament…'),
-                                ],
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
+                    if (t.participantCount >= 2)
+                      _CTAButton(
+                        label: 'start_now'.tr(),
+                        icon: PhosphorIcons.lightning(PhosphorIconsStyle.bold),
+                        color: accent,
+                        loading: _starting,
+                        onTap: _startTournament,
+                      )
+                    else
+                      _HintText('arena_need_two'.tr()),
                   ],
-
-                  // Start button (creator only)
-                  if (_myUid == t.creatorUid && t.participantCount >= 2) ...[
-                    const SizedBox(height: 10),
-                    _AmberCTAButton(
-                      label: 'start_tournament'.tr(),
-                      icon:
-                          PhosphorIcons.lightning(PhosphorIconsStyle.bold),
-                      trailingIcon:
-                          PhosphorIcons.arrowRight(PhosphorIconsStyle.bold),
-                      loading: _starting,
-                      onTap: _startTournament,
-                    ),
-                  ] else if (_myUid == t.creatorUid &&
-                      t.participantCount < 2) ...[
-                    const SizedBox(height: 8),
+                  if ((me?.gamesPlayed ?? 0) == 0)
                     Center(
-                      child: Text(
-                        'Need at least 2 players to start',
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          color: AppColors.inkMute,
+                      child: TextButton(
+                        onPressed: _leave,
+                        child: Text(
+                          'arena_leave'.tr(),
+                          style: GoogleFonts.inter(
+                              fontSize: 13, color: AppColors.inkMute),
                         ),
-                        textAlign: TextAlign.center,
                       ),
                     ),
-                  ],
-                ],
-
-                // ── Active: Ready to Play / queue button ───────────────
-                if (t.isActive && _isParticipant) ...[
-                  const SizedBox(height: 4),
+                ] else if (t.isActive) ...[
                   _ReadyButton(
+                    accent: accent,
                     isReady: _isReady,
                     isPairing: _isPairing,
+                    queueSeconds: _queueSeconds,
                     onEnter: _enterQueue,
                     onLeave: _leaveQueue,
                   ),
+                  const SizedBox(height: 10),
+                  _HintText('arena_how_it_works'.tr()),
                 ],
 
                 const SizedBox(height: 24),
@@ -662,34 +574,32 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
                     ),
                     const Spacer(),
                     Text(
-                      'W  ·  D  ·  L',
+                      'arena_col_wdl'.tr(),
                       style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: AppColors.inkMute,
                         letterSpacing: 0.5,
                       ),
                     ),
-                    const SizedBox(width: 12),
+                    const SizedBox(width: 14),
                     Text(
-                      'PTS',
+                      'arena_col_pts'.tr(),
                       style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
+                        fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: AppColors.amber,
+                        color: accent,
                         letterSpacing: 0.8,
                       ),
                     ),
                   ],
                 ),
-
                 const SizedBox(height: 10),
               ],
             ),
           ),
         ),
 
-        // ── Standings list ─────────────────────────────────────────────────
         if (_participants.isEmpty)
           SliverToBoxAdapter(
             child: Padding(
@@ -714,6 +624,8 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
                   participant: _participants[i],
                   rank: i + 1,
                   isMe: _participants[i].uid == _myUid,
+                  accent: accent,
+                  pointBased: _gameType.isPointBased,
                 ),
                 childCount: _participants.length,
               ),
@@ -724,37 +636,159 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
   }
 }
 
-// ── Status Badge ─────────────────────────────────────────────────────────────
+// ── Small pieces ──────────────────────────────────────────────────────────────
 
-class _StatusBadge extends StatelessWidget {
-  final TournamentStatus status;
-  const _StatusBadge(this.status);
+class _BackButton extends StatelessWidget {
+  final VoidCallback onTap;
+  const _BackButton({required this.onTap});
 
   @override
   Widget build(BuildContext context) {
-    final (label, color, bg) = switch (status) {
-      TournamentStatus.waiting  => (
-          'WAITING',
-          AppColors.amber,
-          AppColors.amberGlow,
+    return Semantics(
+      button: true,
+      label: 'back'.tr(),
+      child: GestureDetector(
+        onTap: onTap,
+        child: Container(
+          width: 36,
+          height: 36,
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: AppColors.border),
+          ),
+          child: Icon(
+            PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
+            color: AppColors.inkDim,
+            size: 18,
+          ),
         ),
-      TournamentStatus.active   => (
-          'LIVE',
-          AppColors.live,
-          const Color(0x24FF6B6B),
-        ),
-      TournamentStatus.finished => (
-          'FINISHED',
-          AppColors.inkMute,
-          const Color(0x24706B62),
-        ),
+      ),
+    );
+  }
+}
+
+class _HintText extends StatelessWidget {
+  final String text;
+  const _HintText(this.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return Text(
+      text,
+      textAlign: TextAlign.center,
+      style: GoogleFonts.inter(
+        fontSize: 12.5,
+        color: AppColors.inkMute,
+        height: 1.45,
+      ),
+    );
+  }
+}
+
+class _InfoBox extends StatelessWidget {
+  final IconData icon;
+  final String text;
+  const _InfoBox({required this.icon, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(icon, size: 18, color: AppColors.inkDim),
+          const SizedBox(width: 8),
+          Flexible(
+            child: Text(text,
+                style: GoogleFonts.inter(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.inkDim)),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _JoinedBox extends StatelessWidget {
+  final Color accent;
+  final String text;
+  const _JoinedBox({required this.accent, required this.text});
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 14),
+      decoration: BoxDecoration(
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: accent.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Icon(PhosphorIcons.checkCircle(PhosphorIconsStyle.fill),
+              size: 20, color: accent),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'arena_joined'.tr(),
+                  style: GoogleFonts.inter(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w700,
+                    color: accent,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  text,
+                  style: GoogleFonts.inter(
+                    fontSize: 12.5,
+                    color: AppColors.inkDim,
+                    height: 1.45,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+// ── Status Badge ─────────────────────────────────────────────────────────────
+
+class ArenaStatusBadge extends StatelessWidget {
+  final TournamentStatus status;
+  const ArenaStatusBadge(this.status, {super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    final (label, color) = switch (status) {
+      TournamentStatus.waiting  => ('arena_status_waiting'.tr(), AppColors.amber),
+      TournamentStatus.active   => ('arena_status_live'.tr(), AppColors.live),
+      TournamentStatus.finished => ('arena_status_finished'.tr(), AppColors.inkMute),
     };
 
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 4),
       decoration: BoxDecoration(
-        color: bg,
-        borderRadius: BorderRadius.circular(8),
+        color: color.withValues(alpha: 0.14),
+        borderRadius: BorderRadius.circular(7),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -767,19 +801,17 @@ class _StatusBadge extends StatelessWidget {
               decoration: BoxDecoration(
                 color: AppColors.live,
                 shape: BoxShape.circle,
-                boxShadow: [
-                  BoxShadow(color: AppColors.live, blurRadius: 6),
-                ],
+                boxShadow: [BoxShadow(color: AppColors.live, blurRadius: 6)],
               ),
             ),
           ],
           Text(
-            label,
+            label.toUpperCaseFor(context),
             style: GoogleFonts.inter(
-              fontSize: 10,
+              fontSize: 10.5,
               fontWeight: FontWeight.w700,
               color: color,
-              letterSpacing: 0.6,
+              letterSpacing: 0.5,
             ),
           ),
         ],
@@ -792,26 +824,37 @@ class _StatusBadge extends StatelessWidget {
 
 class _CountdownCard extends StatelessWidget {
   final TournamentModel tournament;
-  final Duration timeRemaining;
+  final Color accent;
 
-  const _CountdownCard({
-    required this.tournament,
-    required this.timeRemaining,
-  });
-
-  String _fmtCountdown(Duration d) {
-    final m = d.inMinutes.toString().padLeft(2, '0');
-    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
-    return '$m:$s';
-  }
+  const _CountdownCard({required this.tournament, required this.accent});
 
   @override
   Widget build(BuildContext context) {
-    final isActive = tournament.isActive;
-    final total = Duration(minutes: tournament.durationMinutes);
-    final progress = isActive && total.inSeconds > 0
-        ? (timeRemaining.inSeconds / total.inSeconds).clamp(0.0, 1.0)
-        : 0.0;
+    final t = tournament;
+    final now = DateTime.now();
+    final total = Duration(minutes: t.durationMinutes);
+
+    final String caption;
+    final String value;
+    double progress = 0;
+    if (t.isFinished) {
+      caption = 'arena_status_finished'.tr();
+      value = '00:00';
+    } else if (t.isActive && t.endsAt != null) {
+      final left = t.endsAt!.difference(now);
+      caption = 'arena_time_remaining'.tr();
+      value = formatCountdown(left);
+      progress = total.inSeconds > 0
+          ? (left.inSeconds / total.inSeconds).clamp(0.0, 1.0)
+          : 0;
+    } else if (t.startsAt != null) {
+      caption = 'arena_starts_in'.tr();
+      final left = t.startsAt!.difference(now);
+      value = left.isNegative ? '00:00' : formatCountdown(left);
+    } else {
+      caption = 'arena_starts_in'.tr();
+      value = '—';
+    }
 
     return Container(
       padding: const EdgeInsets.all(16),
@@ -830,47 +873,43 @@ class _CountdownCard extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              // Left: countdown or status
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      'TIME REMAINING',
+                      caption.toUpperCaseFor(context),
                       style: GoogleFonts.jetBrainsMono(
-                        fontSize: 9,
+                        fontSize: 10.5,
                         fontWeight: FontWeight.w600,
                         color: AppColors.inkMute,
                         letterSpacing: 0.8,
                       ),
                     ),
                     const SizedBox(height: 6),
+                    // Tabular digits so the countdown doesn't jitter.
                     Text(
-                      isActive
-                          ? _fmtCountdown(timeRemaining)
-                          : tournament.isWaiting
-                              ? '--:--'
-                              : '00:00',
-                      style: GoogleFonts.fraunces(
-                        fontSize: 36,
+                      value,
+                      style: GoogleFonts.jetBrainsMono(
+                        fontSize: 34,
                         fontWeight: FontWeight.w700,
-                        fontStyle: FontStyle.italic,
-                        color: AppColors.amber,
+                        color: t.isFinished ? AppColors.inkMute : accent,
                         letterSpacing: -1,
                       ),
                     ),
                   ],
                 ),
               ),
-
-              // Right: time control info
               Column(
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                   Text(
-                    'TIME CONTROL',
+                    (t.gameType == 'chess'
+                            ? 'arena_time_control'.tr()
+                            : 'arena_rules'.tr())
+                        .toUpperCase(),
                     style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9,
+                      fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                       color: AppColors.inkMute,
                       letterSpacing: 0.8,
@@ -878,19 +917,20 @@ class _CountdownCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 6),
                   Text(
-                    tournament.timeControlLabel,
+                    t.timeControlLabel,
                     style: GoogleFonts.fraunces(
-                      fontSize: 22,
+                      fontSize: 20,
                       fontWeight: FontWeight.w700,
                       fontStyle: FontStyle.italic,
-                      color: AppColors.amber,
+                      color: AppColors.ink,
                     ),
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${tournament.durationMinutes} min arena',
+                    'arena_duration_min'
+                        .tr(namedArgs: {'minutes': '${t.durationMinutes}'}),
                     style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
+                      fontSize: 11,
                       color: AppColors.inkMute,
                     ),
                   ),
@@ -898,45 +938,34 @@ class _CountdownCard extends StatelessWidget {
               ),
             ],
           ),
-
           const SizedBox(height: 14),
-
-          // Progress bar (amber gradient)
           ClipRRect(
             borderRadius: BorderRadius.circular(3),
-            child: Container(
+            child: SizedBox(
               height: 4,
-              color: AppColors.surface,
-              alignment: Alignment.centerLeft,
-              child: FractionallySizedBox(
-                widthFactor: progress.toDouble(),
-                child: Container(
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      colors: [AppColors.amber, AppColors.amberDeep],
-                    ),
-                    borderRadius: BorderRadius.circular(3),
-                  ),
-                ),
+              child: LinearProgressIndicator(
+                value: progress.toDouble(),
+                backgroundColor: AppColors.surface,
+                valueColor: AlwaysStoppedAnimation<Color>(accent),
               ),
             ),
           ),
-
           const SizedBox(height: 12),
-
-          // Player count
           Row(
             children: [
               Icon(
                 PhosphorIcons.users(PhosphorIconsStyle.regular),
-                size: 12,
+                size: 13,
                 color: AppColors.inkMute,
               ),
               const SizedBox(width: 5),
               Text(
-                '${tournament.participantCount}/${tournament.maxPlayers} players',
+                'arena_players_count'.tr(namedArgs: {
+                  'count': '${t.participantCount}',
+                  'max': '${t.maxPlayers}',
+                }),
                 style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
+                  fontSize: 11.5,
                   color: AppColors.inkMute,
                 ),
               ),
@@ -948,71 +977,150 @@ class _CountdownCard extends StatelessWidget {
   }
 }
 
-// ── Amber CTA Button ──────────────────────────────────────────────────────────
+// ── Winner Card ───────────────────────────────────────────────────────────────
 
-class _AmberCTAButton extends StatelessWidget {
+class _WinnerCard extends StatelessWidget {
+  final TournamentModel tournament;
+  final List<ArenaParticipant> participants;
+  const _WinnerCard({required this.tournament, required this.participants});
+
+  @override
+  Widget build(BuildContext context) {
+    final top = participants.where((p) => p.score > 0).take(3).toList();
+    if (top.isEmpty) {
+      return _InfoBox(
+        icon: PhosphorIcons.flagCheckered(PhosphorIconsStyle.regular),
+        text: 'arena_no_winner'.tr(),
+      );
+    }
+    const medals = ['🥇', '🥈', '🥉'];
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppColors.amberGlow,
+        borderRadius: BorderRadius.circular(16),
+        border: Border.all(color: AppColors.amber.withValues(alpha: 0.3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'arena_finished_title'.tr(),
+            style: GoogleFonts.fraunces(
+              fontSize: 18,
+              fontWeight: FontWeight.w600,
+              fontStyle: FontStyle.italic,
+              color: AppColors.ink,
+            ),
+          ),
+          const SizedBox(height: 10),
+          for (var i = 0; i < top.length; i++)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Row(
+                children: [
+                  Text(medals[i], style: const TextStyle(fontSize: 18)),
+                  const SizedBox(width: 10),
+                  Expanded(
+                    child: Text(
+                      top[i].username,
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 14,
+                        fontWeight: i == 0 ? FontWeight.w700 : FontWeight.w500,
+                        color: AppColors.ink,
+                      ),
+                    ),
+                  ),
+                  Text(
+                    '${_fmtPts(top[i].score)} ${'arena_col_pts'.tr().toLowerCase()}',
+                    style: GoogleFonts.jetBrainsMono(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.amber,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+        ],
+      ),
+    );
+  }
+}
+
+String _fmtPts(double pts) =>
+    pts == pts.truncateToDouble() ? pts.toInt().toString() : pts.toStringAsFixed(1);
+
+// ── CTA Button ────────────────────────────────────────────────────────────────
+
+class _CTAButton extends StatelessWidget {
   final String label;
   final IconData icon;
-  final IconData trailingIcon;
+  final Color color;
   final bool loading;
   final VoidCallback onTap;
 
-  const _AmberCTAButton({
+  const _CTAButton({
     required this.label,
     required this.icon,
-    required this.trailingIcon,
+    required this.color,
     required this.loading,
     required this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: loading ? null : onTap,
-      child: Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 15, horizontal: 20),
-        decoration: BoxDecoration(
-          color: AppColors.amber,
-          borderRadius: BorderRadius.circular(14),
-          boxShadow: [
-            BoxShadow(
-              color: AppColors.amberGlow,
-              blurRadius: 16,
-              offset: const Offset(0, 4),
-            ),
-          ],
-        ),
-        child: loading
-            ? const Center(
-                child: SizedBox(
-                  width: 20,
-                  height: 20,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Color(0xFF1A1205),
-                  ),
-                ),
-              )
-            : Row(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(icon, size: 18, color: const Color(0xFF1A1205)),
-                  const SizedBox(width: 8),
-                  Text(
-                    label,
-                    style: GoogleFonts.inter(
-                      fontSize: 15,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1A1205),
-                      letterSpacing: 0.2,
-                    ),
-                  ),
-                  const Spacer(),
-                  Icon(trailingIcon,
-                      size: 16, color: const Color(0xFF1A1205)),
-                ],
+    return Semantics(
+      button: true,
+      label: label,
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: loading ? null : onTap,
+        child: Container(
+          width: double.infinity,
+          height: 54,
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          decoration: BoxDecoration(
+            color: color,
+            borderRadius: BorderRadius.circular(14),
+            boxShadow: [
+              BoxShadow(
+                color: color.withValues(alpha: 0.25),
+                blurRadius: 16,
+                offset: const Offset(0, 4),
               ),
+            ],
+          ),
+          child: loading
+              ? const Center(
+                  child: SizedBox(
+                    width: 20,
+                    height: 20,
+                    child: CircularProgressIndicator(
+                        strokeWidth: 2, color: _kDark),
+                  ),
+                )
+              : Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Icon(icon, size: 18, color: _kDark),
+                    const SizedBox(width: 10),
+                    Flexible(
+                      child: Text(
+                        label,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 15,
+                          fontWeight: FontWeight.w700,
+                          color: _kDark,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+        ),
       ),
     );
   }
@@ -1021,96 +1129,83 @@ class _AmberCTAButton extends StatelessWidget {
 // ── Ready Button ──────────────────────────────────────────────────────────────
 
 class _ReadyButton extends StatelessWidget {
+  final Color accent;
   final bool isReady;
   final bool isPairing;
+  final int queueSeconds;
   final VoidCallback onEnter;
   final VoidCallback onLeave;
 
   const _ReadyButton({
+    required this.accent,
     required this.isReady,
     required this.isPairing,
+    required this.queueSeconds,
     required this.onEnter,
     required this.onLeave,
   });
 
   @override
   Widget build(BuildContext context) {
-    if (isPairing) {
-      return Container(
-        width: double.infinity,
-        padding: const EdgeInsets.symmetric(vertical: 15),
-        decoration: BoxDecoration(
-          color: AppColors.amberGlow,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.amber.withOpacity(0.3)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            const SizedBox(
-              width: 18,
-              height: 18,
-              child: CircularProgressIndicator(
-                strokeWidth: 2,
-                color: AppColors.amber,
-              ),
+    if (isPairing || isReady) {
+      return Semantics(
+        button: true,
+        label: 'cancel'.tr(),
+        child: GestureDetector(
+          onTap: isPairing ? null : onLeave,
+          child: Container(
+            width: double.infinity,
+            padding: const EdgeInsets.symmetric(vertical: 13, horizontal: 16),
+            decoration: BoxDecoration(
+              color: accent.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: accent.withValues(alpha: 0.4)),
             ),
-            const SizedBox(width: 10),
-            Text(
-              'Pairing…',
-              style: GoogleFonts.inter(
-                fontSize: 14,
-                fontWeight: FontWeight.w600,
-                color: AppColors.amber,
-              ),
+            child: Row(
+              children: [
+                SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2, color: accent),
+                ),
+                const SizedBox(width: 12),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        isPairing ? 'arena_pairing'.tr() : 'searching_opponent'.tr(),
+                        style: GoogleFonts.inter(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w600,
+                          color: accent,
+                        ),
+                      ),
+                      if (!isPairing)
+                        Text(
+                          'arena_cancel_search'.tr(),
+                          style: GoogleFonts.inter(
+                              fontSize: 11.5, color: AppColors.inkMute),
+                        ),
+                    ],
+                  ),
+                ),
+                Text(
+                  '0:${queueSeconds.toString().padLeft(2, '0')}',
+                  style: GoogleFonts.jetBrainsMono(
+                      fontSize: 13, color: AppColors.inkDim),
+                ),
+              ],
             ),
-          ],
-        ),
-      );
-    }
-
-    if (isReady) {
-      return GestureDetector(
-        onTap: onLeave,
-        child: Container(
-          width: double.infinity,
-          padding: const EdgeInsets.symmetric(vertical: 15),
-          decoration: BoxDecoration(
-            color: AppColors.amberGlow,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.amber.withOpacity(0.4)),
-          ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              const SizedBox(
-                width: 18,
-                height: 18,
-                child: CircularProgressIndicator(
-                  strokeWidth: 2,
-                  color: AppColors.amber,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Text(
-                'searching_opponent'.tr(),
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.amber,
-                ),
-              ),
-            ],
           ),
         ),
       );
     }
 
-    // Default: queue me in button
-    return _AmberCTAButton(
-      label: "I'M READY — queue me in",
-      icon: PhosphorIcons.checkCircle(PhosphorIconsStyle.bold),
-      trailingIcon: PhosphorIcons.arrowRight(PhosphorIconsStyle.bold),
+    return _CTAButton(
+      label: 'arena_ready_cta'.tr(),
+      icon: PhosphorIcons.play(PhosphorIconsStyle.fill),
+      color: accent,
       loading: false,
       onTap: onEnter,
     );
@@ -1123,11 +1218,15 @@ class _ParticipantRow extends StatelessWidget {
   final ArenaParticipant participant;
   final int rank;
   final bool isMe;
+  final Color accent;
+  final bool pointBased;
 
   const _ParticipantRow({
     required this.participant,
     required this.rank,
     required this.isMe,
+    required this.accent,
+    required this.pointBased,
   });
 
   @override
@@ -1138,50 +1237,32 @@ class _ParticipantRow extends StatelessWidget {
             ? AppColors.ink
             : AppColors.inkMute;
 
-    final pts = participant.score;
-    final ptsStr = pts == pts.truncateToDouble()
-        ? pts.toInt().toString()
-        : pts.toStringAsFixed(1);
-
     return Container(
       margin: const EdgeInsets.only(bottom: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
       decoration: BoxDecoration(
-        color: isMe ? AppColors.amberGlow : AppColors.card,
+        color: isMe ? accent.withValues(alpha: 0.12) : AppColors.card,
         borderRadius: BorderRadius.circular(12),
-        border: isMe
-            ? Border.all(color: AppColors.amber.withOpacity(0.4))
-            : Border.all(color: AppColors.border),
+        border: Border.all(
+            color: isMe ? accent.withValues(alpha: 0.4) : AppColors.border),
       ),
       child: Row(
         children: [
-          // Rank
           SizedBox(
-            width: 28,
+            width: 26,
             child: Text(
               '$rank',
-              style: GoogleFonts.fraunces(
-                fontSize: 15,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 14,
                 fontWeight: FontWeight.w700,
-                fontStyle: rank == 1 ? FontStyle.italic : FontStyle.normal,
                 color: rankColor,
               ),
               textAlign: TextAlign.center,
             ),
           ),
+          const SizedBox(width: 8),
+          UserAvatar(username: participant.username, size: 34),
           const SizedBox(width: 10),
-
-          // Avatar
-          ClipRRect(
-            borderRadius: BorderRadius.circular(10),
-            child: UserAvatar(
-              username: participant.username,
-              size: 34,
-            ),
-          ),
-          const SizedBox(width: 10),
-
-          // Username + ELO
           Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -1192,9 +1273,9 @@ class _ParticipantRow extends StatelessWidget {
                       child: Text(
                         participant.username,
                         style: GoogleFonts.inter(
-                          fontSize: 13,
+                          fontSize: 13.5,
                           fontWeight: FontWeight.w600,
-                          color: isMe ? AppColors.amber : AppColors.ink,
+                          color: isMe ? accent : AppColors.ink,
                         ),
                         overflow: TextOverflow.ellipsis,
                       ),
@@ -1202,79 +1283,60 @@ class _ParticipantRow extends StatelessWidget {
                     if (isMe) ...[
                       const SizedBox(width: 5),
                       Text(
-                        '· you',
+                        '· ${'arena_you'.tr()}',
                         style: GoogleFonts.inter(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
-                          color: AppColors.amber,
+                          color: accent,
                         ),
                       ),
                     ],
                   ],
                 ),
                 Text(
-                  '${participant.rating} ELO',
+                  pointBased
+                      ? '${participant.rating} ${'points_short'.tr()}'
+                      : '${participant.rating} ELO',
                   style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
+                    fontSize: 10.5,
                     color: AppColors.inkMute,
                   ),
                 ),
               ],
             ),
           ),
-
-          // W · D · L
-          Row(
-            children: [
-              _WDLItem(count: participant.wins, color: AppColors.win),
-              const SizedBox(width: 4),
-              Text('·',
-                  style: GoogleFonts.inter(
-                      fontSize: 10, color: AppColors.inkMute)),
-              const SizedBox(width: 4),
-              _WDLItem(
-                  count: participant.draws,
-                  color: AppColors.inkMute),
-              const SizedBox(width: 4),
-              Text('·',
-                  style: GoogleFonts.inter(
-                      fontSize: 10, color: AppColors.inkMute)),
-              const SizedBox(width: 4),
-              _WDLItem(count: participant.losses, color: AppColors.loss),
-            ],
+          Text.rich(
+            TextSpan(children: [
+              TextSpan(
+                  text: '${participant.wins}',
+                  style: const TextStyle(color: AppColors.win)),
+              const TextSpan(text: ' · '),
+              TextSpan(text: '${participant.draws}'),
+              const TextSpan(text: ' · '),
+              TextSpan(
+                  text: '${participant.losses}',
+                  style: const TextStyle(color: AppColors.loss)),
+            ]),
+            style: GoogleFonts.jetBrainsMono(
+              fontSize: 11.5,
+              fontWeight: FontWeight.w600,
+              color: AppColors.inkMute,
+            ),
           ),
-
-          const SizedBox(width: 12),
-
-          // Points
-          Text(
-            ptsStr,
-            style: GoogleFonts.fraunces(
-              fontSize: 18,
-              fontWeight: FontWeight.w700,
-              fontStyle: FontStyle.italic,
-              color: isMe ? AppColors.amber : AppColors.ink,
+          const SizedBox(width: 14),
+          SizedBox(
+            width: 30,
+            child: Text(
+              _fmtPts(participant.score),
+              textAlign: TextAlign.right,
+              style: GoogleFonts.jetBrainsMono(
+                fontSize: 16,
+                fontWeight: FontWeight.w700,
+                color: isMe ? accent : AppColors.ink,
+              ),
             ),
           ),
         ],
-      ),
-    );
-  }
-}
-
-class _WDLItem extends StatelessWidget {
-  final int count;
-  final Color color;
-  const _WDLItem({required this.count, required this.color});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      '$count',
-      style: GoogleFonts.jetBrainsMono(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: color,
       ),
     );
   }
