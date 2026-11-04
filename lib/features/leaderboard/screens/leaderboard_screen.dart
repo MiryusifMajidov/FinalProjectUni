@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
@@ -25,66 +26,38 @@ const _kInkDim       = AppColors.inkDim;
 const _kInkMute      = AppColors.inkMute;
 const _kBorder       = AppColors.border;
 
-// ── Chess Providers ────────────────────────────────────────────────────────────
+// ── Providers ──────────────────────────────────────────────────────────────────
 
-final _bulletLeaderboardProvider = StreamProvider<List<UserModel>>((ref) {
-  return FirebaseFirestore.instance
+/// Top 100 players by one rating field: a one-off read, kept for five minutes
+/// after the screen closes.
+///
+/// These used to be live listeners on 100–200 user documents that stayed open
+/// for the rest of the session: every heartbeat or move of any listed player
+/// re-sent the list (a billed read each time) and rebuilt the screen.
+///
+/// Checkers and domino used to read 200 arbitrary users (in document-id
+/// order) and sort those, so once there were more than 200 accounts the real
+/// leaders could be missing. They are ordered by rating in the query now;
+/// accounts that never had those stats are patched on launch (see
+/// HomeScreen._ensureGameFields), and have not played those games anyway.
+final _leaderboardProvider = FutureProvider.autoDispose
+    .family<List<UserModel>, String>((ref, ratingField) async {
+  final link = ref.keepAlive();
+  final timer = Timer(const Duration(minutes: 5), link.close);
+  ref.onDispose(timer.cancel);
+  final snap = await FirebaseFirestore.instance
       .collection('users')
-      .orderBy('bulletStats.rating', descending: true)
+      .orderBy(ratingField, descending: true)
       .limit(100)
-      .snapshots()
-      .map((s) => s.docs.map((d) => UserModel.fromMap(d.data())).toList());
+      .get();
+  return snap.docs.map((d) => UserModel.fromMap(d.data())).toList();
 });
 
-final _blitzLeaderboardProvider = StreamProvider<List<UserModel>>((ref) {
-  return FirebaseFirestore.instance
-      .collection('users')
-      .orderBy('blitzStats.rating', descending: true)
-      .limit(100)
-      .snapshots()
-      .map((s) => s.docs.map((d) => UserModel.fromMap(d.data())).toList());
-});
-
-final _rapidLeaderboardProvider = StreamProvider<List<UserModel>>((ref) {
-  return FirebaseFirestore.instance
-      .collection('users')
-      .orderBy('rapidStats.rating', descending: true)
-      .limit(100)
-      .snapshots()
-      .map((s) => s.docs.map((d) => UserModel.fromMap(d.data())).toList());
-});
-
-// ── Checkers Provider ─────────────────────────────────────────────────────────
-// Fetch all users and sort client-side. Firestore orderBy on nested fields
-// requires the field to exist in every document — legacy accounts registered
-// before checkers/domino were added don't have it. Client-side sort is safe
-// because UserModel.fromMap defaults missing stats to RatingStats(rating: 1200).
-
-final _checkersLeaderboardProvider = StreamProvider<List<UserModel>>((ref) {
-  return FirebaseFirestore.instance
-      .collection('users')
-      .limit(200)
-      .snapshots()
-      .map((s) {
-        final users = s.docs.map((d) => UserModel.fromMap(d.data())).toList();
-        users.sort((a, b) => b.checkersStats.rating.compareTo(a.checkersStats.rating));
-        return users.take(100).toList();
-      });
-});
-
-// ── Domino Provider ───────────────────────────────────────────────────────────
-
-final _dominoLeaderboardProvider = StreamProvider<List<UserModel>>((ref) {
-  return FirebaseFirestore.instance
-      .collection('users')
-      .limit(200)
-      .snapshots()
-      .map((s) {
-        final users = s.docs.map((d) => UserModel.fromMap(d.data())).toList();
-        users.sort((a, b) => b.dominoStats.rating.compareTo(a.dominoStats.rating));
-        return users.take(100).toList();
-      });
-});
+final _bulletLeaderboardProvider = _leaderboardProvider('bulletStats.rating');
+final _blitzLeaderboardProvider = _leaderboardProvider('blitzStats.rating');
+final _rapidLeaderboardProvider = _leaderboardProvider('rapidStats.rating');
+final _checkersLeaderboardProvider = _leaderboardProvider('checkersStats.rating');
+final _dominoLeaderboardProvider = _leaderboardProvider('dominoStats.rating');
 
 // ── Screen ─────────────────────────────────────────────────────────────────────
 

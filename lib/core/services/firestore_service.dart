@@ -1,6 +1,5 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import 'package:flutter/foundation.dart';
 import '../models/user_model.dart';
 import '../models/game_model.dart';
 
@@ -275,15 +274,6 @@ class FirestoreService {
   }
 
   // ── Player Map ──────────────────────────────────────────────────────────────
-
-  /// Returns all users who have opted in to appear on the map.
-  Future<List<UserModel>> getMapUsers() async {
-    final snap =
-        await _users.where('showOnMap', isEqualTo: true).get();
-    return snap.docs
-        .map((d) => UserModel.fromMap(d.data()))
-        .toList();
-  }
 
   /// Live stream of users opted in to the map — capped at 300 to avoid OOM.
   Stream<List<UserModel>> watchMapUsers() {

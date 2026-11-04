@@ -13,6 +13,7 @@ import '../../../core/services/group_service.dart';
 import '../../../core/models/chat_message_model.dart';
 import '../../../core/models/group_model.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../../core/widgets/keyed_stream_builder.dart';
 
 // ── Design tokens (local) ──────────────────────────────────────────────────────
 const _kBg            = AppColors.background;
@@ -359,10 +360,9 @@ class _ChatTile extends ConsumerWidget {
     final unread = chat.unreadCount[myUid] ?? 0;
     final hasUnread = unread > 0;
 
-    return FutureBuilder(
-      future: ref.read(firestoreServiceProvider).getUser(otherUid),
-      builder: (context, snap) {
-        final user = snap.data;
+    final user = ref.watch(userOnceProvider(otherUid)).valueOrNull;
+    return Builder(
+      builder: (context) {
         final username = user?.username ?? otherUid;
         final isOnline = user?.lastSeen != null &&
             DateTime.now().difference(user!.lastSeen!).inMinutes < 5;
@@ -584,8 +584,9 @@ class _GroupsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return StreamBuilder<List<GroupModel>>(
-      stream: ref.read(groupServiceProvider).watchMyGroups(myUid),
+    return KeyedStreamBuilder<List<GroupModel>>(
+      cacheKey: myUid,
+      create: () => ref.read(groupServiceProvider).watchMyGroups(myUid),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(child: CircularProgressIndicator(color: _kAmber));

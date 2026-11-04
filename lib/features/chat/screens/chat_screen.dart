@@ -8,8 +8,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/theme/app_text_styles.dart';
-import '../../../core/theme/app_theme_extension.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/chat_service.dart';
 import '../../../core/services/friends_service.dart';

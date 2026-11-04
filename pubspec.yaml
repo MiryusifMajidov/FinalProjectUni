@@ -123,7 +123,10 @@ flutter:
     # Inter, bundled so first launch and offline use never fall back to a
     # system font. google_fonts picks these up by file name.
     - assets/google_fonts/
-    - assets/images/
+    # Only the icon the app shows itself. The adaptive-icon foreground, store
+    # icon and Play feature graphic stay in the repo for flutter_launcher_icons
+    # and the store listing, but no longer ship inside the app (~690 KB).
+    - assets/images/app_icon.png
     - assets/sounds/
     - assets/translations/
     - assets/pieces/cburnett/

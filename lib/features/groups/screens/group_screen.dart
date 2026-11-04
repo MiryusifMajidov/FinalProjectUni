@@ -11,11 +11,11 @@ import '../../../core/theme/app_theme_extension.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
-import '../../../core/services/firestore_service.dart';
 import '../../../core/services/group_service.dart';
 import '../../../core/services/photo_service.dart';
 import '../../../core/models/group_model.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../../core/widgets/keyed_stream_builder.dart';
 
 /// Live user stream for message bubble avatars — auto-disposes per sender.
 final _senderPhotoProvider =
@@ -192,8 +192,9 @@ class _GroupScreenState extends ConsumerState<GroupScreen>
   Widget build(BuildContext context) {
     final myUid = ref.watch(currentUserProvider).valueOrNull?.uid ?? '';
 
-    return StreamBuilder<GroupModel?>(
-      stream: ref.read(groupServiceProvider).watchGroup(widget.groupId),
+    return KeyedStreamBuilder<GroupModel?>(
+      cacheKey: widget.groupId,
+      create: () => ref.read(groupServiceProvider).watchGroup(widget.groupId),
       builder: (context, groupSnap) {
         final group = groupSnap.data;
         final isAdmin = group?.isAdmin(myUid) ?? false;
@@ -1092,10 +1093,9 @@ class _MemberTile extends ConsumerWidget {
     final isMemberAdmin = group.isAdmin(uid);
     final isSelf = uid == myUid;
 
-    return FutureBuilder(
-      future: ref.read(firestoreServiceProvider).getUser(uid),
-      builder: (context, snap) {
-        final user = snap.data;
+    final user = ref.watch(userOnceProvider(uid)).valueOrNull;
+    return Builder(
+      builder: (context) {
         final username = user?.username ?? 'CheckMate User';
 
         return ListTile(

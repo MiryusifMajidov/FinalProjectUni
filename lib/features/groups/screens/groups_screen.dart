@@ -9,6 +9,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/group_service.dart';
 import '../../../core/models/group_model.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../../core/widgets/keyed_stream_builder.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg       = AppColors.background;
@@ -155,8 +156,9 @@ class _MyGroupsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return StreamBuilder<List<GroupModel>>(
-      stream: ref.read(groupServiceProvider).watchMyGroups(myUid),
+    return KeyedStreamBuilder<List<GroupModel>>(
+      cacheKey: myUid,
+      create: () => ref.read(groupServiceProvider).watchMyGroups(myUid),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -216,8 +218,9 @@ class _DiscoverTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return StreamBuilder<List<GroupModel>>(
-      stream: ref.read(groupServiceProvider).watchPublicGroups(),
+    return KeyedStreamBuilder<List<GroupModel>>(
+      cacheKey: 'public',
+      create: () => ref.read(groupServiceProvider).watchPublicGroups(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(

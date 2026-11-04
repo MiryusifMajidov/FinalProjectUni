@@ -8,7 +8,6 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/cache_service.dart';
-import '../../../core/services/firestore_service.dart';
 import '../../../core/services/notification_service.dart';
 import 'settings_screen.dart';
 

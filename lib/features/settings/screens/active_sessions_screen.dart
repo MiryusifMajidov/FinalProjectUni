@@ -6,9 +6,9 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/services/auth_service.dart';
-import '../../../core/services/firestore_service.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/keyed_stream_builder.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kSurface   = AppColors.surface;
@@ -75,8 +75,9 @@ class ActiveSessionsScreen extends ConsumerWidget {
             ),
 
             Expanded(
-              child: StreamBuilder<List<Map<String, dynamic>>>(
-                stream: ref.read(firestoreServiceProvider).watchSessions(uid),
+              child: KeyedStreamBuilder<List<Map<String, dynamic>>>(
+                cacheKey: uid,
+                create: () => ref.read(firestoreServiceProvider).watchSessions(uid),
                 builder: (context, snap) {
                   if (snap.connectionState == ConnectionState.waiting) {
                     return const Center(

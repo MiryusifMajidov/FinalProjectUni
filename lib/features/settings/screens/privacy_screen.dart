@@ -7,7 +7,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/cache_service.dart';
-import '../../../core/services/firestore_service.dart';
 import 'settings_screen.dart';
 import '../../../core/legal/legal_texts.dart';
 

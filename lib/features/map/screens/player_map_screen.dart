@@ -13,7 +13,6 @@ import 'package:latlong2/latlong.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
-import '../../settings/screens/settings_screen.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/game_icon.dart';
@@ -1538,6 +1537,8 @@ class _PinCard extends StatelessWidget {
                         child: CachedNetworkImage(
                           imageUrl: user.photoUrl!,
                           width: 48, height: 48, fit: BoxFit.cover,
+                          memCacheWidth:
+                              (48 * MediaQuery.devicePixelRatioOf(context)).round(),
                           errorWidget: (_, __, ___) => Text(initial,
                             style: GoogleFonts.inter(
                               fontSize: 22, fontWeight: FontWeight.w700,

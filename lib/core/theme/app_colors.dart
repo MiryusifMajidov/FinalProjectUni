@@ -85,9 +85,6 @@ class AppColors {
   // Cream parchment
   static const boardCream1   = Color(0xFFF5F0E8);
   static const boardCream2   = Color(0xFFD4C5A9);
-  // Calm / rosewood (used by InGame calm mode)
-  static const boardRosewood1 = Color(0xFFE8D8B6); // parchment light sq
-  static const boardRosewood2 = Color(0xFF8E5E33); // rosewood dark sq
 
   // ─── Board highlights ─────────────────────────────────────────────────────
   static const moveHighlight  = Color(0x4AE8B960); // amber tinted

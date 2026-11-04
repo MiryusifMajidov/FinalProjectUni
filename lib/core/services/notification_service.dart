@@ -35,11 +35,10 @@ class NotificationService {
 
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
-    await _messaging.requestPermission(
-      alert: true,
-      badge: true,
-      sound: true,
-    );
+    // The permission prompt is NOT shown here: initialize() runs before
+    // runApp(), and awaiting the system dialog there kept a first-time user
+    // on an empty screen until they answered it. [requestPermission] asks
+    // once the player has reached the home screen.
 
     // While the app is open, suppress the OS-level FCM notification banner.
     // In-app overlays (InviteListener etc.) handle foreground display instead.
@@ -97,6 +96,20 @@ class NotificationService {
             debugPrint('[FCM] getToken failed (non-fatal): $e'),
       ),
     );
+  }
+
+  bool _permissionRequested = false;
+
+  /// Asks for permission to show notifications (Android 13+, iOS), once per
+  /// app run. Called when the player reaches the home screen.
+  Future<void> requestPermission() async {
+    if (kIsWeb || _permissionRequested) return;
+    _permissionRequested = true;
+    try {
+      await _messaging.requestPermission(alert: true, badge: true, sound: true);
+    } catch (e) {
+      debugPrint('[FCM] permission request failed (non-fatal): $e');
+    }
   }
 
   Future<void> _onForegroundMessage(RemoteMessage message) async {

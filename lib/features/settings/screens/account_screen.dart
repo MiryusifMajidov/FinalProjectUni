@@ -8,7 +8,6 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
-import '../../../core/services/firestore_service.dart';
 import '../../../core/services/photo_service.dart';
 import '../../../core/constants/countries.dart';
 import '../../../core/widgets/guest_notice.dart';
@@ -134,6 +133,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                                           ? CachedNetworkImage(
                                               imageUrl: user!.photoUrl!,
                                               fit: BoxFit.cover,
+                                              memCacheWidth: (96 *
+                                                      MediaQuery.devicePixelRatioOf(
+                                                          context))
+                                                  .round(),
                                               errorWidget: (_, __, ___) =>
                                                   _initials(user),
                                             )

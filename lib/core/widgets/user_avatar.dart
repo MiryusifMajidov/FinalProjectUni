@@ -38,6 +38,9 @@ class UserAvatar extends StatelessWidget {
           width: size,
           height: size,
           fit: BoxFit.cover,
+          // Decode at the size shown, not the uploaded photo's: a list of
+          // 40 pt avatars no longer holds full-size photos in memory.
+          memCacheWidth: (size * MediaQuery.devicePixelRatioOf(context)).round(),
           placeholder: (_, __) => _Fallback(
               size: size, username: username, radius: radius),
           errorWidget: (_, __, ___) => _Fallback(

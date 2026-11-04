@@ -47,8 +47,6 @@ import '../../features/matchmaking/screens/invite_friend_config_screen.dart';
 import '../../features/matchmaking/screens/matchmaking_search_screen.dart';
 import '../../features/map/screens/map_challenge_sent_screen.dart';
 import '../../features/map/screens/map_search_screen.dart';
-import '../../features/game/screens/in_game_calm_screen.dart';
-import '../../features/game/screens/in_game_calm_replay_screen.dart';
 import '../../features/checkers/screens/checkers_bot_setup_screen.dart';
 import '../../features/checkers/screens/checkers_game_screen.dart';
 import '../../features/domino/screens/domino_bot_setup_screen.dart';
@@ -449,16 +447,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               ),
             ),
           ),
-          GoRoute(
-            path: 'game-calm-replay/:gameId',
-            pageBuilder: (_, state) => _slideTransition(
-              state.pageKey,
-              InGameCalmReplayScreen(
-                gameId: state.pathParameters['gameId']!,
-                viewerUid: state.extra as String? ?? '',
-              ),
-            ),
-          ),
           // ── Checkers routes ─────────────────────────────────────────
           GoRoute(
             path: 'checkers-bot-setup',
@@ -535,16 +523,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           );
         },
-      ),
-      GoRoute(
-        path: '/game-calm/:gameId',
-        pageBuilder: (_, state) => _slideTransition(
-          state.pageKey,
-          InGameCalmScreen(
-            gameId: state.pathParameters['gameId']!,
-            extra: state.extra as Map<String, dynamic>?,
-          ),
-        ),
       ),
     ],
     errorBuilder: (_, state) => Scaffold(

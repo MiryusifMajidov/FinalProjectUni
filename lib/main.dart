@@ -81,7 +81,9 @@ void main() async {
   // here means no UI is ever built and the app looks hung on a white screen.
   // Push is a degradable feature — losing it must not cost us the launch.
   try {
-    await NotificationService().initialize();
+    await NotificationService()
+        .initialize()
+        .timeout(const Duration(seconds: 3));
   } catch (e) {
     debugPrint('Push init failed (non-fatal): $e');
   }

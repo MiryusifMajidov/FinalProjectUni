@@ -59,8 +59,12 @@ class _InviteListenerState extends ConsumerState<InviteListener> {
     _sub = rtdb.watchInvites(uid).listen(_onInviteEvent);
     debugPrint('[InviteListener] subscribed for $uid');
 
-    // Save / refresh FCM token so senders can reach this device when offline
-    _saveFcmToken(uid);
+    // Ask for notification permission now that the player is in the app
+    // (not before the first frame), then save / refresh the FCM token so
+    // senders can reach this device when offline.
+    NotificationService().requestPermission().whenComplete(() {
+      if (mounted) _saveFcmToken(uid);
+    });
 
     // Register a callback so NotificationService can persist the token
     // immediately whenever FCM rotates it (L-1 fix: was never hooked up before).

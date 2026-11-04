@@ -6,11 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/auth_service.dart';
-import '../../../core/services/firestore_service.dart';
 import '../../../core/services/friends_service.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/models/friend_request_model.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../../core/widgets/keyed_stream_builder.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg      = AppColors.background;
@@ -172,8 +172,9 @@ class _RequestsTabLabel extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return StreamBuilder<List<FriendRequestModel>>(
-      stream: ref.read(friendsServiceProvider).watchIncomingRequests(myUid),
+    return KeyedStreamBuilder<List<FriendRequestModel>>(
+      cacheKey: myUid,
+      create: () => ref.read(friendsServiceProvider).watchIncomingRequests(myUid),
       builder: (context, snap) {
         final count = snap.data?.length ?? 0;
         return Row(
@@ -213,8 +214,9 @@ class _FriendsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return StreamBuilder<List<FriendModel>>(
-      stream: ref.read(friendsServiceProvider).watchFriends(myUid),
+    return KeyedStreamBuilder<List<FriendModel>>(
+      cacheKey: myUid,
+      create: () => ref.read(friendsServiceProvider).watchFriends(myUid),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(
@@ -446,8 +448,9 @@ class _RequestsTab extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    return StreamBuilder<List<FriendRequestModel>>(
-      stream: ref.read(friendsServiceProvider).watchIncomingRequests(myUid),
+    return KeyedStreamBuilder<List<FriendRequestModel>>(
+      cacheKey: myUid,
+      create: () => ref.read(friendsServiceProvider).watchIncomingRequests(myUid),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
           return const Center(

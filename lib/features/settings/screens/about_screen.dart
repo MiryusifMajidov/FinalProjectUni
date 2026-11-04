@@ -9,7 +9,6 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../../core/services/auth_service.dart';
-import '../../../core/services/firestore_service.dart';
 import '../../../core/services/otp_service.dart';
 import '../../../core/legal/legal_texts.dart';
 

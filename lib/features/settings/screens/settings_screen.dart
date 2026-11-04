@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
@@ -18,9 +17,6 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/cache_service.dart';
 import '../../../core/widgets/guest_notice.dart';
 import 'package:package_info_plus/package_info_plus.dart';
-import '../../../core/services/photo_service.dart';
-import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/user_avatar.dart';
 import '../../game/engine/chess_engine.dart';
 import '../../game/widgets/chess_board_widget.dart';
 

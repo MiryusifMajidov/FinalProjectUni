@@ -619,43 +619,52 @@ class GameNotifier extends StateNotifier<GameState> {
   // Track the last second boundary for low-time ticking
   int _lastTickSecond = -1;
 
+  /// Measures real time between ticks. Subtracting a fixed 100 ms per tick
+  /// made the clock run slow whenever the phone was busy and a tick fired
+  /// late, so the two players' clocks drifted apart.
+  final Stopwatch _clockWatch = Stopwatch();
+  int _lastClockReadMs = 0;
+
   void _startClock() {
     _clockTimer?.cancel();
     _lastTickSecond = -1;
     // Sync internal trackers with current state.
     _internalWhiteMs = state.whiteMsLeft;
     _internalBlackMs = state.blackMsLeft;
+    _clockWatch
+      ..reset()
+      ..start();
+    _lastClockReadMs = 0;
 
     _clockTimer = Timer.periodic(const Duration(milliseconds: 100), (_) {
       if (state.status != GameStatus.playing) {
         _clockTimer?.cancel();
         return;
       }
+      final now = _clockWatch.elapsedMilliseconds;
+      final elapsed = now - _lastClockReadMs;
+      _lastClockReadMs = now;
+      // Only push state when the displayed second changes: the clocks show
+      // m:ss, so more often only rebuilt the whole game page for nothing.
       if (state.engine.isWhiteTurn) {
-        final newMs = _internalWhiteMs - 100;
+        final newMs = _internalWhiteMs - elapsed;
         if (newMs <= 0) {
           _endGame(GameResult.black, GameStatus.timeout);
           return;
         }
         _internalWhiteMs = newMs;
-        // Only push state when the displayed second changes (1 rebuild/sec)
-        // or under 10 s remaining (10 rebuilds/sec for smooth countdown).
-        final oldSec = state.whiteMsLeft ~/ 1000;
-        final newSec = newMs ~/ 1000;
-        if (oldSec != newSec || newMs <= 10000) {
+        if (state.whiteMsLeft ~/ 1000 != newMs ~/ 1000) {
           state = state.copyWith(whiteMsLeft: newMs);
         }
         _maybePlayLowTimeTick(isMyTurn: playerIsWhite, msLeft: newMs);
       } else {
-        final newMs = _internalBlackMs - 100;
+        final newMs = _internalBlackMs - elapsed;
         if (newMs <= 0) {
           _endGame(GameResult.white, GameStatus.timeout);
           return;
         }
         _internalBlackMs = newMs;
-        final oldSec = state.blackMsLeft ~/ 1000;
-        final newSec = newMs ~/ 1000;
-        if (oldSec != newSec || newMs <= 10000) {
+        if (state.blackMsLeft ~/ 1000 != newMs ~/ 1000) {
           state = state.copyWith(blackMsLeft: newMs);
         }
         _maybePlayLowTimeTick(isMyTurn: !playerIsWhite, msLeft: newMs);

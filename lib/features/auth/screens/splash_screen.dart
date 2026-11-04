@@ -67,6 +67,8 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
                   'assets/images/app_icon.png',
                   width: 88,
                   height: 88,
+                  cacheWidth:
+                      (88 * MediaQuery.devicePixelRatioOf(context)).round(),
                   fit: BoxFit.cover,
                 ),
               ),

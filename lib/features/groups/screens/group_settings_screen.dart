@@ -6,11 +6,11 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/auth_service.dart';
-import '../../../core/services/firestore_service.dart';
 import '../../../core/services/group_service.dart';
 import '../../../core/services/photo_service.dart';
 import '../../../core/models/group_model.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../../core/widgets/keyed_stream_builder.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg       = AppColors.background;
@@ -336,8 +336,9 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
   Widget build(BuildContext context) {
     final myUid = ref.watch(currentUserProvider).valueOrNull?.uid ?? '';
 
-    return StreamBuilder<GroupModel?>(
-      stream: ref.read(groupServiceProvider).watchGroup(widget.groupId),
+    return KeyedStreamBuilder<GroupModel?>(
+      cacheKey: widget.groupId,
+      create: () => ref.read(groupServiceProvider).watchGroup(widget.groupId),
       builder: (context, snap) {
         final group = snap.data;
         if (group != null) _initFromGroup(group);
@@ -873,10 +874,9 @@ class _MemberTile extends ConsumerWidget {
     final isMemberAdmin = group.isAdmin(uid);
     final isSelf = uid == myUid;
 
-    return FutureBuilder(
-      future: ref.read(firestoreServiceProvider).getUser(uid),
-      builder: (context, snap) {
-        final user = snap.data;
+    final user = ref.watch(userOnceProvider(uid)).valueOrNull;
+    return Builder(
+      builder: (context) {
         final username = user?.username ?? 'CheckMate User';
 
         return Padding(

@@ -1,3 +1,4 @@
+import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
 import 'dart:ui' show PlatformDispatcher;
@@ -882,6 +883,20 @@ class AuthService {
 
 // Providers
 final firestoreServiceProvider = Provider((_) => FirestoreService());
+
+/// One-off copy of a user's document, shared and kept for a few minutes.
+///
+/// For rows in long lists (chats, group members) that only need a name and a
+/// photo: they used to fetch the document again on every rebuild and every
+/// time a row scrolled back into view.
+final userOnceProvider =
+    FutureProvider.autoDispose.family<UserModel?, String>((ref, uid) {
+  if (uid.isEmpty) return Future.value(null);
+  final link = ref.keepAlive();
+  final timer = Timer(const Duration(minutes: 5), link.close);
+  ref.onDispose(timer.cancel);
+  return ref.read(firestoreServiceProvider).getUser(uid);
+});
 
 final authServiceProvider = Provider((ref) {
   return AuthService(ref.read(firestoreServiceProvider));
