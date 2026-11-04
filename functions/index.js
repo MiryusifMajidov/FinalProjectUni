@@ -4,6 +4,7 @@ const { onDocumentCreated }      = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError }     = require('firebase-functions/v2/https');
 const { defineSecret }           = require('firebase-functions/params');
 const { initializeApp }          = require('firebase-admin/app');
+const { getAuth }                = require('firebase-admin/auth');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { getMessaging }           = require('firebase-admin/messaging');
 const crypto                     = require('crypto');
@@ -12,6 +13,34 @@ const nodemailer                 = require('nodemailer');
 initializeApp();
 
 const db = getFirestore();
+
+// ─── Arenas: hourly bot arenas, quick start, server-side scoring ────────────
+// See arena.js. Exported one by one so the deploy only sees functions.
+const arena = require('./arena');
+exports.arenaTick         = arena.arenaTick;
+exports.onArenaCreated    = arena.onArenaCreated;
+exports.reportArenaResult = arena.reportArenaResult;
+
+// ─── Guest accounts: deletion fallback ──────────────────────────────────────
+//
+// A guest (anonymous) account has no credential to re-authenticate with, so
+// once its session is a few minutes old user.delete() fails with
+// requires-recent-login and the account could never be deleted (App Store
+// guideline 5.1.1(v)). The app deletes the user's data itself and calls this
+// to remove the Auth record. Anonymous callers only — real accounts keep the
+// re-authentication requirement.
+
+exports.deleteGuestAccount = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Login required');
+  const provider = request.auth.token?.firebase?.sign_in_provider;
+  if (provider !== 'anonymous') {
+    throw new HttpsError('permission-denied', 'Only guest accounts');
+  }
+  await getAuth().deleteUser(uid);
+  console.log(`[Guest] deleted anonymous account ${uid}`);
+  return { deleted: true };
+});
 
 // SMTP credentials stored in Firebase Secret Manager (not in source code).
 // Set via: firebase functions:secrets:set SMTP_EMAIL / SMTP_PASSWORD

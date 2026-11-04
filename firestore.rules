@@ -150,19 +150,56 @@ service cloud.firestore {
         && resource.data.creatorUid == request.auth.uid;
     }
 
+    // Fields only the server (Cloud Functions, Admin SDK) may set: the hourly
+    // arenas, their bot roster and the final result.
+    function serverArenaKeys() {
+      return ['isSystem', 'bots', 'botTarget', 'botsSeeded', 'startsAt',
+              'startedAt', 'finishedAt', 'winnerUid', 'winnerUsername',
+              'nameKey'];
+    }
+
     match /tournaments/{tournamentId} {
       allow read: if isAuth();
-      allow create: if isAuth();
-      allow update: if isAuth()
-        && resource.data.creatorUid == request.auth.uid;
+      allow create: if isAuth()
+        && request.resource.data.creatorUid == request.auth.uid
+        && request.resource.data.status == 'waiting'
+        && request.resource.data.get('participantCount', 0) == 0
+        && !request.resource.data.keys().hasAny(serverArenaKeys());
+      // The creator may edit their arena ("Start now"); anyone may move the
+      // participant counter by exactly one when they join or leave. The
+      // counter used to be creator-only, which made joinTournament's batch
+      // fail for everybody else — nobody could join someone else's arena.
+      allow update: if isAuth() && (
+        (resource.data.creatorUid == request.auth.uid
+          && !affectedKeys().hasAny(serverArenaKeys().concat(['creatorUid'])))
+        || (affectedKeys().hasOnly(['participantCount'])
+          && (request.resource.data.participantCount
+                == resource.data.participantCount + 1
+              || request.resource.data.participantCount
+                == resource.data.participantCount - 1))
+      );
       allow delete: if isAuth()
         && resource.data.creatorUid == request.auth.uid;
 
       match /participants/{participantId} {
         allow read: if isAuth();
-        allow create: if isAuth() && participantId == request.auth.uid;
+        // Join with a clean slate only. Scores are written exclusively by
+        // the reportArenaResult Cloud Function.
+        allow create: if isAuth() && participantId == request.auth.uid
+          && request.resource.data.get('score', 0) == 0
+          && request.resource.data.get('wins', 0) == 0
+          && request.resource.data.get('draws', 0) == 0
+          && request.resource.data.get('losses', 0) == 0
+          && request.resource.data.get('gamesPlayed', 0) == 0
+          && request.resource.data.get('isBot', false) == false;
         allow delete: if isAuth() && participantId == request.auth.uid;
         allow update: if false;
+      }
+
+      // One document per scored game (de-duplication). Server-written.
+      match /results/{gameId} {
+        allow read: if isAuth();
+        allow write: if false;
       }
     }
 
