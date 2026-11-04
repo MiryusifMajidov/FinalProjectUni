@@ -1,6 +1,7 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
-import 'package:intl/intl.dart';
+import '../../../core/utils/text_case.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme_extension.dart';
 import '../../../core/models/game_model.dart';
@@ -16,8 +17,8 @@ class RecentGameTile extends StatelessWidget {
   bool get _isWhite => game.whiteUid == uid;
 
   String get _opponent => _isWhite
-      ? (game.blackUsername ?? 'Opponent')
-      : (game.whiteUsername ?? 'Opponent');
+      ? (game.blackUsername ?? 'opponent'.tr())
+      : (game.whiteUsername ?? 'opponent'.tr());
 
   // result color trio: (foreground, background, left-bar)
   (Color, Color, Color) get _resultColors {
@@ -32,11 +33,11 @@ class RecentGameTile extends StatelessWidget {
   }
 
   String get _resultLabel {
-    if (game.result == GameResult.draw) return 'Draw';
+    if (game.result == GameResult.draw) return 'draw'.tr();
     final won = _isWhite
         ? game.result == GameResult.white
         : game.result == GameResult.black;
-    return won ? 'Won' : 'Lost';
+    return (won ? 'result_won' : 'result_lost').tr();
   }
 
   int? get _ratingChange =>
@@ -117,7 +118,7 @@ class RecentGameTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  _resultLabel.toUpperCase(),
+                  _resultLabel.toUpperCaseFor(context),
                   style: GoogleFonts.inter(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -148,19 +149,19 @@ class RecentGameTile extends StatelessWidget {
   }
 
   String _modeLabel() => switch (game.mode) {
-        GameMode.bot => 'vs Bot',
-        GameMode.campaign => 'Campaign',
-        GameMode.online => 'Rated',
-        GameMode.local => 'Local',
+        GameMode.bot => 'vs_bot'.tr(),
+        GameMode.campaign => 'campaign'.tr(),
+        GameMode.online => game.isRated ? 'rated_game'.tr() : 'online'.tr(),
+        GameMode.local => 'local_game'.tr(),
       };
 
   String _formatDate(DateTime dt) {
     final now = DateTime.now();
     final diff = now.difference(dt);
-    if (diff.inDays == 0) return 'Today';
-    if (diff.inDays == 1) return 'Yesterday';
-    if (diff.inDays < 7) return '${diff.inDays}d ago';
-    return DateFormat('MMM d').format(dt);
+    if (diff.inDays == 0) return 'today'.tr();
+    if (diff.inDays == 1) return 'yesterday'.tr();
+    if (diff.inDays < 7) return 'days_ago_n'.tr(args: ['${diff.inDays}']);
+    return DateFormat.MMMd().format(dt);
   }
 }
 

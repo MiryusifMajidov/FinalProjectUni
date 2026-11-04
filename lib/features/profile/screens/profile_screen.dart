@@ -3,11 +3,11 @@ import 'dart:math' as math;
 import 'dart:ui' as ui;
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:flutter/foundation.dart' show listEquals;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
@@ -31,18 +31,36 @@ import '../../../core/widgets/game_switch.dart';
 
 
 import '../../../core/widgets/game_icon.dart';
-// StreamProvider — Firestore real-time stream, auto-updates when photoUrl changes
+import '../../../core/widgets/route_settled.dart';
+import '../../../core/utils/text_case.dart';
+/// Live user document of another player (your own comes from
+/// [currentUserProvider], which is already loaded). Released when nobody
+/// shows that player any more, so visited profiles and friend chips do not
+/// keep Firestore listeners open for the rest of the session.
 final _profileProvider =
-    StreamProvider.family<UserModel?, String>((ref, uid) {
+    StreamProvider.autoDispose.family<UserModel?, String>((ref, uid) {
   return ref.read(firestoreServiceProvider).watchUser(uid);
 });
 
-final _profileGamesProvider =
-    FutureProvider.family<List<GameModel>, String>((ref, uid) async {
-  // Fetch up to 100 games so the per-game rating charts keep a meaningful
-  // history even when the list mixes chess + checkers + domino records.
-  return ref.read(firestoreServiceProvider).getRecentGames(uid, limit: 100);
+/// Up to 100 recent games of a player, for the rating chart and game list.
+///
+/// Keyed on the newest entry of the player's `recentGameIds`, which every
+/// finished game appends to: opening the profile again reuses the result
+/// (no Firestore reads), and a newly finished game fetches it again. Kept
+/// for a while after the profile closes so going back and forth is free.
+final _profileGamesProvider = FutureProvider.autoDispose
+    .family<List<GameModel>, ({String uid, String? newest})>((ref, key) {
+  final link = ref.keepAlive();
+  final timer = Timer(const Duration(minutes: 10), link.close);
+  ref.onDispose(timer.cancel);
+  return ref
+      .read(firestoreServiceProvider)
+      .getRecentGames(key.uid, limit: 100);
 });
+
+/// Most game rows the two-column tablet layout shows (the phone list is lazy
+/// and shows them all); the chart always uses every fetched game.
+const _kTabletRecentGames = 30;
 
 final _friendsStreamProvider =
     StreamProvider.autoDispose.family<List<FriendModel>, String>((ref, uid) {
@@ -120,20 +138,24 @@ class ProfileScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final userAsync = ref.watch(_profileProvider(uid));
     final currentUid = ref.watch(authStateProvider).valueOrNull?.uid;
     final isOwnProfile = currentUid == uid;
+    // Your own document is already streaming for the home screen, so the
+    // profile opens with data instead of a shimmer.
+    final userAsync = isOwnProfile
+        ? ref.watch(currentUserProvider)
+        : ref.watch(_profileProvider(uid));
 
     return Scaffold(
       backgroundColor: AppColors.background,
       body: userAsync.when(
         loading: () => const _ProfileShimmer(),
         error: (e, _) => Center(
-          child: Text('Error: $e', style: AppTextStyles.bodyMedium),
+          child: Text('profile_load_failed'.tr(), style: AppTextStyles.bodyMedium),
         ),
         data: (user) {
           if (user == null) {
-            return const Center(child: Text('User not found'));
+            return Center(child: Text('user_not_found'.tr()));
           }
           if (!isOwnProfile) {
             final myUser = ref.watch(currentUserProvider).valueOrNull;
@@ -176,10 +198,8 @@ class _ProfileContent extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final gamesAsync = ref.watch(_profileGamesProvider(user.uid));
-
     if (isOwnProfile) {
-      return _OwnProfileLayout(user: user, myUid: myUid, gamesAsync: gamesAsync);
+      return _OwnProfileLayout(user: user, myUid: myUid);
     }
 
     // Friends-only profile: check friendship before showing full content
@@ -188,16 +208,15 @@ class _ProfileContent extends ConsumerWidget {
           _isFriendProvider((myUid: myUid, otherUid: user.uid)));
       return isFriendAsync.when(
         loading: () => const _ProfileShimmer(),
-        error: (_, __) =>
-            _OtherProfileLayout(user: user, myUid: myUid, gamesAsync: gamesAsync),
+        error: (_, __) => _OtherProfileLayout(user: user, myUid: myUid),
         data: (isFriend) {
           if (!isFriend) return _PrivateProfileView(user: user);
-          return _OtherProfileLayout(user: user, myUid: myUid, gamesAsync: gamesAsync);
+          return _OtherProfileLayout(user: user, myUid: myUid);
         },
       );
     }
 
-    return _OtherProfileLayout(user: user, myUid: myUid, gamesAsync: gamesAsync);
+    return _OtherProfileLayout(user: user, myUid: myUid);
   }
 }
 
@@ -206,19 +225,18 @@ class _ProfileContent extends ConsumerWidget {
 class _OwnProfileLayout extends ConsumerStatefulWidget {
   final UserModel user;
   final String myUid;
-  final AsyncValue<List<GameModel>> gamesAsync;
 
   const _OwnProfileLayout({
     required this.user,
     required this.myUid,
-    required this.gamesAsync,
   });
 
   @override
   ConsumerState<_OwnProfileLayout> createState() => _OwnProfileLayoutState();
 }
 
-class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout> {
+class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout>
+    with RouteSettledMixin<_OwnProfileLayout> {
   bool _isPhotoLoading = false;
 
   Future<void> _showPhotoOptions() async {
@@ -245,7 +263,7 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout> {
             ListTile(
               leading: Icon(PhosphorIcons.camera(PhosphorIconsStyle.regular),
                   color: AppColors.ink),
-              title: Text('Take photo',
+              title: Text('take_photo'.tr(),
                   style: _inter(size: 14, weight: FontWeight.w500, color: AppColors.ink)),
               onTap: () async {
                 Navigator.pop(ctx);
@@ -255,7 +273,7 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout> {
             ListTile(
               leading: Icon(PhosphorIcons.image(PhosphorIconsStyle.regular),
                   color: AppColors.ink),
-              title: Text('Choose from gallery',
+              title: Text('choose_from_gallery'.tr(),
                   style: _inter(size: 14, weight: FontWeight.w500, color: AppColors.ink)),
               onTap: () async {
                 Navigator.pop(ctx);
@@ -266,7 +284,7 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout> {
               ListTile(
                 leading: Icon(PhosphorIcons.trash(PhosphorIconsStyle.regular),
                     color: AppColors.error),
-                title: Text('Remove photo',
+                title: Text('remove_photo'.tr(),
                     style:
                         _inter(size: 14, weight: FontWeight.w500, color: AppColors.error)),
                 onTap: () async {
@@ -309,8 +327,8 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout> {
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Failed to remove photo. Please try again.'),
+          SnackBar(
+            content: Text('photo_remove_failed'.tr()),
             backgroundColor: AppColors.error,
           ),
         );
@@ -324,10 +342,16 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout> {
   Widget build(BuildContext context) {
     final user = widget.user;
     final myUid = widget.myUid;
-    final gamesAsync = widget.gamesAsync;
     final isLargeTablet = context.isLargeTablet;
     final hp = context.hPadding;
     final activeGame = ref.watch(activeGameProvider);
+
+    // Games are fetched only once the page has finished sliding in; until
+    // then, and while they load, the chart and the list show a loading state.
+    final gamesAsync = routeSettled
+        ? ref.watch(_profileGamesProvider(
+            (uid: user.uid, newest: user.recentGameIds.lastOrNull)))
+        : const AsyncValue<List<GameModel>>.loading();
 
     final (totalWins, totalDraws, totalLosses) = switch (activeGame) {
       GameType.checkers => (user.checkersStats.wins, user.checkersStats.draws, user.checkersStats.losses),
@@ -377,7 +401,12 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout> {
                           ? ClipRRect(
                               borderRadius: BorderRadius.circular(24),
                               child: CachedNetworkImage(
-                                imageUrl: user.photoUrl!, width: 84, height: 84, fit: BoxFit.cover,
+                                imageUrl: user.photoUrl!,
+                                width: 84,
+                                height: 84,
+                                fit: BoxFit.cover,
+                                // Decode at display size, not the upload's.
+                                memCacheWidth: _avatarCachePx(context),
                               ),
                             )
                           : Text(
@@ -426,7 +455,7 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout> {
               style: _inter(size: 11, color: AppColors.inkMute)),
         ],
       ),
-    ).animate().scale(begin: const Offset(0.9, 0.9), duration: 400.ms, curve: Curves.easeOut);
+    );
 
     Widget graphCard() => _RatingGraphCard(
       overallRating: switch (activeGame) {
@@ -436,198 +465,242 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout> {
       },
       uid: myUid,
       games: gamesAsync.valueOrNull ?? const [],
+      loading: !gamesAsync.hasValue && !gamesAsync.hasError,
       activeGame: activeGame,
-    ).animate(delay: 80.ms).fadeIn().slideY(begin: 0.06);
+    );
 
-    Widget statPills() {
-      if (activeGame == GameType.chess) {
-        return Row(
-          children: [
-            Expanded(child: _StatPillCard(
-              label: 'BULLET', rating: user.bulletStats.rating,
-              ratingColor: const Color(0xFFF5A462),
-              subStats: '${user.bulletStats.wins}W ${user.bulletStats.draws}D ${user.bulletStats.losses}L',
-            )),
-            const SizedBox(width: 8),
-            Expanded(child: _StatPillCard(
-              label: 'BLITZ', rating: user.blitzStats.rating,
-              ratingColor: const Color(0xFF6FB4E0),
-              subStats: '${user.blitzStats.wins}W ${user.blitzStats.draws}D ${user.blitzStats.losses}L',
-            )),
-            const SizedBox(width: 8),
-            Expanded(child: _StatPillCard(
-              label: 'RAPID', rating: user.rapidStats.rating,
-              ratingColor: AppColors.win,
-              subStats: '${user.rapidStats.wins}W ${user.rapidStats.draws}D ${user.rapidStats.losses}L',
-            )),
-          ],
-        ).animate(delay: 120.ms).fadeIn();
-      }
-      final stats = activeGame == GameType.checkers ? user.checkersStats : user.dominoStats;
-      return Row(
-        children: [
-          Expanded(child: _StatPillCard(
-            label: activeGame.identity.name.toUpperCase(),
-            rating: stats.rating,
-            ratingColor: activeGame.accent,
-            subStats: '${stats.wins}W ${stats.draws}D ${stats.losses}L',
-          )),
-        ],
-      ).animate(delay: 120.ms).fadeIn();
-    }
+    Widget statPills() => _StatPillsRow(user: user, activeGame: activeGame);
 
     Widget donutCard() => _GamesDonutCard(
       wins: totalWins, draws: totalDraws, losses: totalLosses,
-    ).animate(delay: 160.ms).fadeIn();
+    );
 
     Widget friendsSection() => _FriendsSection(
-      uid: user.uid, isOwnProfile: true, myUid: myUid,
-    ).animate(delay: 200.ms).fadeIn();
+      uid: user.uid, isOwnProfile: true, myUid: myUid, live: routeSettled,
+    );
 
     Widget recentGamesLabel() => Text(
       'recent_games'.tr(),
       style: _inter(size: 11, weight: FontWeight.w600, color: AppColors.inkMute, letterSpacing: 0.8),
-    ).animate(delay: 240.ms).fadeIn();
+    );
 
-    Widget recentGames() => gamesAsync.when(
-      loading: () => const ShimmerList(count: 4, itemHeight: 70),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (games) => games.isEmpty
-          ? const _NoGamesYet()
-          : Column(
-        children: games.map((g) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: GestureDetector(
-            // Move-by-move replay/analysis exists for chess only —
-            // checkers/domino entries are informational.
-            onTap: g.gameType == 'chess'
-                ? () => context.push('/home/game-replay/${g.id}', extra: myUid)
-                : null,
-            child: RecentGameTile(game: g, uid: user.uid),
-          ),
-        )).toList(),
+    Widget gameRow(GameModel g) => Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: GestureDetector(
+        // Move-by-move replay/analysis exists for chess only —
+        // checkers/domino entries are informational.
+        onTap: g.gameType == 'chess'
+            ? () => context.push('/home/game-replay/${g.id}', extra: myUid)
+            : null,
+        child: RecentGameTile(game: g, uid: user.uid),
       ),
-    ).animate(delay: 260.ms).fadeIn();
+    );
 
     // ── Build ─────────────────────────────────────────────────────────────────
 
-    return CustomScrollView(
-      slivers: [
-        // ── AppBar ──
-        SliverAppBar(
-          backgroundColor: AppColors.background,
-          automaticallyImplyLeading: false,
-          pinned: true,
-          elevation: 0,
-          centerTitle: true,
-          leading: IconButton(
-            icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.regular), color: AppColors.inkDim),
-            onPressed: () => Navigator.of(context).maybePop(),
-          ),
-          title: Text('profile'.tr(),
-              style: _inter(size: 13, weight: FontWeight.w600, color: AppColors.inkDim)),
-          actions: [
-            IconButton(
-              icon: Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.regular),
-                  color: AppColors.inkDim, size: 20),
-              tooltip: 'account'.tr(),
-              onPressed: () => context.push('/home/settings/account'),
-            ),
-          ],
+    final appBar = SliverAppBar(
+      backgroundColor: AppColors.background,
+      automaticallyImplyLeading: false,
+      pinned: true,
+      elevation: 0,
+      centerTitle: true,
+      leading: IconButton(
+        icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.regular), color: AppColors.inkDim),
+        onPressed: () => Navigator.of(context).maybePop(),
+      ),
+      title: Text('profile'.tr(),
+          style: _inter(size: 13, weight: FontWeight.w600, color: AppColors.inkDim)),
+      actions: [
+        IconButton(
+          icon: Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.regular),
+              color: AppColors.inkDim, size: 20),
+          tooltip: 'account'.tr(),
+          onPressed: () => context.push('/home/settings/account'),
         ),
+      ],
+    );
 
-        SliverToBoxAdapter(
-          child: Stack(
-            clipBehavior: Clip.none,
-            children: [
-              // ── Amber glow decoration ──
-              Positioned(
-                top: -100, left: -60,
-                child: IgnorePointer(
-                  child: Container(
-                    width: 300, height: 300,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      gradient: RadialGradient(
-                        colors: [AppColors.amber.withOpacity(0.18), Colors.transparent],
-                      ),
-                    ),
-                    child: BackdropFilter(
-                      filter: ui.ImageFilter.blur(sigmaX: 40, sigmaY: 40),
-                      child: const SizedBox.expand(),
+    // ── Large tablet: 2-column ──────────────────────────────────────────────
+    if (isLargeTablet) {
+      return CustomScrollView(
+        slivers: [
+          appBar,
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(hp, 8, hp, 32),
+              child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  // Left: avatar + stats + graph + donut + friends
+                  Expanded(
+                    flex: 55,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.stretch,
+                      children: [
+                        avatarSection(),
+                        const SizedBox(height: 20),
+                        graphCard(),
+                        const SizedBox(height: 12),
+                        statPills(),
+                        const SizedBox(height: 12),
+                        donutCard(),
+                        const SizedBox(height: 12),
+                        friendsSection(),
+                        const SizedBox(height: 32),
+                      ],
                     ),
                   ),
-                ),
+                  const SizedBox(width: 20),
+                  // Right: recent games
+                  Expanded(
+                    flex: 45,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        recentGamesLabel(),
+                        const SizedBox(height: 10),
+                        _RecentGamesColumn(gamesAsync: gamesAsync, row: gameRow),
+                        const SizedBox(height: 32),
+                      ],
+                    ),
+                  ),
+                ],
               ),
+            ),
+          ),
+        ],
+      );
+    }
 
-              Padding(
-                padding: EdgeInsets.fromLTRB(hp, 8, hp, 32),
-                child: isLargeTablet
-                    // ── Large tablet: 2-column ──────────────────────────────
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Left: avatar + stats + graph + donut + friends
-                          Expanded(
-                            flex: 55,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                avatarSection(),
-                                const SizedBox(height: 20),
-                                graphCard(),
-                                const SizedBox(height: 12),
-                                statPills(),
-                                const SizedBox(height: 12),
-                                donutCard(),
-                                const SizedBox(height: 12),
-                                friendsSection(),
-                                const SizedBox(height: 32),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          // Right: recent games
-                          Expanded(
-                            flex: 45,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                recentGamesLabel(),
-                                const SizedBox(height: 10),
-                                recentGames(),
-                                const SizedBox(height: 32),
-                              ],
-                            ),
-                          ),
-                        ],
-                      )
-                    // ── Phone / regular tablet: single column ───────────────
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          const GameSwitch(),
-                          const SizedBox(height: 16),
-                          avatarSection(),
-                          const SizedBox(height: 20),
-                          graphCard(),
-                          const SizedBox(height: 12),
-                          statPills(),
-                          const SizedBox(height: 12),
-                          donutCard(),
-                          const SizedBox(height: 12),
-                          friendsSection(),
-                          const SizedBox(height: 20),
-                          recentGamesLabel(),
-                          const SizedBox(height: 10),
-                          recentGames(),
-                          const SizedBox(height: 32),
-                        ],
-                      ),
-              ),
+    // ── Phone / regular tablet: single column ───────────────────────────────
+    return CustomScrollView(
+      slivers: [
+        appBar,
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(hp, 8, hp, 0),
+          sliver: SliverList.list(
+            children: [
+              const GameSwitch(),
+              const SizedBox(height: 16),
+              avatarSection(),
+              const SizedBox(height: 20),
+              graphCard(),
+              const SizedBox(height: 12),
+              statPills(),
+              const SizedBox(height: 12),
+              donutCard(),
+              const SizedBox(height: 12),
+              friendsSection(),
+              const SizedBox(height: 20),
+              recentGamesLabel(),
+              const SizedBox(height: 10),
             ],
           ),
         ),
+        _recentGamesSliver(gamesAsync: gamesAsync, hp: hp, row: gameRow),
+        const SliverToBoxAdapter(child: SizedBox(height: 32)),
+      ],
+    );
+  }
+}
+
+/// Pixel width to decode an 84 pt avatar at on this screen.
+int _avatarCachePx(BuildContext context) =>
+    (84 * MediaQuery.devicePixelRatioOf(context)).round();
+
+/// The recent-games list as a lazy sliver: only the rows on screen are built,
+/// not every fetched game in one frame.
+Widget _recentGamesSliver({
+  required AsyncValue<List<GameModel>> gamesAsync,
+  required double hp,
+  required Widget Function(GameModel game) row,
+}) {
+  final games = gamesAsync.valueOrNull;
+  final padding = EdgeInsets.symmetric(horizontal: hp);
+  if (games == null || games.isEmpty) {
+    return SliverPadding(
+      padding: padding,
+      sliver: SliverToBoxAdapter(
+        child: games != null
+            ? const _NoGamesYet()
+            : gamesAsync.hasError
+                ? const SizedBox.shrink()
+                : const ShimmerList(count: 4, itemHeight: 70),
+      ),
+    );
+  }
+  return SliverPadding(
+    padding: padding,
+    sliver: SliverList.builder(
+      itemCount: games.length,
+      itemBuilder: (_, i) => row(games[i]),
+    ),
+  );
+}
+
+/// The recent-games list inside the two-column tablet layout, where it
+/// cannot be a sliver — so it is capped instead.
+class _RecentGamesColumn extends StatelessWidget {
+  final AsyncValue<List<GameModel>> gamesAsync;
+  final Widget Function(GameModel game) row;
+  const _RecentGamesColumn({required this.gamesAsync, required this.row});
+
+  @override
+  Widget build(BuildContext context) {
+    final games = gamesAsync.valueOrNull;
+    if (games == null) {
+      return gamesAsync.hasError
+          ? const SizedBox.shrink()
+          : const ShimmerList(count: 4, itemHeight: 70);
+    }
+    if (games.isEmpty) return const _NoGamesYet();
+    return Column(
+      children: [for (final g in games.take(_kTabletRecentGames)) row(g)],
+    );
+  }
+}
+
+/// Rating pills under the chart: bullet / blitz / rapid for chess, one pill
+/// for checkers and domino.
+class _StatPillsRow extends StatelessWidget {
+  final UserModel user;
+  final GameType activeGame;
+  const _StatPillsRow({required this.user, required this.activeGame});
+
+  @override
+  Widget build(BuildContext context) {
+    if (activeGame == GameType.chess) {
+      return Row(
+        children: [
+          Expanded(child: _StatPillCard(
+            label: 'BULLET', rating: user.bulletStats.rating,
+            ratingColor: AppColors.bullet,
+            subStats: '${user.bulletStats.wins}W ${user.bulletStats.draws}D ${user.bulletStats.losses}L',
+          )),
+          const SizedBox(width: 8),
+          Expanded(child: _StatPillCard(
+            label: 'BLITZ', rating: user.blitzStats.rating,
+            ratingColor: AppColors.blitz,
+            subStats: '${user.blitzStats.wins}W ${user.blitzStats.draws}D ${user.blitzStats.losses}L',
+          )),
+          const SizedBox(width: 8),
+          Expanded(child: _StatPillCard(
+            label: 'RAPID', rating: user.rapidStats.rating,
+            ratingColor: AppColors.rapid,
+            subStats: '${user.rapidStats.wins}W ${user.rapidStats.draws}D ${user.rapidStats.losses}L',
+          )),
+        ],
+      );
+    }
+    final stats = activeGame == GameType.checkers ? user.checkersStats : user.dominoStats;
+    return Row(
+      children: [
+        Expanded(child: _StatPillCard(
+          label: activeGame.identity.name.toUpperCase(),
+          rating: stats.rating,
+          ratingColor: activeGame.accent,
+          subStats: '${stats.wins}W ${stats.draws}D ${stats.losses}L',
+        )),
       ],
     );
   }
@@ -689,16 +762,24 @@ class _PrivateProfileView extends StatelessWidget {
   }
 }
 
-class _OtherProfileLayout extends ConsumerWidget {
+class _OtherProfileLayout extends ConsumerStatefulWidget {
   final UserModel user;
   final String myUid;
-  final AsyncValue<List<GameModel>> gamesAsync;
 
   const _OtherProfileLayout({
     required this.user,
     required this.myUid,
-    required this.gamesAsync,
   });
+
+  @override
+  ConsumerState<_OtherProfileLayout> createState() =>
+      _OtherProfileLayoutState();
+}
+
+class _OtherProfileLayoutState extends ConsumerState<_OtherProfileLayout>
+    with RouteSettledMixin<_OtherProfileLayout> {
+  UserModel get user => widget.user;
+  String get myUid => widget.myUid;
 
   void _showBlockSheet(BuildContext context, WidgetRef ref) {
     final me = ref.read(currentUserProvider).valueOrNull;
@@ -725,7 +806,7 @@ class _OtherProfileLayout extends ConsumerWidget {
                   PhosphorIcons.prohibit(PhosphorIconsStyle.regular),
                   color: AppColors.error),
               title: Text(
-                isBlocked ? 'Unblock ${user.username}' : 'Block ${user.username}',
+                '${(isBlocked ? 'unblock_user' : 'block_user').tr()} ${user.username}',
                 style: _inter(size: 14, weight: FontWeight.w500,
                     color: AppColors.error),
               ),
@@ -854,9 +935,16 @@ class _OtherProfileLayout extends ConsumerWidget {
   }
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  Widget build(BuildContext context) {
     final isLargeTablet = context.isLargeTablet;
     final hp = context.hPadding;
+
+    // Fetched only once the page has finished sliding in (see the own
+    // profile); the list shows a loading state until then.
+    final gamesAsync = routeSettled
+        ? ref.watch(_profileGamesProvider(
+            (uid: user.uid, newest: user.recentGameIds.lastOrNull)))
+        : const AsyncValue<List<GameModel>>.loading();
 
     // Username masking: if they blocked me, show "Chess User"
     final displayName = user.blockedUsers.contains(myUid) ? 'Chess User' : user.username;
@@ -866,29 +954,31 @@ class _OtherProfileLayout extends ConsumerWidget {
     Widget avatarSection() => Center(
       child: Column(
         children: [
-          Stack(
-            children: [
-              Container(
-                width: 84, height: 84,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft, end: Alignment.bottomRight,
-                    colors: [AppColors.amber, AppColors.amberDeep],
-                  ),
-                  borderRadius: BorderRadius.circular(24),
-                ),
-                alignment: Alignment.center,
-                child: user.photoUrl != null
-                    ? ClipRRect(
-                        borderRadius: BorderRadius.circular(24),
-                        child: CachedNetworkImage(imageUrl: user.photoUrl!, width: 84, height: 84, fit: BoxFit.cover),
-                      )
-                    : Text(
-                        displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                        style: _display(size: 40, weight: FontWeight.w700, color: const Color(0xFF1A1205)),
-                      ),
+          Container(
+            width: 84, height: 84,
+            decoration: BoxDecoration(
+              gradient: const LinearGradient(
+                begin: Alignment.topLeft, end: Alignment.bottomRight,
+                colors: [AppColors.amber, AppColors.amberDeep],
               ),
-            ],
+              borderRadius: BorderRadius.circular(24),
+            ),
+            alignment: Alignment.center,
+            child: user.photoUrl != null
+                ? ClipRRect(
+                    borderRadius: BorderRadius.circular(24),
+                    child: CachedNetworkImage(
+                      imageUrl: user.photoUrl!,
+                      width: 84,
+                      height: 84,
+                      fit: BoxFit.cover,
+                      memCacheWidth: _avatarCachePx(context),
+                    ),
+                  )
+                : Text(
+                    displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
+                    style: _display(size: 40, weight: FontWeight.w700, color: const Color(0xFF1A1205)),
+                  ),
           ),
           const SizedBox(height: 10),
           Text(displayName,
@@ -901,7 +991,7 @@ class _OtherProfileLayout extends ConsumerWidget {
               style: _inter(size: 11, color: AppColors.inkMute)),
         ],
       ),
-    ).animate().scale(begin: const Offset(0.9, 0.9), duration: 400.ms, curve: Curves.easeOut);
+    );
 
     final activeGame = ref.watch(activeGameProvider);
 
@@ -911,175 +1001,142 @@ class _OtherProfileLayout extends ConsumerWidget {
       GameType.chess    => ((user.bulletStats.rating + user.blitzStats.rating + user.rapidStats.rating) / 3).round(),
     };
 
-    Widget ratingCard() =>
-        _OverallRatingCard(rating: otherOverallRating).animate(delay: 80.ms).fadeIn().slideY(begin: 0.06);
+    Widget ratingCard() => _OverallRatingCard(rating: otherOverallRating);
 
-    Widget statPills() {
-      if (activeGame == GameType.chess) {
-        return Row(
-          children: [
-            Expanded(child: _StatPillCard(
-              label: 'BULLET', rating: user.bulletStats.rating,
-              ratingColor: const Color(0xFFF5A462),
-              subStats: '${user.bulletStats.wins}W ${user.bulletStats.draws}D ${user.bulletStats.losses}L',
-            )),
-            const SizedBox(width: 8),
-            Expanded(child: _StatPillCard(
-              label: 'BLITZ', rating: user.blitzStats.rating,
-              ratingColor: const Color(0xFF6FB4E0),
-              subStats: '${user.blitzStats.wins}W ${user.blitzStats.draws}D ${user.blitzStats.losses}L',
-            )),
-            const SizedBox(width: 8),
-            Expanded(child: _StatPillCard(
-              label: 'RAPID', rating: user.rapidStats.rating,
-              ratingColor: AppColors.win,
-              subStats: '${user.rapidStats.wins}W ${user.rapidStats.draws}D ${user.rapidStats.losses}L',
-            )),
-          ],
-        ).animate(delay: 120.ms).fadeIn();
-      }
+    Widget statPills() => _StatPillsRow(user: user, activeGame: activeGame);
 
-      // Checkers / Domino → single stat pill
-      final stats = activeGame == GameType.checkers ? user.checkersStats : user.dominoStats;
-      return Row(
-        children: [
-          Expanded(child: _StatPillCard(
-            label: activeGame.identity.name.toUpperCase(),
-            rating: stats.rating,
-            ratingColor: activeGame.accent,
-            subStats: '${stats.wins}W ${stats.draws}D ${stats.losses}L',
-          )),
-        ],
-      ).animate(delay: 120.ms).fadeIn();
-    }
-
-    Widget actionButtons() =>
-        _OtherProfileActions(user: user, myUid: myUid).animate(delay: 160.ms).fadeIn();
+    Widget actionButtons() => _OtherProfileActions(user: user, myUid: myUid);
 
     Widget friendsSection() => _FriendsSection(
-      uid: user.uid, isOwnProfile: false, myUid: myUid,
-    ).animate(delay: 200.ms).fadeIn();
+      uid: user.uid, isOwnProfile: false, myUid: myUid, live: routeSettled,
+    );
 
     Widget recentGamesLabel() => Text(
       'recent_games'.tr(),
       style: _inter(size: 11, weight: FontWeight.w600, color: AppColors.inkMute, letterSpacing: 0.8),
-    ).animate(delay: 240.ms).fadeIn();
+    );
 
-    Widget recentGames() => gamesAsync.when(
-      loading: () => const ShimmerList(count: 4, itemHeight: 70),
-      error: (_, __) => const SizedBox.shrink(),
-      data: (games) => games.isEmpty
-          ? const _NoGamesYet()
-          : Column(
-        children: games.map((g) => Padding(
-          padding: const EdgeInsets.only(bottom: 8),
-          child: RecentGameTile(game: g, uid: user.uid),
-        )).toList(),
-      ),
-    ).animate(delay: 260.ms).fadeIn();
+    Widget gameRow(GameModel g) => Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: RecentGameTile(game: g, uid: user.uid),
+    );
 
     // ── Build ─────────────────────────────────────────────────────────────────
 
+    final appBar = SliverAppBar(
+      backgroundColor: AppColors.background,
+      pinned: true,
+      elevation: 0,
+      leading: IconButton(
+        icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.regular), color: AppColors.inkDim),
+        onPressed: () => context.pop(),
+      ),
+      title: Text(displayName,
+          style: _display(size: 18, weight: FontWeight.w700, color: AppColors.ink)),
+      actions: [
+        IconButton(
+          icon: Icon(PhosphorIcons.dotsThreeVertical(PhosphorIconsStyle.bold),
+              color: AppColors.inkMute, size: 20),
+          onPressed: () => _showBlockSheet(context, ref),
+        ),
+      ],
+    );
+
+    // Live banner (always full-width above the columns)
+    final liveBanner = <Widget>[
+      if (user.currentGameId != null) ...[
+        _WatchLiveBanner(
+          gameId: user.currentGameId!,
+          watchedUid: user.uid,
+        ),
+        const SizedBox(height: 14),
+      ],
+    ];
+
+    // ── Large tablet: 2-column ──────────────────────────────────────────────
+    if (isLargeTablet) {
+      return CustomScrollView(
+        slivers: [
+          appBar,
+          SliverToBoxAdapter(
+            child: Padding(
+              padding: EdgeInsets.fromLTRB(hp, 8, hp, 32),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                  ...liveBanner,
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      // Left: avatar + rating + stats + actions + friends
+                      Expanded(
+                        flex: 55,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                            avatarSection(),
+                            const SizedBox(height: 18),
+                            ratingCard(),
+                            const SizedBox(height: 12),
+                            statPills(),
+                            const SizedBox(height: 12),
+                            actionButtons(),
+                            const SizedBox(height: 12),
+                            friendsSection(),
+                            const SizedBox(height: 32),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 20),
+                      // Right: recent games
+                      Expanded(
+                        flex: 45,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            recentGamesLabel(),
+                            const SizedBox(height: 10),
+                            _RecentGamesColumn(gamesAsync: gamesAsync, row: gameRow),
+                            const SizedBox(height: 32),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
+                ],
+              ),
+            ),
+          ),
+        ],
+      );
+    }
+
+    // ── Phone / regular tablet: single column ───────────────────────────────
     return CustomScrollView(
       slivers: [
-        // ── AppBar ──
-        SliverAppBar(
-          backgroundColor: AppColors.background,
-          pinned: true,
-          elevation: 0,
-          leading: IconButton(
-            icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.regular), color: AppColors.inkDim),
-            onPressed: () => context.pop(),
-          ),
-          title: Text(displayName,
-              style: _display(size: 18, weight: FontWeight.w700, color: AppColors.ink)),
-          actions: [
-            IconButton(
-              icon: Icon(PhosphorIcons.dotsThreeVertical(PhosphorIconsStyle.bold),
-                  color: AppColors.inkMute, size: 20),
-              onPressed: () => _showBlockSheet(context, ref),
-            ),
-          ],
-        ),
-
-        SliverToBoxAdapter(
-          child: Padding(
-            padding: EdgeInsets.fromLTRB(hp, 8, hp, 32),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.stretch,
-              children: [
-                // Live banner (always full-width above the columns)
-                if (user.currentGameId != null) ...[
-                  _WatchLiveBanner(
-                    gameId: user.currentGameId!,
-                    watchedUid: user.uid,
-                  ).animate().fadeIn(),
-                  const SizedBox(height: 14),
-                ],
-
-                // ── Layout: 2-col on large tablet, single-col otherwise ──
-                isLargeTablet
-                    ? Row(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          // Left: avatar + rating + stats + actions + friends
-                          Expanded(
-                            flex: 55,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.stretch,
-                              children: [
-                                avatarSection(),
-                                const SizedBox(height: 18),
-                                ratingCard(),
-                                const SizedBox(height: 12),
-                                statPills(),
-                                const SizedBox(height: 12),
-                                actionButtons(),
-                                const SizedBox(height: 12),
-                                friendsSection(),
-                                const SizedBox(height: 32),
-                              ],
-                            ),
-                          ),
-                          const SizedBox(width: 20),
-                          // Right: recent games
-                          Expanded(
-                            flex: 45,
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                recentGamesLabel(),
-                                const SizedBox(height: 10),
-                                recentGames(),
-                                const SizedBox(height: 32),
-                              ],
-                            ),
-                          ),
-                        ],
-                      )
-                    : Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          avatarSection(),
-                          const SizedBox(height: 18),
-                          ratingCard(),
-                          const SizedBox(height: 12),
-                          statPills(),
-                          const SizedBox(height: 12),
-                          actionButtons(),
-                          const SizedBox(height: 12),
-                          friendsSection(),
-                          const SizedBox(height: 20),
-                          recentGamesLabel(),
-                          const SizedBox(height: 10),
-                          recentGames(),
-                          const SizedBox(height: 32),
-                        ],
-                      ),
-              ],
-            ),
+        appBar,
+        SliverPadding(
+          padding: EdgeInsets.fromLTRB(hp, 8, hp, 0),
+          sliver: SliverList.list(
+            children: [
+              ...liveBanner,
+              avatarSection(),
+              const SizedBox(height: 18),
+              ratingCard(),
+              const SizedBox(height: 12),
+              statPills(),
+              const SizedBox(height: 12),
+              actionButtons(),
+              const SizedBox(height: 12),
+              friendsSection(),
+              const SizedBox(height: 20),
+              recentGamesLabel(),
+              const SizedBox(height: 10),
+            ],
           ),
         ),
+        _recentGamesSliver(gamesAsync: gamesAsync, hp: hp, row: gameRow),
+        const SliverToBoxAdapter(child: SizedBox(height: 32)),
       ],
     );
   }
@@ -1151,11 +1208,16 @@ class _RatingGraphCard extends StatelessWidget {
   final List<GameModel> games;
   final GameType activeGame;
 
+  /// Games are still on their way: the card keeps its size and shows a
+  /// spinner where the chart goes.
+  final bool loading;
+
   const _RatingGraphCard({
     required this.overallRating,
     required this.uid,
     required this.games,
     this.activeGame = GameType.chess,
+    this.loading = false,
   });
 
   /// Builds chronological rating snapshots from real game data.
@@ -1212,7 +1274,9 @@ class _RatingGraphCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final history  = _buildHistory();
+    final history  = loading
+        ? (points: const <int>[], dates: const <DateTime>[])
+        : _buildHistory();
     final data     = history.points;
     final dates    = history.dates;
     final hasData  = data.length >= 2;
@@ -1226,7 +1290,6 @@ class _RatingGraphCard extends StatelessWidget {
         ? DateFormat('MMM d').format(dates.first)
         : '';
 
-    final isPoints = activeGame.isPointBased;
     final scoreWord = activeGame.scoreLabel.toUpperCase();
     final accent = activeGame.accent;
 
@@ -1249,7 +1312,7 @@ class _RatingGraphCard extends StatelessWidget {
                 children: [
                   Text(
                     hasData
-                        ? '${activeGame.identity.name.toUpperCase()} · $gameCount GAMES'
+                        ? '${activeGame.identity.name.toUpperCase()} · ${'games_n'.tr(args: ['$gameCount']).toUpperCaseFor(context)}'
                         : '${activeGame.identity.name.toUpperCase()} $scoreWord',
                     style: _mono(
                       size: 10,
@@ -1300,7 +1363,7 @@ class _RatingGraphCard extends StatelessWidget {
                   if (hasData) ...[
                     const SizedBox(height: 6),
                     Text(
-                      'peak $peak',
+                      'peak_n'.tr(args: ['$peak']),
                       style: _mono(size: 9, color: AppColors.inkMute),
                     ),
                   ],
@@ -1312,24 +1375,40 @@ class _RatingGraphCard extends StatelessWidget {
           SizedBox(
             height: 84,
             width: double.infinity,
-            child: _RatingGraph(
-              data: hasData ? data : [overallRating, overallRating],
-              isPlaceholder: !hasData,
-              accent: accent,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 200),
+              child: loading
+                  ? const Center(
+                      key: ValueKey('loading'),
+                      child: SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                          strokeWidth: 2,
+                          color: AppColors.inkMute,
+                        ),
+                      ),
+                    )
+                  : _RatingGraph(
+                      key: const ValueKey('chart'),
+                      data: hasData ? data : [overallRating, overallRating],
+                      isPlaceholder: !hasData,
+                      accent: accent,
+                    ),
             ),
           ),
-          if (hasData) ...[
-            const SizedBox(height: 6),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Text(startLabel,
-                    style: _mono(size: 9, color: AppColors.inkMute)),
-                Text('TODAY',
-                    style: _mono(size: 9, color: AppColors.inkMute)),
-              ],
-            ),
-          ],
+          // The date row is always laid out, so the card does not grow when
+          // the games arrive.
+          const SizedBox(height: 6),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text(hasData ? startLabel : '',
+                  style: _mono(size: 9, color: AppColors.inkMute)),
+              Text(hasData ? 'today'.tr().toUpperCaseFor(context) : '',
+                  style: _mono(size: 9, color: AppColors.inkMute)),
+            ],
+          ),
         ],
       ),
     );
@@ -1342,7 +1421,7 @@ class _RatingGraph extends StatelessWidget {
   final List<int> data;
   final bool isPlaceholder;
   final Color accent;
-  const _RatingGraph({required this.data, this.isPlaceholder = false, this.accent = AppColors.amber});
+  const _RatingGraph({super.key, required this.data, this.isPlaceholder = false, this.accent = AppColors.amber});
 
   @override
   Widget build(BuildContext context) {
@@ -1451,7 +1530,9 @@ class _RatingGraphPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_RatingGraphPainter old) =>
-      old.data != data || old.isPlaceholder != isPlaceholder || old.accent != accent;
+      !listEquals(old.data, data) ||
+      old.isPlaceholder != isPlaceholder ||
+      old.accent != accent;
 }
 
 // ── Stat Pill Card ─────────────────────────────────────────────────────────────
@@ -1516,8 +1597,6 @@ class _GamesDonutCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final total = wins + draws + losses;
-
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
@@ -1535,19 +1614,19 @@ class _GamesDonutCard extends StatelessWidget {
               children: [
                 _DonutLegendRow(
                   color: AppColors.win,
-                  label: 'Wins',
+                  label: 'wins'.tr(),
                   count: wins,
                 ),
                 const SizedBox(height: 8),
                 _DonutLegendRow(
                   color: AppColors.draw,
-                  label: 'Draws',
+                  label: 'draws'.tr(),
                   count: draws,
                 ),
                 const SizedBox(height: 8),
                 _DonutLegendRow(
                   color: AppColors.loss,
-                  label: 'Losses',
+                  label: 'losses'.tr(),
                   count: losses,
                 ),
               ],
@@ -1611,7 +1690,12 @@ class _WinLossDonut extends StatelessWidget {
       width: 80,
       height: 80,
       child: CustomPaint(
-        painter: _WinLossDonutPainter(wins: wins, draws: draws, losses: losses),
+        painter: _WinLossDonutPainter(
+          wins: wins,
+          draws: draws,
+          losses: losses,
+          label: 'games'.tr().toUpperCaseFor(context),
+        ),
       ),
     );
   }
@@ -1622,10 +1706,14 @@ class _WinLossDonutPainter extends CustomPainter {
   final int draws;
   final int losses;
 
+  /// Word under the total ("GAMES"), already translated.
+  final String label;
+
   _WinLossDonutPainter({
     required this.wins,
     required this.draws,
     required this.losses,
+    required this.label,
   });
 
   @override
@@ -1700,7 +1788,7 @@ class _WinLossDonutPainter extends CustomPainter {
     // "GAMES" label
     final gamesTP = TextPainter(
       text: TextSpan(
-        text: 'GAMES',
+        text: label,
         style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
           color: AppColors.inkMute,
           letterSpacing: 0.3,
@@ -1716,7 +1804,10 @@ class _WinLossDonutPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_WinLossDonutPainter old) =>
-      old.wins != wins || old.draws != draws || old.losses != losses;
+      old.wins != wins ||
+      old.draws != draws ||
+      old.losses != losses ||
+      old.label != label;
 }
 
 // ── Friends section ────────────────────────────────────────────────────────────
@@ -1726,16 +1817,23 @@ class _FriendsSection extends ConsumerWidget {
   final bool isOwnProfile;
   final String myUid;
 
+  /// False while the page is still sliding in: the section shows its
+  /// loading state and opens no Firestore listeners yet.
+  final bool live;
+
   const _FriendsSection({
     required this.uid,
     required this.isOwnProfile,
     required this.myUid,
+    this.live = true,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final friendsAsync = ref.watch(_friendsStreamProvider(uid));
-    final pendingAsync = isOwnProfile
+    final friendsAsync = live
+        ? ref.watch(_friendsStreamProvider(uid))
+        : const AsyncValue<List<FriendModel>>.loading();
+    final pendingAsync = isOwnProfile && live
         ? ref.watch(_pendingRequestsProvider(uid))
         : null;
 
@@ -1767,18 +1865,21 @@ class _FriendsSection extends ConsumerWidget {
                       'friends'.tr(),
                       style: _inter(size: 13, weight: FontWeight.w600, color: AppColors.ink),
                     ),
-                    const SizedBox(width: 6),
-                    Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
-                      decoration: BoxDecoration(
-                        color: AppColors.amberGlow,
-                        borderRadius: BorderRadius.circular(8),
+                    // Count only once known — not a "0" that jumps.
+                    if (friendsAsync.hasValue) ...[
+                      const SizedBox(width: 6),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: AppColors.amberGlow,
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                        child: Text(
+                          '${friends.length}',
+                          style: _mono(size: 10, weight: FontWeight.w600, color: AppColors.amber),
+                        ),
                       ),
-                      child: Text(
-                        '${friends.length}',
-                        style: _mono(size: 10, weight: FontWeight.w600, color: AppColors.amber),
-                      ),
-                    ),
+                    ],
                     if (isOwnProfile) ...[
                       const SizedBox(width: 4),
                       Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
@@ -1830,7 +1931,7 @@ class _FriendsSection extends ConsumerWidget {
                       border: Border.all(color: AppColors.amber.withOpacity(0.3)),
                     ),
                     child: Text(
-                      '+ Add',
+                      '+ ${'add'.tr()}',
                       style: _inter(
                         size: 11,
                         weight: FontWeight.w600,
@@ -1851,7 +1952,7 @@ class _FriendsSection extends ConsumerWidget {
                       borderRadius: BorderRadius.circular(8),
                     ),
                     child: Text(
-                      '$pendingCount new',
+                      'n_new'.tr(args: ['$pendingCount']),
                       style: _inter(
                         size: 11,
                         weight: FontWeight.w600,
@@ -1865,15 +1966,23 @@ class _FriendsSection extends ConsumerWidget {
           ),
           const SizedBox(height: 14),
 
-          // Horizontal friend strip
+          // Horizontal friend strip (same height loading or loaded, so the
+          // page below does not jump)
           if (friendsAsync.isLoading)
             const SizedBox(
-              height: 70,
-              child: Center(child: CircularProgressIndicator(strokeWidth: 2)),
+              height: 76,
+              child: Center(
+                child: SizedBox(
+                  width: 20,
+                  height: 20,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2, color: AppColors.inkMute),
+                ),
+              ),
             )
           else if (friends.isEmpty && !isOwnProfile)
             Text(
-              'No friends yet',
+              'no_friends_yet'.tr(),
               style: _inter(size: 12, color: AppColors.inkMute),
             )
           else

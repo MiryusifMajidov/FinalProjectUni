@@ -39,12 +39,13 @@ class _BotLevel {
 }
 
 const _kLevels = [
-  _BotLevel('Beginner',     'Perfect for learning the basics',     400,  0.07, 'P', 1),
-  _BotLevel('Casual',       'Good for relaxed play',               800,  0.22, 'B', 2),
-  _BotLevel('Intermediate', 'A real challenge for most players',   1400, 0.42, 'N', 3),
-  _BotLevel('Advanced',     'Tactical and strategic strength',     1800, 0.62, 'R', 4),
-  _BotLevel('Expert',       'Near tournament-level play',          2400, 0.83, 'Q', 5),
-  _BotLevel('Master',       'World-class engine strength',         3000, 1.00, 'K', 6),
+  // Name and description are translation keys.
+  _BotLevel('bot_level_1', 'bot_level_1_desc', 400,  0.07, 'P', 1),
+  _BotLevel('bot_level_2', 'bot_level_2_desc', 800,  0.22, 'B', 2),
+  _BotLevel('bot_level_3', 'bot_level_3_desc', 1400, 0.42, 'N', 3),
+  _BotLevel('bot_level_4', 'bot_level_4_desc', 1800, 0.62, 'R', 4),
+  _BotLevel('bot_level_5', 'bot_level_5_desc', 2400, 0.83, 'Q', 5),
+  _BotLevel('bot_level_6', 'bot_level_6_desc', 3000, 1.00, 'K', 6),
 ];
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -327,7 +328,7 @@ class _HeroCard extends StatelessWidget {
                 AnimatedSwitcher(
                   duration: const Duration(milliseconds: 300),
                   child: Text(
-                    level.name,
+                    level.name.tr(),
                     key: ValueKey(level.name),
                     style: GoogleFonts.inter(
                       fontSize: 32,
@@ -349,7 +350,7 @@ class _HeroCard extends StatelessWidget {
                       children: [...previous, if (current != null) current],
                     ),
                     child: Text(
-                      level.description,
+                      level.description.tr(),
                       key: ValueKey(level.description),
                       style: GoogleFonts.inter(
                         fontSize: 12,
@@ -435,7 +436,7 @@ class _LevelGrid extends StatelessWidget {
                   ),
                   const SizedBox(height: 4),
                   Text(
-                    level.name,
+                    level.name.tr(),
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 11,

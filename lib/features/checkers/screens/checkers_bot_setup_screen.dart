@@ -1,4 +1,6 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import '../../../core/utils/text_case.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -24,22 +26,24 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
   bool _playAsWhite = true;
   int _selectedVariant = 0;
 
+  // (name key, rating, search depth) — the same six level names as chess.
   static const _tiers = [
-    ('Novice',   600,  1),
-    ('Club',     1000, 2),
-    ('Skilled',  1400, 3),
-    ('Sharp',    1700, 4),
-    ('Master',   2000, 5),
-    ('Champion', 2300, 6),
+    ('bot_level_1', 600,  1),
+    ('bot_level_2', 1000, 2),
+    ('bot_level_3', 1400, 3),
+    ('bot_level_4', 1700, 4),
+    ('bot_level_5', 2000, 5),
+    ('bot_level_6', 2300, 6),
   ];
 
-  // (key, label) — matches CheckersVariant parsing in the game screen.
+  // (key, label key, board) — keys match CheckersVariant parsing in the game
+  // screen.
   static const _variants = [
-    ('standard',      'Standard 8×8'),
-    ('russian',       'Russian 8×8'),
-    ('international', 'International 10×10'),
-    ('turkish',       'Turkish'),
-    ('brazilian',     'Brazilian'),
+    ('standard',      'variant_standard',      '8×8'),
+    ('russian',       'variant_russian',       '8×8'),
+    ('international', 'variant_international', '10×10'),
+    ('turkish',       'variant_turkish',       '8×8'),
+    ('brazilian',     'variant_brazilian',     '8×8'),
   ];
 
   @override
@@ -61,7 +65,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Play vs Bot',
+              'play_vs_bot'.tr(),
               style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -85,7 +89,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
               const SizedBox(height: 20),
               // ── Difficulty ────────────────────────────────────────────
               Text(
-                'DIFFICULTY',
+                'difficulty'.tr().toUpperCaseFor(context),
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -136,7 +140,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
                           ),
                           const SizedBox(width: 10),
                           Text(
-                            name,
+                            name.tr(),
                             style: GoogleFonts.inter(
                               fontSize: 14,
                               fontWeight:
@@ -166,7 +170,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
 
               // ── Play as ──────────────────────────────────────────────
               Text(
-                'PLAY AS',
+                'play_as'.tr().toUpperCaseFor(context),
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -178,7 +182,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
               Row(
                 children: [
                   _SideButton(
-                    label: 'White',
+                    label: 'white'.tr(),
                     selected: _playAsWhite,
                     color: const Color(0xFFF5F0E0),
                     accentColor: _accent,
@@ -186,7 +190,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
                   ),
                   const SizedBox(width: 10),
                   _SideButton(
-                    label: 'Black',
+                    label: 'black'.tr(),
                     selected: !_playAsWhite,
                     color: const Color(0xFF2A2017),
                     accentColor: _accent,
@@ -199,7 +203,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
 
               // ── Variant ──────────────────────────────────────────────
               Text(
-                'VARIANT',
+                'arena_variant'.tr().toUpperCaseFor(context),
                 style: GoogleFonts.inter(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
@@ -213,7 +217,8 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
                 runSpacing: 8,
                 children: _variants.asMap().entries.map((e) {
                   final i = e.key;
-                  final (_, label) = e.value;
+                  final (_, labelKey, board) = e.value;
+                  final label = '${labelKey.tr()} $board';
                   final selected = i == _selectedVariant;
                   return GestureDetector(
                     onTap: () => setState(() => _selectedVariant = i),
@@ -276,7 +281,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
                     ),
                   ),
                   child: Text(
-                    'Start Game',
+                    'start_game'.tr(),
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -294,7 +299,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
 
   void _startGame() {
     final (_, elo, depth) = _tiers[_selectedTier];
-    final (variantKey, _) = _variants[_selectedVariant];
+    final (variantKey, _, _) = _variants[_selectedVariant];
     final gameId = const Uuid().v4();
     context.push('/checkers-game/$gameId', extra: {
       'mode': 'bot',
@@ -303,7 +308,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
       'botDepth': depth,
       'botRating': elo,
       'isRated': false,
-      'myUsername': 'You',
+      'myUsername': 'you'.tr(),
       'opponentUsername': 'Bot ($elo)',
       'checkersVariant': variantKey,
     });

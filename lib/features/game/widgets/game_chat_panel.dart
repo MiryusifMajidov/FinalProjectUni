@@ -7,6 +7,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme_extension.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/game_chat_service.dart';
+import '../../../core/utils/content_filter.dart';
 
 const _quickMessages = [
   'Good luck!',
@@ -16,6 +17,29 @@ const _quickMessages = [
   'Nice move!',
   'Rematch?',
 ];
+
+/// Opens the in-game chat for [gameId] as a bottom sheet that stays above
+/// the keyboard. Used by the chess, checkers and domino game pages.
+Future<void> showGameChatSheet(BuildContext context, {required String gameId}) {
+  return showModalBottomSheet<void>(
+    context: context,
+    isScrollControlled: true,
+    backgroundColor: Colors.transparent,
+    builder: (ctx) {
+      final keyboardH = MediaQuery.viewInsetsOf(ctx).bottom;
+      return Padding(
+        padding: EdgeInsets.only(bottom: keyboardH),
+        child: SizedBox(
+          height: MediaQuery.sizeOf(ctx).height * 0.6,
+          child: GameChatPanel(
+            gameId: gameId,
+            onClose: () => Navigator.pop(ctx),
+          ),
+        ),
+      );
+    },
+  );
+}
 
 class GameChatPanel extends ConsumerStatefulWidget {
   final String gameId;
@@ -55,18 +79,35 @@ class _GameChatPanelState extends ConsumerState<GameChatPanel> {
   }
 
   Future<void> _sendMessage(String text, {bool isQuick = false}) async {
-    if (text.trim().isEmpty) return;
-    _ctrl.clear();
+    final trimmed = text.trim();
+    if (trimmed.isEmpty) return;
     final me = ref.read(currentUserProvider).valueOrNull;
     if (me == null) return;
-    await ref.read(gameChatServiceProvider).sendMessage(
-      gameId: widget.gameId,
-      senderUid: me.uid,
-      senderUsername: me.username,
-      text: text.trim(),
-      isQuick: isQuick,
-    );
-    _scrollToBottom();
+    // Same profanity filter as direct messages.
+    if (!ContentFilter.isClean(trimmed)) {
+      _showError('message_blocked_filter'.tr());
+      return;
+    }
+    _ctrl.clear();
+    try {
+      await ref.read(gameChatServiceProvider).sendMessage(
+        gameId: widget.gameId,
+        senderUid: me.uid,
+        senderUsername: me.username,
+        text: trimmed,
+        isQuick: isQuick,
+      );
+      _scrollToBottom();
+    } catch (_) {
+      _ctrl.text = trimmed;
+      _showError('message_send_failed'.tr());
+    }
+  }
+
+  void _showError(String message) {
+    if (!mounted) return;
+    ScaffoldMessenger.maybeOf(context)
+        ?.showSnackBar(SnackBar(content: Text(message)));
   }
 
   @override
@@ -179,8 +220,11 @@ class _GameChatPanelState extends ConsumerState<GameChatPanel> {
                   child: TextField(
                     controller: _ctrl,
                     style: AppTextStyles.bodySmall,
+                    // Firestore rules reject longer messages.
+                    maxLength: 300,
                     decoration: InputDecoration(
-                      hintText: 'Message...',
+                      counterText: '',
+                      hintText: 'message_placeholder'.tr(),
                       hintStyle: AppTextStyles.bodySmall
                           .copyWith(color: AppColors.textHint),
                       filled: true,

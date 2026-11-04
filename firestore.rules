@@ -64,6 +64,23 @@ service cloud.firestore {
                  'whiteRatingChange','blackRatingChange',
                  'whiteRatingBefore','blackRatingBefore'
                 ]));
+
+      // In-game chat (GameChatService). There was no rule for it, so every
+      // message was denied and the in-game Chat button did nothing. The game
+      // document is only written when the game ends, so the players cannot
+      // be looked up here; game ids are random, and a message must carry the
+      // sender's own uid, be short, and can never be edited.
+      match /chat/{messageId} {
+        allow read: if isAuth();
+        allow create: if isAuth()
+          && request.resource.data.keys().hasOnly(
+               ['senderUid', 'senderUsername', 'text', 'createdAt', 'isQuick'])
+          && request.resource.data.senderUid == request.auth.uid
+          && request.resource.data.text is string
+          && request.resource.data.text.size() > 0
+          && request.resource.data.text.size() <= 300;
+        allow update, delete: if false;
+      }
     }
 
     // ── Chats ─────────────────────────────────────────────────────────────────

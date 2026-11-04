@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'package:cached_network_image/cached_network_image.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -17,12 +16,11 @@ import '../../../core/models/game_type.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/widgets/app_button.dart';
-import '../../../core/widgets/user_avatar.dart';
 import '../engine/chess_engine.dart';
 import '../providers/game_provider.dart';
 import '../widgets/chess_board_widget.dart';
 import '../widgets/captured_pieces.dart';
-import '../widgets/clock_widget.dart';
+import '../widgets/game_chrome.dart';
 import '../widgets/game_chat_panel.dart';
 
 import '../../../core/utils/text_case.dart';
@@ -150,29 +148,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     );
   }
 
-  void _openChat() {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      backgroundColor: Colors.transparent,
-      builder: (ctx) {
-        // viewInsets.bottom = keyboard height (0 when closed).
-        // Wrapping with this Padding slides the entire sheet above the keyboard
-        // so the input field is always visible.
-        final keyboardH = MediaQuery.viewInsetsOf(ctx).bottom;
-        return Padding(
-          padding: EdgeInsets.only(bottom: keyboardH),
-          child: SizedBox(
-            height: MediaQuery.sizeOf(ctx).height * 0.6,
-            child: GameChatPanel(
-              gameId: widget.gameId,
-              onClose: () => Navigator.pop(ctx),
-            ),
-          ),
-        );
-      },
-    );
-  }
+  void _openChat() => showGameChatSheet(context, gameId: widget.gameId);
 
   void _navigateToRematch(String newGameId) {
     if (!mounted) return;
@@ -402,112 +378,125 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                         : null,
                   ),
 
-                  // ── Opponent strip ───────────────────────────────────────
-                  _CalmPlayerStrip(
-                    username: oppUsername,
-                    photoUrl: oppPhotoUrl,
-                    isWhite: !_config.playerIsWhite,
-                    milliseconds: _config.playerIsWhite
-                        ? gameState.blackMsLeft
-                        : gameState.whiteMsLeft,
-                    isActive: oppIsActive,
-                    capturedPieces: _config.playerIsWhite
-                        ? gameState.engine.capturedByBlack
-                        : gameState.engine.capturedByWhite,
-                    rating: oppRating,
-                    countryCode: oppCountryCode,
-                    materialAdvantage: (-myMaterialAdv).clamp(0, 99),
-                    pieceSet: ref.watch(settingsProvider).pieceSet.folderName,
-                  ),
-
-                  // Disconnect banner
-                  if (gameState.opponentDisconnected)
-                    _DisconnectBanner(
-                      secondsLeft: gameState.disconnectSecondsLeft,
-                      opponentName: _opponentName(),
-                    ),
-
-                  // ── Board ────────────────────────────────────────────────
-                  Center(
-                    child: SizedBox(
-                      width: boardSize,
-                      height: boardSize,
-                      child: Stack(
+                  // Strips, board and moves sit together, centred between the
+                  // top bar and the actions (as on the checkers and domino pages)
+                  // instead of leaving the empty space under the actions.
+                  Expanded(
+                    child: Center(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
                         children: [
-                          ChessBoardWidget(
-                            engine: reviewEngine,
-                            flipped: isFlipped,
-                            selectedSquare: gameState.isInReview
-                                ? null
-                                : gameState.selectedSquare,
-                            legalMoveSquares: gameState.isInReview
-                                ? const []
-                                : (cache.showLegalMoves
-                                    ? gameState.legalMoveSquares
-                                    : const []),
-                            onSquareTap: gameState.isInReview
-                                ? (_) => notifier.exitReview()
-                                : notifier.onSquareTapped,
-                            boardTheme: ref.watch(settingsProvider).boardTheme,
-                            pieceSet: ref.watch(settingsProvider).pieceSet,
-                            showCoordinates: cache.showCoordinates,
-                            showLastMoveHighlight: cache.highlightLastMove,
-                            animationDuration: cache.pieceMoveAnimationDuration,
-                            premoveFrom: gameState.premoveFrom,
-                            premoveTo: gameState.premoveTo,
+                        // ── Opponent strip ───────────────────────────────────────
+                        _CalmPlayerStrip(
+                          username: oppUsername,
+                          photoUrl: oppPhotoUrl,
+                          isWhite: !_config.playerIsWhite,
+                          milliseconds: _config.playerIsWhite
+                              ? gameState.blackMsLeft
+                              : gameState.whiteMsLeft,
+                          isActive: oppIsActive,
+                          capturedPieces: _config.playerIsWhite
+                              ? gameState.engine.capturedByBlack
+                              : gameState.engine.capturedByWhite,
+                          rating: oppRating,
+                          countryCode: oppCountryCode,
+                          materialAdvantage: (-myMaterialAdv).clamp(0, 99),
+                          pieceSet: ref.watch(settingsProvider).pieceSet.folderName,
+                        ),
+
+                        // Disconnect banner
+                        if (gameState.opponentDisconnected)
+                          _DisconnectBanner(
+                            secondsLeft: gameState.disconnectSecondsLeft,
+                            opponentName: _opponentName(),
                           ),
-                          // Confirm-move overlay bar
-                          if (gameState.pendingMoveFrom != null)
-                            Positioned(
-                              bottom: 0,
-                              left: 0,
-                              right: 0,
-                              child: _ConfirmMoveBar(
-                                onConfirm: notifier.confirmPendingMove,
-                                onCancel: notifier.cancelPendingMove,
-                              ),
+
+                        // ── Board ────────────────────────────────────────────────
+                        Center(
+                          child: SizedBox(
+                            width: boardSize,
+                            height: boardSize,
+                            child: Stack(
+                              children: [
+                                ChessBoardWidget(
+                                  engine: reviewEngine,
+                                  flipped: isFlipped,
+                                  selectedSquare: gameState.isInReview
+                                      ? null
+                                      : gameState.selectedSquare,
+                                  legalMoveSquares: gameState.isInReview
+                                      ? const []
+                                      : (cache.showLegalMoves
+                                          ? gameState.legalMoveSquares
+                                          : const []),
+                                  onSquareTap: gameState.isInReview
+                                      ? (_) => notifier.exitReview()
+                                      : notifier.onSquareTapped,
+                                  boardTheme: ref.watch(settingsProvider).boardTheme,
+                                  pieceSet: ref.watch(settingsProvider).pieceSet,
+                                  showCoordinates: cache.showCoordinates,
+                                  showLastMoveHighlight: cache.highlightLastMove,
+                                  animationDuration: cache.pieceMoveAnimationDuration,
+                                  premoveFrom: gameState.premoveFrom,
+                                  premoveTo: gameState.premoveTo,
+                                ),
+                                // Confirm-move overlay bar
+                                if (gameState.pendingMoveFrom != null)
+                                  Positioned(
+                                    bottom: 0,
+                                    left: 0,
+                                    right: 0,
+                                    child: _ConfirmMoveBar(
+                                      onConfirm: notifier.confirmPendingMove,
+                                      onCancel: notifier.cancelPendingMove,
+                                    ),
+                                  ),
+                              ],
                             ),
+                          ),
+                        ),
+
+                        // ── My strip ─────────────────────────────────────────────
+                        _CalmPlayerStrip(
+                          username: _myName(),
+                          photoUrl: myPhotoUrl,
+                          isWhite: _config.playerIsWhite,
+                          milliseconds: _config.playerIsWhite
+                              ? gameState.whiteMsLeft
+                              : gameState.blackMsLeft,
+                          isActive: myIsActive,
+                          capturedPieces: _config.playerIsWhite
+                              ? gameState.engine.capturedByWhite
+                              : gameState.engine.capturedByBlack,
+                          materialAdvantage: myMaterialAdv.clamp(0, 99),
+                          pieceSet: ref.watch(settingsProvider).pieceSet.folderName,
+                        ),
+
+                        // ── Move history strip (always visible after first move) ──
+                        // Tapping any move enters review at that position.
+                        // Notation (SAN / Long / Figurine) from game settings applies here.
+                        if (gameState.engine.moveHistory.isNotEmpty)
+                          SizedBox(
+                            height: 44,
+                            child: _MoveHistoryStrip(
+                              moves: gameState.engine.moveHistory,
+                              verboseHistory: gameState.engine.verboseHistory,
+                              notation: cache.moveNotation,
+                              reviewIndex: gameState.reviewIndex,
+                              isInReview: gameState.isInReview,
+                              onMoveTap: (halfIdx) =>
+                                  notifier.goToReview(halfIdx + 1),
+                              onFirst: () => notifier.reviewFirst(),
+                              onPrev:  () => notifier.reviewPrev(),
+                              onNext:  () => notifier.reviewNext(),
+                              onLast:  () => notifier.exitReview(),
+                            ),
+                          ),
+
                         ],
                       ),
                     ),
                   ),
-
-                  // ── My strip ─────────────────────────────────────────────
-                  _CalmPlayerStrip(
-                    username: _myName(),
-                    photoUrl: myPhotoUrl,
-                    isWhite: _config.playerIsWhite,
-                    milliseconds: _config.playerIsWhite
-                        ? gameState.whiteMsLeft
-                        : gameState.blackMsLeft,
-                    isActive: myIsActive,
-                    capturedPieces: _config.playerIsWhite
-                        ? gameState.engine.capturedByWhite
-                        : gameState.engine.capturedByBlack,
-                    materialAdvantage: myMaterialAdv.clamp(0, 99),
-                    pieceSet: ref.watch(settingsProvider).pieceSet.folderName,
-                  ),
-
-                  // ── Move history strip (always visible after first move) ──
-                  // Tapping any move enters review at that position.
-                  // Notation (SAN / Long / Figurine) from game settings applies here.
-                  if (gameState.engine.moveHistory.isNotEmpty)
-                    SizedBox(
-                      height: 44,
-                      child: _MoveHistoryStrip(
-                        moves: gameState.engine.moveHistory,
-                        verboseHistory: gameState.engine.verboseHistory,
-                        notation: cache.moveNotation,
-                        reviewIndex: gameState.reviewIndex,
-                        isInReview: gameState.isInReview,
-                        onMoveTap: (halfIdx) =>
-                            notifier.goToReview(halfIdx + 1),
-                        onFirst: () => notifier.reviewFirst(),
-                        onPrev:  () => notifier.reviewPrev(),
-                        onNext:  () => notifier.reviewNext(),
-                        onLast:  () => notifier.exitReview(),
-                      ),
-                    ),
 
                   // ── Quiet action row ─────────────────────────────────────
                   _QuietActionRow(
@@ -589,28 +578,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     ));
   }
 
-  void _confirmResign(BuildContext context, GameNotifier notifier) {
-    showDialog(
-      context: context,
-      builder: (_) => AlertDialog(
-        title: Text('resign'.tr()),
-        content: Text('leave_game_warning'.tr()),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: Text('cancel'.tr()),
-          ),
-          TextButton(
-            onPressed: () {
-              Navigator.pop(context);
-              notifier.resign();
-            },
-            child: Text('resign'.tr(),
-                style: TextStyle(color: AppColors.error)),
-          ),
-        ],
-      ),
-    );
+  Future<void> _confirmResign(BuildContext context, GameNotifier notifier) async {
+    final online = _config.mode == GameMode.online || _isFakeBotFallback;
+    if (await confirmResign(context, online: online)) notifier.resign();
   }
 
   void _showMovesSheet(BuildContext ctx, String notation) {
@@ -716,91 +686,41 @@ class _MinimalHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    String up(String key) => key.tr().toUpperCaseFor(context);
+    final tc = timeControl.label.toUpperCase();
     final modeLabel = isArena
-        ? '${'arena'.tr().toUpperCaseFor(context)} · ${timeControl.label.toUpperCase()}'
+        ? '${up('arena')} · $tc'
         : isFakeBotFallback
-        ? '${timeControl.label.toUpperCase()} · RATED'
-        : switch (gameMode) {
-            GameMode.online   => '${timeControl.label.toUpperCase()} · ${isRated ? 'RATED' : 'CASUAL'}',
-            GameMode.bot      => 'VS BOT · CASUAL',
-            GameMode.campaign => 'CAMPAIGN',
-            GameMode.local    => 'LOCAL GAME',
-          };
+            ? '$tc · ${up('rated_game')}'
+            : switch (gameMode) {
+                GameMode.online =>
+                  '$tc · ${isRated ? up('rated_game') : up('game_casual')}',
+                GameMode.bot => '${up('vs_bot')} · ${up('game_casual')}',
+                GameMode.campaign => up('campaign'),
+                GameMode.local => up('local_game'),
+              };
     final halfMove = (moveCount / 2).ceil();
-    final subLabel = moveCount == 0 ? 'Opening' : 'Move $halfMove';
+    final subLabel = moveCount == 0
+        ? 'game_opening'.tr()
+        : 'move_n'.tr(args: ['$halfMove']);
 
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(12, 10, 12, 4),
-      child: Row(
-        children: [
-          GestureDetector(
-            onTap: onBack,
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.06),
-              ),
-              child: Icon(
-                PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
-                color: AppColors.inkDim, size: 18,
-              ),
-            ),
+    return GameTopBar(
+      modeLabel: modeLabel,
+      subLabel: subLabel,
+      onBack: onBack,
+      actions: [
+        if (onMoves != null)
+          GameTopBarAction(
+            icon: PhosphorIcons.listNumbers(PhosphorIconsStyle.regular),
+            tooltip: 'move_history'.tr(),
+            onTap: onMoves!,
           ),
-          Expanded(
-            child: Column(
-              children: [
-                Text(
-                  modeLabel,
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.inkMute,
-                    letterSpacing: 1.4,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  subLabel,
-                  style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13,
-                    color: AppColors.inkDim,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (onMoves != null) ...[
-            GestureDetector(
-              onTap: onMoves,
-              child: Container(
-                width: 36, height: 36,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: Colors.white.withValues(alpha: 0.06),
-                ),
-                child: Icon(
-                  PhosphorIcons.listNumbers(PhosphorIconsStyle.regular),
-                  color: AppColors.inkDim, size: 18,
-                ),
-              ),
-            ),
-            const SizedBox(width: 6),
-          ],
-          GestureDetector(
-            onTap: onMore,
-            child: Container(
-              width: 36, height: 36,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withValues(alpha: 0.06),
-              ),
-              child: Icon(
-                PhosphorIcons.dotsThree(PhosphorIconsStyle.bold),
-                color: AppColors.inkDim, size: 18,
-              ),
-            ),
-          ),
-        ],
-      ),
+        GameTopBarAction(
+          icon: PhosphorIcons.dotsThree(PhosphorIconsStyle.bold),
+          tooltip: 'more_options'.tr(),
+          onTap: onMore,
+        ),
+      ],
     );
   }
 }
@@ -885,192 +805,34 @@ class _CalmPlayerStrip extends StatelessWidget {
     final secs = (milliseconds % 60000) ~/ 1000;
     final clockStr = '${mins.toString().padLeft(2, '0')}:${secs.toString().padLeft(2, '0')}';
 
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 1),
-      child: Row(
-        children: [
-          // Circle avatar with active amber ring
-          AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
-            width: 38, height: 38,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isWhite ? const Color(0xFFF5F3EF) : const Color(0xFF1A1310),
-              border: Border.all(
-                color: isActive ? AppColors.amber : const Color(0xFF3D3530),
-                width: isActive ? 2.0 : 1.5,
-              ),
-              boxShadow: isActive
-                  ? [BoxShadow(color: AppColors.amberGlow, blurRadius: 12)]
-                  : null,
-            ),
-            child: photoUrl != null
-                ? ClipOval(
-                    child: CachedNetworkImage(imageUrl: photoUrl!, fit: BoxFit.cover),
-                  )
-                : Center(
-                    child: PieceIcon(
-                      'bK',
-                      size: 22,
-                      color: isWhite
-                          ? const Color(0xFF1A1310)
-                          : const Color(0xFFF5F3EF),
-                    ),
-                  ),
-          ),
-          const SizedBox(width: 12),
-          // Name + sub
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  username,
-                  style: GoogleFonts.inter(
-                    fontSize: 16, fontWeight: FontWeight.w700,
-                    color: AppColors.ink, letterSpacing: -0.2,
-                  ),
-                  overflow: TextOverflow.ellipsis,
-                ),
-                if (subParts.isNotEmpty || capturedPieces.isNotEmpty)
-                  Row(
-                    children: [
-                      if (subParts.isNotEmpty)
-                        Text(
-                          subParts.join(' · '),
-                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.inkMute,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      if (capturedPieces.isNotEmpty) ...[
-                        const SizedBox(width: 6),
-                        // Shrinks rather than overflowing late in a game.
-                        Flexible(
-                          child: FittedBox(
-                            fit: BoxFit.scaleDown,
-                            alignment: Alignment.centerLeft,
-                            child: CapturedPieces(
-                              pieces: capturedPieces,
-                              pieceSet: pieceSet,
-                              color: AppColors.inkDim,
-                              size: 13,
-                            ),
-                          ),
-                        ),
-                      ],
-                      if (materialAdvantage > 0) ...[
-                        const SizedBox(width: 4),
-                        Text(
-                          '+$materialAdvantage',
-                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.win,
-                            fontWeight: FontWeight.w600,
-                          ),
-                        ),
-                      ],
-                    ],
-                  ),
-              ],
-            ),
-          ),
-          // Clock — large, amber when active
-          Text(
-            clockStr,
-            style: GoogleFonts.inter(
-              fontSize: 26, fontWeight: FontWeight.w600,
-              color: isActive ? AppColors.amber : AppColors.inkDim,
-              letterSpacing: -0.5,
-            ),
-          ),
-        ],
+    return GamePlayerStrip(
+      name: username,
+      photoUrl: photoUrl,
+      lightAvatar: isWhite,
+      isActive: isActive,
+      token: PieceIcon(
+        'bK',
+        size: 22,
+        color: isWhite ? const Color(0xFF1A1310) : const Color(0xFFF5F3EF),
       ),
-    );
-  }
-}
-
-// ── Eval Baseline ─────────────────────────────────────────────────────────────
-
-class _EvalBaseline extends StatelessWidget {
-  final double evalScore;
-  const _EvalBaseline({required this.evalScore});
-
-  @override
-  Widget build(BuildContext context) {
-    // Normalize: 0 = fully black, 0.5 = equal, 1.0 = fully white
-    // +1.0 = white up 1 pawn, etc. Clamp at ±5
-    final clamped = evalScore.clamp(-5.0, 5.0);
-    final normalized = (clamped + 5.0) / 10.0; // 0.0 to 1.0, 0.5 = equal
-    final label = evalScore == 0.0 ? 'equal'
-        : evalScore > 0 ? '+${evalScore.toStringAsFixed(1)}'
-        : evalScore.toStringAsFixed(1);
-
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 22, vertical: 4),
-      child: Row(
-        children: [
-          Text(
-            evalScore == 0.0 ? '0.0' : label,
-            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w700,
-              color: AppColors.inkMute, letterSpacing: 0.4,
+      details: [
+        if (subParts.isNotEmpty) GamePlayerStrip.detail(subParts.join(' · ')),
+        if (materialAdvantage > 0)
+          GamePlayerStrip.detail('+$materialAdvantage', color: AppColors.win),
+        if (capturedPieces.isNotEmpty)
+          // Shrinks rather than overflowing late in a game.
+          FittedBox(
+            fit: BoxFit.scaleDown,
+            alignment: Alignment.centerLeft,
+            child: CapturedPieces(
+              pieces: capturedPieces,
+              pieceSet: pieceSet,
+              color: AppColors.inkDim,
+              size: 13,
             ),
           ),
-          const SizedBox(width: 10),
-          Expanded(
-            child: SizedBox(
-              height: 14,
-              child: Stack(
-                alignment: Alignment.centerLeft,
-                children: [
-                  // Track
-                  Container(
-                    height: 2,
-                    decoration: BoxDecoration(
-                      color: const Color(0xFF2A2520),
-                      borderRadius: BorderRadius.circular(1),
-                    ),
-                  ),
-                  // Center line
-                  Center(
-                    child: Container(
-                      width: 1, height: 8,
-                      color: const Color(0xFF3D3530),
-                    ),
-                  ),
-                  // Amber dot
-                  LayoutBuilder(
-                    builder: (_, constraints) {
-                      final dotX = normalized * constraints.maxWidth;
-                      return Positioned(
-                        left: (dotX - 4).clamp(0.0, constraints.maxWidth - 8),
-                        child: Container(
-                          width: 8, height: 8,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            color: AppColors.amber,
-                            boxShadow: [
-                              BoxShadow(
-                                color: AppColors.amberGlow,
-                                blurRadius: 8,
-                              ),
-                            ],
-                          ),
-                        ),
-                      );
-                    },
-                  ),
-                ],
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            label == '0.0' ? 'equal' : label,
-            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w700,
-              color: AppColors.inkMute, letterSpacing: 0.4,
-            ),
-          ),
-        ],
-      ),
+      ],
+      trailing: GameClockText(clockStr, active: isActive),
     );
   }
 }
@@ -1104,115 +866,52 @@ class _QuietActionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // A null onTap renders as a disabled (dimmed) action.
-    final List<({IconData icon, String label, bool danger, VoidCallback? onTap})>
-        actions = isBot && isArena
-        ? [
-            // Arena games are scored: no hints, no take-backs.
-            (icon: PhosphorIcons.arrowsLeftRight(PhosphorIconsStyle.regular),
-             label: 'flip_board'.tr(),
-             danger: false,
-             onTap: onFlip),
-            (icon: PhosphorIcons.flag(PhosphorIconsStyle.regular),
-             label: 'resign'.tr(),
-             danger: true,
-             onTap: onResign),
-          ]
-        : isBot
-        ? [
-            (icon: PhosphorIcons.lightbulb(PhosphorIconsStyle.regular),
-             label: 'hint'.tr(),
-             danger: false,
-             onTap: onHint),
-            (icon: PhosphorIcons.arrowCounterClockwise(PhosphorIconsStyle.regular),
-             label: 'undo'.tr(),
-             danger: false,
-             onTap: onUndo),
-            (icon: PhosphorIcons.flag(PhosphorIconsStyle.regular),
-             label: 'resign'.tr(),
-             danger: true,
-             onTap: onResign),
-          ]
-        : isOnline
-            ? [
-                (icon: PhosphorIcons.chatCircle(PhosphorIconsStyle.regular),
-                 label: 'chat'.tr(),
-                 danger: false,
-                 onTap: onChat ?? () {}),
-                (icon: PhosphorIcons.handshake(PhosphorIconsStyle.regular),
-                 label: drawOfferSent ? 'draw_offered'.tr() : 'draw'.tr(),
-                 danger: false,
-                 onTap: drawOfferSent ? () {} : onDraw),
-                (icon: PhosphorIcons.flag(PhosphorIconsStyle.regular),
-                 label: 'resign'.tr(),
-                 danger: true,
-                 onTap: onResign),
-              ]
-            : [
-                (icon: PhosphorIcons.arrowsLeftRight(PhosphorIconsStyle.regular),
-                 label: 'flip_board'.tr(),
-                 danger: false,
-                 onTap: onFlip),
-                (icon: PhosphorIcons.arrowCounterClockwise(PhosphorIconsStyle.regular),
-                 label: 'undo'.tr(),
-                 danger: false,
-                 onTap: onUndo),
-                (icon: PhosphorIcons.flag(PhosphorIconsStyle.regular),
-                 label: 'resign'.tr(),
-                 danger: true,
-                 onTap: onResign),
-              ];
-
-    return Padding(
-      padding: const EdgeInsets.fromLTRB(16, 4, 16, 8),
-      child: Row(
-        children: actions.map((a) {
-          final enabled = a.onTap != null;
-          final color = a.danger
-              ? AppColors.loss.withValues(alpha: 0.85)
-              : AppColors.inkDim;
-          return Expanded(
-            child: Semantics(
-              button: true,
-              enabled: enabled,
-              label: a.label,
-              excludeSemantics: true,
-              child: GestureDetector(
-                onTap: a.onTap,
-                behavior: HitTestBehavior.opaque,
-                child: Opacity(
-                  opacity: enabled ? 1 : 0.38,
-                  child: Container(
-                    padding: const EdgeInsets.symmetric(vertical: 12),
-                    margin: const EdgeInsets.symmetric(horizontal: 3),
-                    decoration: BoxDecoration(
-                      color: Colors.white.withValues(alpha: 0.04),
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    child: Column(
-                      children: [
-                        Icon(a.icon, size: 16, color: color),
-                        const SizedBox(height: 4),
-                        Text(
-                          a.label,
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: color,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-            ),
-          );
-        }).toList(),
-      ),
+    final flip = GameAction(
+      icon: PhosphorIcons.arrowsLeftRight(PhosphorIconsStyle.regular),
+      label: 'flip_board'.tr(),
+      onTap: onFlip,
     );
+    final undo = GameAction(
+      icon: PhosphorIcons.arrowCounterClockwise(PhosphorIconsStyle.regular),
+      label: 'undo'.tr(),
+      onTap: onUndo,
+    );
+    final resign = GameAction(
+      icon: PhosphorIcons.flag(PhosphorIconsStyle.regular),
+      label: 'resign'.tr(),
+      onTap: onResign,
+      danger: true,
+    );
+    final actions = isBot && isArena
+        // Arena games are scored: no hints, no take-backs.
+        ? [flip, resign]
+        : isBot
+            ? [
+                GameAction(
+                  icon: PhosphorIcons.lightbulb(PhosphorIconsStyle.regular),
+                  label: 'hint'.tr(),
+                  onTap: onHint,
+                ),
+                undo,
+                resign,
+              ]
+            : isOnline
+                ? [
+                    GameAction(
+                      icon: PhosphorIcons.chatCircle(PhosphorIconsStyle.regular),
+                      label: 'chat'.tr(),
+                      onTap: onChat,
+                    ),
+                    // A pending offer shows as a dimmed "Draw offered".
+                    GameAction(
+                      icon: PhosphorIcons.handshake(PhosphorIconsStyle.regular),
+                      label: drawOfferSent ? 'draw_offered'.tr() : 'draw'.tr(),
+                      onTap: drawOfferSent ? null : onDraw,
+                    ),
+                    resign,
+                  ]
+                : [flip, undo, resign];
+    return GameActionRow(actions: actions);
   }
 }
 

@@ -1,4 +1,6 @@
 import 'dart:async';
+import 'dart:math' as math;
+import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
@@ -16,6 +18,10 @@ import '../../../core/services/realtime_game_service.dart';
 import '../../../core/services/tournament_service.dart';
 import '../../../core/theme/board_themes.dart';
 import '../../settings/screens/settings_screen.dart' show settingsProvider;
+import '../../../core/utils/text_case.dart';
+import '../../../core/widgets/game_icon.dart';
+import '../../game/widgets/game_chat_panel.dart';
+import '../../game/widgets/game_chrome.dart';
 import '../engine/checkers_engine.dart';
 import '../widgets/checkers_board_widget.dart';
 
@@ -86,6 +92,14 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
   // Undo snapshots (offline only) — engine state right before each human move.
   final List<CheckersEngine> _undoStack = [];
 
+  /// The move the Hint button suggested (its squares are highlighted until
+  /// a move is made or another piece is picked).
+  List<int>? _hintPath;
+  bool _hinting = false;
+
+  /// "Flip board" in pass-and-play.
+  bool _manualFlip = false;
+
   CheckersPlayer get _humanPlayer =>
       _playerIsWhite ? CheckersPlayer.white : CheckersPlayer.black;
 
@@ -101,7 +115,11 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
 
   bool get _isLocalGame => !_vsBot && !_isOnline;
 
-  bool get _flipped => !_playerIsWhite;
+  bool get _flipped => !_playerIsWhite != _manualFlip;
+
+  /// A stand-in bot game that is shown as an online one (matchmaking found
+  /// nobody): no hints or take-backs there, exactly like online.
+  bool get _looksOnline => _isOnline || _isFakeBotFallback;
 
   @override
   void initState() {
@@ -221,6 +239,13 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
         _hintCells.add(m.to);
       }
     }
+    // After "Hint", only the suggested move's squares are marked.
+    final hint = _hintPath;
+    if (hint != null && hint.first == _selectedCell) {
+      final onPath = hint.toSet();
+      _hintCells = _hintCells.where(onPath.contains).toSet();
+      _captureHintCells = _captureHintCells.where(onPath.contains).toSet();
+    }
   }
 
   bool _hasPrefix(List<int> path, List<int> prefix) {
@@ -242,12 +267,13 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
 
     // If tapping own piece → select it
     if (piece.belongsTo(_engine.turn)) {
+      if (_hintPath != null && _hintPath!.first != cellIdx) _hintPath = null;
       final movesForPiece =
           _legalMoves.where((m) => m.from == cellIdx).toList();
       if (movesForPiece.isEmpty) {
         // Mandatory capture elsewhere — explain instead of silently ignoring.
         if (_forcedCells.isNotEmpty) {
-          _showSnack('Capture is mandatory — highlighted pieces must capture');
+          _showSnack('capture_mandatory'.tr());
         }
         setState(() {
           _selectedCell = null;
@@ -291,7 +317,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
 
     if (extended.isEmpty) {
       if (finals.length > 1) {
-        _showSnack('Multiple capture routes — tap each square of the route');
+        _showSnack('capture_route_hint'.tr());
         return;
       }
       // Not a valid continuation → clear selection.
@@ -340,6 +366,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
 
     final applied = _engine.makeMove(move);
     if (!applied) return;
+    _hintPath = null;
 
     if (_isOnline) _pushAction(move);
     _resetTurnClock();
@@ -486,7 +513,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
       // Repeated stalling forfeits the game.
       _applyResign();
     } else {
-      _showSnack('Time! A move was played automatically (${3 - _myTimeouts} left)');
+      _showSnack('auto_move_warning'.tr(args: ['${3 - _myTimeouts}']));
       if (_legalMoves.isNotEmpty) {
         _makeMove(_legalMoves.first);
       }
@@ -531,7 +558,34 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
       _engine = _undoStack.removeLast();
       _selectedCell = null;
       _pendingPath = [];
+      _hintPath = null;
       _refreshMoves();
+    });
+  }
+
+  /// Bot games: asks the engine for a good move and marks it on the board.
+  Future<void> _handleHint() async {
+    if (_hinting || _thinking || !_isHumanTurn) return;
+    if (_engine.result != CheckersResult.ongoing) return;
+    setState(() => _hinting = true);
+    Map<String, dynamic>? res;
+    try {
+      res = await compute(checkersBestMoveIsolate, {
+        ..._engine.toSearchState(),
+        'depth': 4,
+      });
+    } catch (err) {
+      debugPrint('[Checkers] hint search failed: $err');
+    }
+    if (!mounted) return;
+    setState(() {
+      _hinting = false;
+      final path = res == null ? null : List<int>.from(res['path'] as List);
+      if (path == null || path.isEmpty) return;
+      _hintPath = path;
+      _selectedCell = path.first;
+      _pendingPath = [path.first];
+      _recomputeHints();
     });
   }
 
@@ -724,36 +778,16 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
 
   Future<void> _handleResign() async {
     final side = _resigningSide;
-    final sideName = side == CheckersPlayer.white ? 'White' : 'Black';
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        backgroundColor: AppColors.cardElevated,
-        title: Text('Resign', style: GoogleFonts.inter(
-          fontSize: 20, fontWeight: FontWeight.w700,
-          color: AppColors.ink,
-        )),
-        content: Text(
-            _isLocalGame
-                ? '$sideName resigns — are you sure?'
-                : 'Are you sure you want to resign?',
-            style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkDim)),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, false),
-            child: Text('Cancel', style: GoogleFonts.inter(color: AppColors.inkDim)),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, true),
-            child: Text('Resign', style: GoogleFonts.inter(
-              color: AppColors.loss, fontWeight: FontWeight.w600,
-            )),
-          ),
-        ],
-      ),
+    final sideName =
+        (side == CheckersPlayer.white ? 'white' : 'black').tr();
+    final confirmed = await confirmResign(
+      context,
+      online: _looksOnline,
+      message: _isLocalGame
+          ? 'side_resigns_confirm'.tr(args: [sideName])
+          : null,
     );
-
-    if (confirmed == true && mounted) {
+    if (confirmed && mounted) {
       _applyResign();
     }
   }
@@ -784,17 +818,17 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
     _saveGame(result);
 
     if (result == CheckersResult.draw) {
-      title = 'Draw';
+      title = 'game_drawn'.tr();
       titleColor = AppColors.draw;
     } else if (_isLocalGame) {
       // Pass-and-play: announce the winning colour, not "You".
-      title = result == CheckersResult.whiteWin ? 'White Won' : 'Black Won';
+      title = (result == CheckersResult.whiteWin ? 'white_wins' : 'black_wins').tr();
       titleColor = AppColors.win;
     } else {
       final humanWon =
           (result == CheckersResult.whiteWin && _humanPlayer == CheckersPlayer.white) ||
           (result == CheckersResult.blackWin && _humanPlayer == CheckersPlayer.black);
-      title = humanWon ? 'You Won!' : 'You Lost';
+      title = (humanWon ? 'you_won' : 'you_lost').tr();
       titleColor = humanWon ? AppColors.win : AppColors.loss;
     }
 
@@ -830,8 +864,8 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
             ),
             const SizedBox(height: 8),
             Text(
-              'White: ${_engine.countPieces(CheckersPlayer.white)} · '
-              'Black: ${_engine.countPieces(CheckersPlayer.black)}',
+              '${'white'.tr()}: ${_engine.countPieces(CheckersPlayer.white)} · '
+              '${'black'.tr()}: ${_engine.countPieces(CheckersPlayer.black)}',
               style: GoogleFonts.inter(
                 fontSize: 13, color: AppColors.inkDim,
               ),
@@ -852,7 +886,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: Text('Exit', style: AppTextStyles.buttonMedium),
+                    child: Text('exit'.tr(), style: AppTextStyles.buttonMedium),
                   ),
                 ),
                 const SizedBox(width: 12),
@@ -875,7 +909,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: Text(_isOnline ? 'New Game' : 'Rematch',
+                    child: Text((_isOnline ? 'new_game' : 'rematch').tr(),
                         style: AppTextStyles.buttonMedium
                             .copyWith(color: const Color(0xFF0A0A0B))),
                   ),
@@ -900,6 +934,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
       _resultShown = false;
       _myTimeouts = 0;
       _undoStack.clear();
+      _hintPath = null;
       _refreshMoves();
     });
     if (_vsBot && !_isHumanTurn) {
@@ -941,296 +976,211 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
       },
       child: Scaffold(
         backgroundColor: AppColors.background,
-        appBar: AppBar(
-          backgroundColor: AppColors.background,
-          elevation: 0,
-          scrolledUnderElevation: 0,
-          leading: IconButton(
-            icon: Icon(
-              PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
-              color: AppColors.ink,
-            ),
-            onPressed: () {
-              if (activeGame) {
-                _handleResign();
-              } else {
-                Navigator.pop(context);
-              }
-            },
-          ),
-          title: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text(
-                switch (_variant) {
-                  CheckersVariant.international => 'International',
-                  CheckersVariant.turkish       => 'Turkish',
-                  CheckersVariant.brazilian     => 'Brazilian',
-                  CheckersVariant.russian       => 'Russian',
-                  _                             => 'Checkers',
-                },
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.ink,
-                ),
-              ),
-            ],
-          ),
-          centerTitle: true,
-          actions: [
-            if (_thinking)
-              const Padding(
-                padding: EdgeInsets.only(right: 16),
-                child: SizedBox(
-                  width: 18, height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    color: Color(0xFF6FB4E0),
-                  ),
-                ),
-              ),
-          ],
-        ),
         body: SafeArea(
           child: Column(
             children: [
-              _PlayerBar(
-                label: topLabel,
-                count: topCount,
-                isWhitePieces: topIsWhite,
-                isActive: topTurn,
-                secondsLeft: showClock && topTurn ? _turnSecondsLeft : null,
+              GameTopBar(
+                modeLabel: _modeLabel(context),
+                subLabel: _subLabel(),
+                onBack: () {
+                  if (activeGame) {
+                    _handleResign();
+                  } else {
+                    Navigator.pop(context);
+                  }
+                },
               ),
-              // Board
+              // Player rows hug the board, as in chess; the group is centred
+              // in the space between the top bar and the actions.
               Expanded(
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 12),
-                    child: Builder(builder: (context) {
-                      // "Show legal moves" / "Highlight last move" from
-                      // Game Settings apply to checkers too.
-                      final cache = ref.watch(cacheServiceProvider);
-                      final showHints = cache.showLegalMoves;
-                      final lastMove = (cache.highlightLastMove &&
-                              _engine.moveHistory.isNotEmpty)
-                          ? {
-                              _engine.moveHistory.last.from,
-                              _engine.moveHistory.last.to,
-                            }
-                          : const <int>{};
-                      return CheckersBoardWidget(
-                        engine: _engine,
-                        selectedCell: _selectedCell,
-                        hintCells: showHints ? _hintCells : const {},
-                        captureHintCells:
-                            showHints ? _captureHintCells : const {},
-                        forcedCells: showHints ? _forcedCells : const {},
-                        lastMoveCells: lastMove,
-                        onCellTap: _onCellTap,
-                        flipped: _flipped,
-                        lightSquareColor:
-                            ref.watch(settingsProvider).boardTheme.lightSquare,
-                        darkSquareColor:
-                            ref.watch(settingsProvider).boardTheme.darkSquare,
-                      );
-                    }),
-                  ),
-                ),
-              ),
-              _PlayerBar(
-                label: bottomLabel,
-                count: bottomCount,
-                isWhitePieces: !topIsWhite,
-                isActive: !topTurn,
-                secondsLeft: showClock && !topTurn ? _turnSecondsLeft : null,
-              ),
-              const SizedBox(height: 12),
-              // Action bar
-              _ActionBar(
-                onUndo: (!_isOnline &&
-                        _undoStack.isNotEmpty &&
-                        _isHumanTurn &&
-                        !_thinking)
-                    ? _handleUndo
-                    : null,
-                onResign: _engine.result == CheckersResult.ongoing
-                    ? _handleResign
-                    : null,
+                child: LayoutBuilder(builder: (context, box) {
+                  // Two strips (~40 each) and the gaps around the board.
+                  final side = math.max(
+                    0.0,
+                    math.min(box.maxWidth - 24, box.maxHeight - 104),
+                  );
+                  return Center(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        _strip(
+                          label: topLabel,
+                          count: topCount,
+                          whitePieces: topIsWhite,
+                          active: topTurn,
+                          showClock: showClock,
+                          // The bot sits at the top in bot games.
+                          thinking: _thinking && topTurn,
+                        ),
+                        const SizedBox(height: 10),
+                        SizedBox(
+                          width: side,
+                          height: side,
+                          child: Builder(builder: (context) {
+                            // "Show legal moves" / "Highlight last move" from
+                            // Game Settings apply to checkers too.
+                            final cache = ref.watch(cacheServiceProvider);
+                            // A hint is shown even with move hints off.
+                            final showHints =
+                                cache.showLegalMoves || _hintPath != null;
+                            final lastMove = (cache.highlightLastMove &&
+                                    _engine.moveHistory.isNotEmpty)
+                                ? {
+                                    _engine.moveHistory.last.from,
+                                    _engine.moveHistory.last.to,
+                                  }
+                                : const <int>{};
+                            final board = ref.watch(settingsProvider).boardTheme;
+                            return CheckersBoardWidget(
+                              engine: _engine,
+                              selectedCell: _selectedCell,
+                              hintCells: showHints ? _hintCells : const {},
+                              captureHintCells:
+                                  showHints ? _captureHintCells : const {},
+                              forcedCells: showHints ? _forcedCells : const {},
+                              lastMoveCells: lastMove,
+                              onCellTap: _onCellTap,
+                              flipped: _flipped,
+                              lightSquareColor: board.lightSquare,
+                              darkSquareColor: board.darkSquare,
+                            );
+                          }),
+                        ),
+                        const SizedBox(height: 10),
+                        _strip(
+                          label: bottomLabel,
+                          count: bottomCount,
+                          whitePieces: !topIsWhite,
+                          active: !topTurn,
+                          showClock: showClock,
+                          thinking: false,
+                        ),
+                      ],
+                    ),
+                  );
+                }),
               ),
               const SizedBox(height: 8),
+              GameActionRow(actions: _actions()),
             ],
           ),
         ),
       ),
     );
   }
-}
 
-// ── Player Bar ──────────────────────────────────────────────────────────────
+  // ── Page chrome ──────────────────────────────────────────────────────────
 
-class _PlayerBar extends StatelessWidget {
-  final String label;
-  final int count;
-  final bool isWhitePieces;
-  final bool isActive;
-  final int? secondsLeft;
+  String _modeLabel(BuildContext context) {
+    String up(String key) => key.tr().toUpperCaseFor(context);
+    if (_arenaId != null) return up('arena');
+    if (_looksOnline) {
+      final rated = _isRated || _isFakeBotFallback;
+      return '${up('online')} · ${rated ? up('rated_game') : up('game_casual')}';
+    }
+    return switch (_mode) {
+      'campaign' => up('campaign'),
+      'bot' => '${up('vs_bot')} · ${up('game_casual')}',
+      _ => up('local_game'),
+    };
+  }
 
-  const _PlayerBar({
-    required this.label,
-    required this.count,
-    required this.isWhitePieces,
-    required this.isActive,
-    this.secondsLeft,
-  });
+  String _subLabel() {
+    final variant = switch (_variant) {
+      CheckersVariant.international => 'variant_international',
+      CheckersVariant.turkish => 'variant_turkish',
+      CheckersVariant.brazilian => 'variant_brazilian',
+      CheckersVariant.russian => 'variant_russian',
+      CheckersVariant.standard => 'checkers',
+    }
+        .tr();
+    final moves = _engine.moveHistory.length;
+    if (moves == 0) return variant;
+    return '$variant · ${'move_n'.tr(args: ['${(moves + 1) ~/ 2}'])}';
+  }
 
-  @override
-  Widget build(BuildContext context) {
-    final lowTime = (secondsLeft ?? 99) <= 10;
-    return Container(
-      margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 6),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: isActive ? const Color(0xFF6FB4E0).withValues(alpha: 0.1) : AppColors.card,
-        borderRadius: BorderRadius.circular(12),
-        border: Border.all(
-          color: isActive ? const Color(0xFF6FB4E0).withValues(alpha: 0.3) : AppColors.border,
-        ),
+  Widget _strip({
+    required String label,
+    required int count,
+    required bool whitePieces,
+    required bool active,
+    required bool showClock,
+    required bool thinking,
+  }) {
+    final timer = showClock && active;
+    return GamePlayerStrip(
+      name: label,
+      lightAvatar: whitePieces,
+      isActive: active,
+      token: GameIcon(
+        type: GameType.checkers,
+        size: 20,
+        color: whitePieces ? const Color(0xFF1A1310) : const Color(0xFFF5F3EF),
       ),
-      child: Row(
-        children: [
-          // Piece indicator
-          Container(
-            width: 24, height: 24,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              color: isWhitePieces ? const Color(0xFFF5F0E0) : const Color(0xFF2A2017),
-              border: Border.all(
-                color: isWhitePieces ? const Color(0xFFD4C5A9) : const Color(0xFF4A4030),
-                width: 2,
-              ),
-            ),
-          ),
-          const SizedBox(width: 10),
-          Text(
-            label,
-            style: GoogleFonts.inter(
-              fontSize: 14,
-              fontWeight: FontWeight.w600,
-              color: AppColors.ink,
-            ),
-          ),
-          const Spacer(),
-          if (secondsLeft != null) ...[
-            Container(
-              padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),
-              decoration: BoxDecoration(
-                color: (lowTime ? AppColors.loss : const Color(0xFF6FB4E0))
-                    .withValues(alpha: 0.15),
-                borderRadius: BorderRadius.circular(8),
-              ),
-              child: Text(
-                '${secondsLeft}s',
-                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: lowTime ? AppColors.loss : const Color(0xFF6FB4E0),
-                ),
-              ),
-            ),
-            const SizedBox(width: 8),
-          ],
-          // Piece count
-          Text(
-            '$count pieces',
-            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
-              fontWeight: FontWeight.w500,
-              color: AppColors.inkDim,
-            ),
-          ),
-          if (isActive) ...[
-            const SizedBox(width: 8),
-            Container(
-              width: 8, height: 8,
-              decoration: const BoxDecoration(
-                color: Color(0xFF6FB4E0),
-                shape: BoxShape.circle,
-              ),
-            ),
-          ],
-        ],
-      ),
+      details: [GamePlayerStrip.detail('$count ${'pieces'.tr()}')],
+      trailing: timer
+          ? GameClockText(
+              GameClockText.seconds(_turnSecondsLeft),
+              active: true,
+              low: _turnSecondsLeft <= 10,
+            )
+          : thinking
+              ? const GameThinkingIndicator()
+              : null,
     );
   }
-}
 
-// ── Action Bar ──────────────────────────────────────────────────────────────
-
-class _ActionBar extends StatelessWidget {
-  final VoidCallback? onUndo;
-  final VoidCallback? onResign;
-
-  const _ActionBar({this.onUndo, this.onResign});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          _ActionBtn(
-            icon: PhosphorIcons.arrowCounterClockwise(PhosphorIconsStyle.regular),
-            label: 'Undo',
-            onTap: onUndo,
-          ),
-          const SizedBox(width: 16),
-          _ActionBtn(
-            icon: PhosphorIcons.flag(PhosphorIconsStyle.regular),
-            label: 'Resign',
-            onTap: onResign,
-            color: AppColors.loss,
-          ),
-        ],
-      ),
+  List<GameAction> _actions() {
+    final ongoing = _engine.result == CheckersResult.ongoing;
+    final canUndo = !_isOnline &&
+        _undoStack.isNotEmpty &&
+        _isHumanTurn &&
+        !_thinking;
+    final resign = GameAction(
+      icon: PhosphorIcons.flag(PhosphorIconsStyle.regular),
+      label: 'resign'.tr(),
+      onTap: ongoing ? _handleResign : null,
+      danger: true,
     );
-  }
-}
-
-class _ActionBtn extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final VoidCallback? onTap;
-  final Color color;
-
-  const _ActionBtn({
-    required this.icon,
-    required this.label,
-    this.onTap,
-    this.color = AppColors.inkDim,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Opacity(
-        opacity: onTap != null ? 1.0 : 0.4,
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(icon, color: color, size: 22),
-            const SizedBox(height: 2),
-            Text(
-              label,
-              style: GoogleFonts.inter(
-                fontSize: 10,
-                fontWeight: FontWeight.w500,
-                color: color,
-              ),
-            ),
-          ],
+    final undo = GameAction(
+      icon: PhosphorIcons.arrowCounterClockwise(PhosphorIconsStyle.regular),
+      label: 'undo'.tr(),
+      onTap: canUndo ? _handleUndo : null,
+    );
+    if (_looksOnline) {
+      return [
+        GameAction(
+          icon: PhosphorIcons.chatCircle(PhosphorIconsStyle.regular),
+          label: 'chat'.tr(),
+          onTap: () => showGameChatSheet(context, gameId: _gameId),
         ),
+        resign,
+      ];
+    }
+    if (_vsBot) {
+      // Arena games are scored: no hints, no take-backs.
+      if (_arenaId != null) return [resign];
+      return [
+        GameAction(
+          icon: PhosphorIcons.lightbulb(PhosphorIconsStyle.regular),
+          label: 'hint'.tr(),
+          onTap: ongoing && _isHumanTurn && !_thinking && !_hinting
+              ? _handleHint
+              : null,
+        ),
+        undo,
+        resign,
+      ];
+    }
+    // Pass and play on one phone.
+    return [
+      GameAction(
+        icon: PhosphorIcons.arrowsLeftRight(PhosphorIconsStyle.regular),
+        label: 'flip_board'.tr(),
+        onTap: () => setState(() => _manualFlip = !_manualFlip),
       ),
-    );
+      undo,
+      resign,
+    ];
   }
 }

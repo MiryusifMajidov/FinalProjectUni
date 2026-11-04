@@ -1,4 +1,6 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import '../../../core/utils/text_case.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -44,7 +46,7 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
           mainAxisSize: MainAxisSize.min,
           children: [
             Text(
-              'Play Domino',
+              'play_vs_bot'.tr(),
               style: GoogleFonts.inter(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
@@ -68,12 +70,12 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
               const SizedBox(height: 20),
 
               // ── Players ──────────────────────────────────────────────
-              _sectionLabel('PLAYERS'),
+              _sectionLabel('domino_players'.tr()),
               const SizedBox(height: 10),
               Row(
                 children: [
                   _ChoiceButton(
-                    label: '2 Players',
+                    label: 'players_n'.tr(args: ['2']),
                     selected: _playerCount == 2,
                     accent: _accent,
                     onTap: () => setState(() {
@@ -83,7 +85,7 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
                   ),
                   const SizedBox(width: 10),
                   _ChoiceButton(
-                    label: '4 Players',
+                    label: 'players_n'.tr(args: ['4']),
                     selected: _playerCount == 4,
                     accent: _accent,
                     onTap: () => setState(() => _playerCount = 4),
@@ -94,19 +96,19 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
               // ── 4P mode ──────────────────────────────────────────────
               if (_playerCount == 4) ...[
                 const SizedBox(height: 24),
-                _sectionLabel('TABLE MODE'),
+                _sectionLabel('domino_table_mode'.tr()),
                 const SizedBox(height: 10),
                 Row(
                   children: [
                     _ChoiceButton(
-                      label: 'Free-for-all',
+                      label: 'domino_free_for_all'.tr(),
                       selected: !_teams,
                       accent: _accent,
                       onTap: () => setState(() => _teams = false),
                     ),
                     const SizedBox(width: 10),
                     _ChoiceButton(
-                      label: 'Teams 2v2',
+                      label: 'domino_teams'.tr(),
                       selected: _teams,
                       accent: _accent,
                       onTap: () => setState(() => _teams = true),
@@ -118,21 +120,21 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
               const SizedBox(height: 24),
 
               // ── Variant ──────────────────────────────────────────────
-              _sectionLabel('RULESET'),
+              _sectionLabel('domino_ruleset'.tr()),
               const SizedBox(height: 10),
               Row(
                 children: [
                   _ChoiceButton(
-                    label: 'Draw',
-                    sublabel: 'Draw from boneyard when stuck',
+                    label: 'domino_rules_draw'.tr(),
+                    sublabel: 'domino_rules_draw_desc'.tr(),
                     selected: _variant == 'draw',
                     accent: _accent,
                     onTap: () => setState(() => _variant = 'draw'),
                   ),
                   const SizedBox(width: 10),
                   _ChoiceButton(
-                    label: 'Block',
-                    sublabel: 'No drawing — pass when stuck',
+                    label: 'domino_rules_block'.tr(),
+                    sublabel: 'domino_rules_block_desc'.tr(),
                     selected: _variant == 'block',
                     accent: _accent,
                     onTap: () => setState(() => _variant = 'block'),
@@ -143,7 +145,7 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
               const SizedBox(height: 24),
 
               // ── Target score ─────────────────────────────────────────
-              _sectionLabel('MATCH TO'),
+              _sectionLabel('domino_match_to'.tr()),
               const SizedBox(height: 10),
               Row(
                 children: [
@@ -180,8 +182,7 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
                     const SizedBox(width: 10),
                     Expanded(
                       child: Text(
-                        'Double-Six set · 7 tiles each · rounds to $_target points · '
-                        'highest double opens the first round',
+                        'domino_rules_summary'.tr(args: ['$_target']),
                         style: GoogleFonts.inter(
                           fontSize: 12, color: _accent,
                           fontWeight: FontWeight.w500,
@@ -223,7 +224,7 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
                     ),
                   ),
                   child: Text(
-                    'Start Game',
+                    'start_game'.tr(),
                     style: GoogleFonts.inter(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
@@ -240,7 +241,7 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
   }
 
   Widget _sectionLabel(String text) => Text(
-        text,
+        text.toUpperCaseFor(context),
         style: GoogleFonts.inter(
           fontSize: 11,
           fontWeight: FontWeight.w700,
@@ -256,8 +257,8 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
       'gameType': 'domino',
       'playerIsWhite': true,
       'isRated': false,
-      'myUsername': 'You',
-      'opponentUsername': 'Bot',
+      'myUsername': 'you'.tr(),
+      'opponentUsername': 'bot'.tr(),
       'dominoPlayerCount': _playerCount == 4 ? '4-player' : '2-player',
       'dominoVariant': _variant,
       'dominoTarget': _target,
