@@ -44,7 +44,13 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.ludodo.checkmate"
+        // `flutter build apk -P testBuild=true` makes a copy that installs next
+        // to the Play Store app instead of replacing it and its data: its own
+        // application id (also registered in google-services.json) and name.
+        val testBuild = project.findProperty("testBuild") == "true"
+        applicationId = if (testBuild) "com.chessapp.chess_app" else "com.ludodo.checkmate"
+        manifestPlaceholders["appLabel"] =
+            if (testBuild) "CheckMate Test" else "Chess Draughts Dominoes"
         minSdk        = 23
         targetSdk     = 36
         versionCode   = flutter.versionCode
