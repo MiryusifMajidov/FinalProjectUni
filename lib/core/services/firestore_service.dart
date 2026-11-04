@@ -23,11 +23,25 @@ class FirestoreService {
     return doc.exists;
   }
 
+  /// Creates users/{uid} and claims usernames/{lowercase} atomically.
+  ///
+  /// A transaction rather than a blind batch: the batch overwrote nothing
+  /// only because the rules happen to forbid updating usernames/*, so a taken
+  /// name surfaced as a bare permission-denied ("Registration failed") instead
+  /// of "Username already taken". Throws `Exception('Username already taken')`
+  /// when another account owns the name.
   Future<void> createUser(UserModel user) async {
-    final batch = _db.batch();
-    batch.set(_users.doc(user.uid), user.toMap());
-    batch.set(_usernames.doc(user.username.toLowerCase()), {'uid': user.uid});
-    await batch.commit();
+    final nameRef = _usernames.doc(user.username.toLowerCase());
+    final userRef = _users.doc(user.uid);
+    await _db.runTransaction((tx) async {
+      final nameSnap = await tx.get(nameRef);
+      final owner = nameSnap.data()?['uid'] as String?;
+      if (nameSnap.exists && owner != user.uid) {
+        throw Exception('Username already taken');
+      }
+      tx.set(userRef, user.toMap());
+      if (!nameSnap.exists) tx.set(nameRef, {'uid': user.uid});
+    });
   }
 
   Future<UserModel?> getUser(String uid) async {

@@ -1,7 +1,9 @@
 import 'dart:convert';
 import 'dart:math';
+import 'dart:ui' show PlatformDispatcher;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -13,6 +15,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
 import 'firestore_service.dart';
 import 'log_service.dart';
+import '../constants/countries.dart';
 import '../models/user_model.dart';
 
 class AuthService {
@@ -40,7 +43,8 @@ class AuthService {
     String? skillLevel,
     String? countryCode,
   }) async {
-    // Check username uniqueness
+    // Cheap pre-check so the common case fails before an Auth account exists.
+    // createUser() re-checks inside its transaction, which is the real guard.
     final exists = await _firestore.usernameExists(username);
     if (exists) throw Exception('Username already taken');
 
@@ -61,11 +65,31 @@ class AuthService {
       bulletStats: initialStats,
       blitzStats: initialStats,
       rapidStats: initialStats,
-      checkersStats: const RatingStats(),
-      dominoStats: const RatingStats(),
+      // Point-based games start at 300 (GameTypeX.defaultScore), not 1200.
+      checkersStats: const RatingStats(rating: 300),
+      dominoStats: const RatingStats(rating: 300),
     );
 
-    await _firestore.createUser(user);
+    try {
+      await _firestore.createUser(user);
+    } catch (_) {
+      // Without the profile document the Auth account is a dead end: the
+      // e-mail is now "already in use", so registering again fails, while
+      // signing in lands on a profile-less home screen. Undo the Auth half so
+      // the person can simply try again.
+      try {
+        await cred.user?.delete();
+      } catch (e) {
+        debugPrint('[Auth] rollback of half-created account failed: $e');
+      }
+      rethrow;
+    }
+
+    // Sent here rather than from the verification screen: the router used to
+    // replace /register with /home the moment the Auth account existed, so
+    // that screen — and with it the only sendEmailVerification() call — was
+    // never reached and nobody ever received a verification e-mail.
+    await sendVerificationEmail();
 
     // Log registration event — awaited so failures surface to the caller
     // instead of being silently dropped.
@@ -112,6 +136,224 @@ class AuthService {
     }
 
     return user;
+  }
+
+  // ── E-mail verification ────────────────────────────────────────────────────
+
+  /// When the last verification e-mail went out (null = never this session).
+  /// Firebase throttles rapid resends with `too-many-requests`, so screens use
+  /// this to start their resend cooldown instead of firing a second e-mail.
+  DateTime? lastVerificationEmailSentAt;
+
+  /// Sends the verification e-mail for the signed-in user. Returns false
+  /// (never throws) when Firebase refuses, e.g. `too-many-requests`.
+  Future<bool> sendVerificationEmail() async {
+    final user = _auth.currentUser;
+    if (user == null || user.email == null || user.emailVerified) return false;
+    try {
+      await user.sendEmailVerification();
+      lastVerificationEmailSentAt = DateTime.now();
+      return true;
+    } catch (e) {
+      debugPrint('[Auth] sendEmailVerification failed: $e');
+      return false;
+    }
+  }
+
+  /// Reloads the Firebase user and reports whether the e-mail is verified.
+  Future<bool> reloadAndCheckVerified() async {
+    await _auth.currentUser?.reload();
+    return _auth.currentUser?.emailVerified ?? false;
+  }
+
+  // ── Guest accounts (Firebase anonymous auth) ──────────────────────────────
+
+  static const _guestAdjectives = [
+    'Swift', 'Bold', 'Clever', 'Silent', 'Brave', 'Lucky', 'Quick', 'Wise',
+    'Sharp', 'Calm', 'Mighty', 'Royal', 'Iron', 'Golden', 'Shadow', 'Rapid',
+    'Noble', 'Fierce', 'Cosmic', 'Tactical',
+  ];
+  static const _guestPieces = [
+    'Knight', 'Bishop', 'Rook', 'Queen', 'King', 'Pawn',
+  ];
+
+  /// A random, valid username (letters + digits, at most 20 characters),
+  /// e.g. "SwiftKnight4821". Guests can rename themselves later like anyone.
+  String randomGuestUsername() {
+    final r = Random.secure();
+    final adjective = _guestAdjectives[r.nextInt(_guestAdjectives.length)];
+    final piece = _guestPieces[r.nextInt(_guestPieces.length)];
+    return '$adjective$piece${100 + r.nextInt(9900)}';
+  }
+
+  /// Signs in anonymously and creates a full profile with a random username.
+  ///
+  /// The account works exactly like a registered one, but it only exists on
+  /// this device until an e-mail, Google or Apple sign-in is linked to it:
+  /// uninstalling the app (or signing out) loses it for good.
+  Future<UserModel> signInAsGuest() async {
+    final cred = await _auth.signInAnonymously();
+    return ensureGuestProfile(cred.user!);
+  }
+
+  /// Returns the profile of an anonymous user, creating it if it is missing
+  /// (a first guest sign-in, or one that was interrupted half-way).
+  Future<UserModel> ensureGuestProfile(User firebaseUser) async {
+    final existing = await _firestore.getUser(firebaseUser.uid);
+    if (existing != null) return existing;
+
+    for (var attempt = 0; attempt < 6; attempt++) {
+      final user = UserModel(
+        uid: firebaseUser.uid,
+        username: randomGuestUsername(),
+        email: '',
+        avatarId: 'avatar_01',
+        countryCode: _deviceCountryCode(),
+        createdAt: DateTime.now(),
+        isGuest: true,
+        checkersStats: const RatingStats(rating: 300),
+        dominoStats: const RatingStats(rating: 300),
+      );
+      try {
+        await _firestore.createUser(user);
+        await _log.log(
+          uid: user.uid,
+          username: user.username,
+          type: 'register',
+          metadata: {'platform': _platformName, 'method': 'guest'},
+        );
+        return user;
+      } catch (e) {
+        // Random-name collision: roll again. Anything else is a real error.
+        if (!e.toString().contains('Username already taken')) rethrow;
+      }
+    }
+    throw Exception('guest-username-exhausted');
+  }
+
+  /// The device's region (e.g. "AZ" for az_AZ) when it is a country we list,
+  /// so a new guest starts with the right flag. Changeable in Account.
+  String? _deviceCountryCode() {
+    final code = PlatformDispatcher.instance.locale.countryCode?.toUpperCase();
+    if (code == null || code.isEmpty) return null;
+    return kCountries.any((c) => c.$1 == code) ? code : null;
+  }
+
+  String get _platformName => defaultTargetPlatform == TargetPlatform.android
+      ? 'android'
+      : defaultTargetPlatform == TargetPlatform.iOS
+          ? 'ios'
+          : 'other';
+
+  /// True while the signed-in Firebase user is anonymous (a guest).
+  bool get isGuest => _auth.currentUser?.isAnonymous ?? false;
+
+  /// Turns the guest account into a permanent e-mail/password account. The
+  /// uid stays the same, so ratings, games, friends and photo all carry over.
+  ///
+  /// Throws [FirebaseAuthException]: `email-already-in-use`,
+  /// `credential-already-in-use`, `invalid-email`, `weak-password`.
+  Future<void> linkGuestWithEmail({
+    required String email,
+    required String password,
+  }) async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not logged in');
+    final credential =
+        EmailAuthProvider.credential(email: email, password: password);
+    await user.linkWithCredential(credential);
+    await _markGuestUpgraded(user.uid, email: email, method: 'email');
+    await sendVerificationEmail();
+  }
+
+  /// Links a Google account to the guest. Throws `cancelled` when the picker
+  /// is dismissed and [FirebaseAuthException] `credential-already-in-use` when
+  /// that Google account already belongs to another CheckMate account.
+  Future<void> linkGuestWithGoogle() async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not logged in');
+    final googleSignIn = GoogleSignIn();
+    final googleUser = await googleSignIn.signIn();
+    if (googleUser == null) throw Exception('cancelled');
+    final googleAuth = await googleUser.authentication;
+    final credential = GoogleAuthProvider.credential(
+      accessToken: googleAuth.accessToken,
+      idToken: googleAuth.idToken,
+    );
+    try {
+      final result = await user.linkWithCredential(credential);
+      await _markGuestUpgraded(
+        user.uid,
+        email: result.user?.email ?? googleUser.email,
+        method: 'google',
+        photoUrl: googleUser.photoUrl,
+      );
+    } catch (_) {
+      // Forget the picked account so the next attempt shows the picker again.
+      try {
+        await googleSignIn.signOut();
+      } catch (_) {}
+      rethrow;
+    }
+  }
+
+  /// Links Sign in with Apple to the guest (Apple platforms only).
+  Future<void> linkGuestWithApple() async {
+    final user = _auth.currentUser;
+    if (user == null) throw Exception('Not logged in');
+    final (credential, apple) = await _appleCredential();
+    final result = await user.linkWithCredential(credential);
+    await _markGuestUpgraded(
+      user.uid,
+      email: apple.email ?? result.user?.email ?? '',
+      method: 'apple',
+    );
+  }
+
+  Future<void> _markGuestUpgraded(
+    String uid, {
+    required String email,
+    required String method,
+    String? photoUrl,
+  }) async {
+    final updates = <String, dynamic>{'isGuest': false, 'email': email};
+    try {
+      final current = await _firestore.getUser(uid);
+      if (photoUrl != null &&
+          photoUrl.isNotEmpty &&
+          (current?.photoUrl ?? '').isEmpty) {
+        updates['photoUrl'] = photoUrl;
+      }
+      await _fs.collection('users').doc(uid).update(updates);
+      await _log.log(
+        uid: uid,
+        username: current?.username ?? 'unknown',
+        type: 'guest_upgrade',
+        metadata: {'method': method, 'platform': _platformName},
+      );
+    } catch (e) {
+      // The Auth link already succeeded, which is what keeps the account;
+      // the flag self-heals on the next launch (see syncGuestFlag).
+      debugPrint('[Auth] marking guest as upgraded failed: $e');
+    }
+  }
+
+  /// Keeps users/{uid}.isGuest in line with Firebase Auth, the source of
+  /// truth — e.g. when a link succeeded but the follow-up write did not.
+  Future<void> syncGuestFlag(UserModel profile) async {
+    final fbUser = _auth.currentUser;
+    if (fbUser == null || fbUser.uid != profile.uid) return;
+    final authSaysGuest = fbUser.isAnonymous;
+    if (authSaysGuest == profile.isGuest) return;
+    final updates = <String, dynamic>{'isGuest': authSaysGuest};
+    if (!authSaysGuest && profile.email.isEmpty && fbUser.email != null) {
+      updates['email'] = fbUser.email;
+    }
+    try {
+      await _fs.collection('users').doc(profile.uid).update(updates);
+    } catch (e) {
+      debugPrint('[Auth] syncGuestFlag failed: $e');
+    }
   }
 
   /// Persist device info to Firestore. Returns the session document ID.
@@ -254,8 +496,10 @@ class AuthService {
   /// If isNewUser is true, the caller must prompt for a username.
   ///
   /// Only available on Apple platforms.
-  Future<({UserModel? user, bool isNewUser, User firebaseUser})>
-      signInWithApple() async {
+  /// Runs the Sign in with Apple sheet and builds the Firebase credential.
+  /// Throws `Exception('cancelled')` when the sheet is dismissed.
+  Future<(OAuthCredential, AuthorizationCredentialAppleID)>
+      _appleCredential() async {
     // Apple requires a nonce: the SHA-256 digest goes to Apple, the raw value
     // goes to Firebase, which re-hashes it to prove the token is ours.
     final rawNonce = _generateNonce();
@@ -285,6 +529,12 @@ class AuthService {
       // points at the provider config rather than at this line.
       accessToken: appleCredential.authorizationCode,
     );
+    return (credential, appleCredential);
+  }
+
+  Future<({UserModel? user, bool isNewUser, User firebaseUser})>
+      signInWithApple() async {
+    final (credential, appleCredential) = await _appleCredential();
 
     final userCred = await _auth.signInWithCredential(credential);
     var fbUser = userCred.user!;
@@ -348,6 +598,34 @@ class AuthService {
         platform: 'google',
       );
 
+  /// Creates the missing profile for any signed-in account that has none —
+  /// a new Google/Apple user, or an e-mail account whose profile write failed
+  /// before the registration rollback existed.
+  Future<UserModel> completeProfile({
+    required User firebaseUser,
+    required String username,
+    String? countryCode,
+    String? skillLevel,
+  }) {
+    final providers =
+        firebaseUser.providerData.map((p) => p.providerId).toSet();
+    final platform = providers.contains('google.com')
+        ? 'google'
+        : providers.contains('apple.com')
+            ? 'apple'
+            : providers.contains('password')
+                ? 'email'
+                : 'other';
+    return _completeProviderSignUp(
+      firebaseUser: firebaseUser,
+      username: username,
+      countryCode: countryCode,
+      skillLevel: skillLevel,
+      platform: platform,
+      fallbackEmail: platform == 'apple' ? _pendingAppleEmail : null,
+    );
+  }
+
   /// Completes Apple sign-in for a new user by creating their Firestore profile.
   /// Falls back to the e-mail captured during the first authorization when
   /// Firebase has none.
@@ -390,8 +668,8 @@ class AuthService {
       bulletStats: initialStats,
       blitzStats: initialStats,
       rapidStats: initialStats,
-      checkersStats: const RatingStats(),
-      dominoStats: const RatingStats(),
+      checkersStats: const RatingStats(rating: 300),
+      dominoStats: const RatingStats(rating: 300),
     );
 
     await _firestore.createUser(user);
@@ -419,6 +697,13 @@ class AuthService {
           username: username,
           type: 'logout',
         );
+      } catch (_) {}
+    }
+    // Without this, google_sign_in silently reuses the last Google account,
+    // so after logging out nobody could pick a different one.
+    if (user?.providerData.any((p) => p.providerId == 'google.com') ?? false) {
+      try {
+        await GoogleSignIn().signOut();
       } catch (_) {}
     }
     return _auth.signOut();
@@ -453,31 +738,20 @@ class AuthService {
       );
       await user.reauthenticateWithCredential(credential);
     } else if (providers.contains('apple.com')) {
-      // Apple account — re-authenticate with a fresh Apple credential
-      final rawNonce = _generateNonce();
+      // Apple account — re-authenticate with a fresh Apple credential.
+      // Same credential shape as signInWithApple: without accessToken it is
+      // rejected, so the account could never be re-authenticated and so
+      // never deleted — which is the guideline 5.1.1(v) path.
       final AuthorizationCredentialAppleID appleCredential;
+      final OAuthCredential credential;
       try {
-        appleCredential = await SignInWithApple.getAppleIDCredential(
-          scopes: const [
-            AppleIDAuthorizationScopes.email,
-            AppleIDAuthorizationScopes.fullName,
-          ],
-          nonce: _sha256Hex(rawNonce),
-        );
-      } on SignInWithAppleAuthorizationException catch (e) {
-        if (e.code == AuthorizationErrorCode.canceled) {
+        (credential, appleCredential) = await _appleCredential();
+      } on Exception catch (e) {
+        if (e.toString().contains('cancelled')) {
           throw Exception('Apple sign-in cancelled');
         }
         rethrow;
       }
-      final credential = OAuthProvider('apple.com').credential(
-        idToken:  appleCredential.identityToken,
-        rawNonce: rawNonce,
-        // Same as in signInWithApple: without accessToken the credential is
-        // rejected, so the account could never be re-authenticated and so
-        // never deleted — which is the guideline 5.1.1(v) path.
-        accessToken: appleCredential.authorizationCode,
-      );
       await user.reauthenticateWithCredential(credential);
       // Apple also requires the sign-in token to be revoked on deletion.
       // Non-fatal: a failed revocation must not block the deletion itself.
@@ -505,8 +779,9 @@ class AuthService {
       );
       await user.reauthenticateWithCredential(credential);
     } else {
-      // Other providers (Apple, etc.) — attempt deletion without re-auth
-      // Firebase may throw requires-recent-login; caller should handle it
+      // Guest (anonymous) account: there is nothing to re-authenticate with.
+      // If Firebase demands a recent login, the server deletes the Auth
+      // record instead (see _deleteAuthUser).
     }
 
     final uid = user.uid;
@@ -571,7 +846,24 @@ class AuthService {
     }
 
     // Finally remove the Auth account
-    await user.delete();
+    await _deleteAuthUser(user);
+  }
+
+  /// Deletes the Firebase Auth record. A guest whose session is older than a
+  /// few minutes gets `requires-recent-login` and has no credential to
+  /// re-authenticate with, so the `deleteGuestAccount` Cloud Function (Admin
+  /// SDK, anonymous callers only) removes the record instead. Without it a
+  /// guest could not delete their own account — App Store guideline 5.1.1(v).
+  Future<void> _deleteAuthUser(User user) async {
+    try {
+      await user.delete();
+    } on FirebaseAuthException catch (e) {
+      if (e.code != 'requires-recent-login' || !user.isAnonymous) rethrow;
+      await FirebaseFunctions.instance
+          .httpsCallable('deleteGuestAccount')
+          .call<void>();
+      await _auth.signOut();
+    }
   }
 
   /// Returns true if the current Firebase user has an email/password
@@ -598,6 +890,25 @@ final authServiceProvider = Provider((ref) {
 final authStateProvider = StreamProvider<User?>((ref) {
   return ref.read(authServiceProvider).authStateChanges;
 });
+
+/// Like [authStateProvider] but also emits when the signed-in user changes
+/// in place — e.g. a guest linking an e-mail, or the e-mail being verified.
+final authUserChangesProvider = StreamProvider<User?>((ref) {
+  return FirebaseAuth.instance.userChanges();
+});
+
+/// True while the signed-in account is a guest (anonymous) account.
+final isGuestProvider = Provider<bool>((ref) {
+  final user = ref.watch(authUserChangesProvider).valueOrNull ??
+      ref.watch(authStateProvider).valueOrNull;
+  return user?.isAnonymous ?? false;
+});
+
+/// Set by the login / register / guest flows while they run. Signing in makes
+/// the router re-evaluate; without this flag it bounced the screen to /home
+/// mid-flow — skipping the two-factor check on login, and the verification
+/// e-mail plus profile photo steps after registration.
+final authFlowInProgressProvider = StateProvider<bool>((ref) => false);
 
 /// Stores the Firestore document ID of the current session.
 /// Set once after login; used by the Active Sessions screen to mark

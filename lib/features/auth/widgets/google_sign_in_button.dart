@@ -32,6 +32,9 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
 
   Future<void> _signIn() async {
     setState(() => _loading = true);
+    // Keeps the router from yanking the screen to /home the instant Firebase
+    // signs in, before the 2FA check and profile setup below have run.
+    final flow = ref.read(authFlowInProgressProvider.notifier)..state = true;
     try {
       final result = await ref.read(authServiceProvider).signInWithGoogle();
       if (!mounted) return;
@@ -47,10 +50,9 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
         if (!mounted) return;
         if (!emailSent) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Verification email may be delayed — tap "Resend code" if it doesn\'t arrive.'),
-              duration: Duration(seconds: 5),
+            SnackBar(
+              content: Text('verification_email_delayed'.tr()),
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -84,9 +86,9 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
       if (msg.contains('cancelled') || msg.contains('sign_in_canceled')) {
         // user dismissed — no error shown
       } else if (mounted) {
-        String friendly = 'Google sign-in failed.';
+        String friendly = 'google_sign_in_failed'.tr();
         if (msg.contains('network') || msg.contains('NETWORK')) {
-          friendly = 'No internet connection.';
+          friendly = 'err_no_internet'.tr();
         } else if (msg.contains('10:') || msg.contains('DEVELOPER_ERROR')) {
           friendly = 'Configuration error: SHA-1 or google-services.json not set up correctly.';
         } else if (msg.contains('sign_in_failed')) {
@@ -101,6 +103,7 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+      flow.state = false;
     }
   }
 
@@ -133,7 +136,7 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
                   ),
                   const SizedBox(width: 12),
                   Text(
-                    'Continue with Google',
+                    'continue_with_google'.tr(),
                     style: AppTextStyles.labelLarge.copyWith(
                       color: AppColors.textPrimary,
                     ),

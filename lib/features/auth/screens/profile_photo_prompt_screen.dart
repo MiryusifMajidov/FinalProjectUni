@@ -8,20 +8,22 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/photo_service.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/text_case.dart';
 // Session-level flag: true once the user has responded to the photo prompt
 // (uploaded or skipped). Prevents the home screen from re-showing the prompt
 // after the user dismisses it within the same app session.
 final photoPromptDismissedProvider = StateProvider<bool>((ref) => false);
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
-const _kBg           = Color(0xFF0A0A0B);
-const _kCard         = Color(0xFF1A1A1E);
-const _kAmber        = Color(0xFFE8B960);
-const _kInk          = Color(0xFFF5F3EF);
-const _kInkDim       = Color(0xFFB0A898);
-const _kInkMute      = Color(0xFF706860);
-const _kBorder       = Color(0xFF2A2520);
-const _kBorderStrong = Color(0xFF3D3530);
+const _kBg           = AppColors.background;
+const _kCard         = AppColors.card;
+const _kAmber        = AppColors.amber;
+const _kInk          = AppColors.ink;
+const _kInkDim       = AppColors.inkDim;
+const _kInkMute      = AppColors.inkMute;
+const _kBorder       = AppColors.border;
+const _kBorderStrong = AppColors.borderStrong;
 
 class ProfilePhotoPromptScreen extends ConsumerStatefulWidget {
   const ProfilePhotoPromptScreen({super.key});
@@ -110,7 +112,7 @@ class _ProfilePhotoPromptScreenState
                   // "WELCOME, USERNAME"
                   if (username.isNotEmpty)
                     Text(
-                      'WELCOME, ${username.toUpperCase()}',
+                      'photo_prompt_welcome'.tr(namedArgs: {'name': username}).toUpperCaseFor(context),
                       style: GoogleFonts.jetBrainsMono(
                         fontSize: 10,
                         fontWeight: FontWeight.w700,
@@ -213,7 +215,7 @@ class _ProfilePhotoPromptScreenState
                   const SizedBox(height: 32),
 
                   Text(
-                    'Show your face.',
+                    'photo_prompt_title'.tr(),
                     style: GoogleFonts.fraunces(
                       fontSize: 30,
                       fontWeight: FontWeight.w500,
@@ -229,7 +231,7 @@ class _ProfilePhotoPromptScreenState
                   SizedBox(
                     width: 280,
                     child: Text(
-                      'A photo helps friends recognize you across games and chats. You can change it any time.',
+                      'photo_prompt_body'.tr(),
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                         fontSize: 14,
@@ -269,7 +271,7 @@ class _ProfilePhotoPromptScreenState
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
-                                    'Take a photo',
+                                    'take_photo'.tr(),
                                     style: GoogleFonts.inter(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
@@ -305,7 +307,7 @@ class _ProfilePhotoPromptScreenState
                               ),
                               const SizedBox(width: 8),
                               Text(
-                                'Choose from gallery',
+                                'choose_from_gallery'.tr(),
                                 style: GoogleFonts.inter(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,

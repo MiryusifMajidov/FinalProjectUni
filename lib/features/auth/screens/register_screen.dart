@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'package:easy_localization/easy_localization.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -10,6 +11,7 @@ import '../../../core/legal/legal_consent.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme_extension.dart';
+import '../../../core/utils/email_validator.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/app_text_field.dart';
@@ -79,41 +81,70 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   // ── Live Validation ───────────────────────────────────────────────────────
 
-  void _onUsernameChanged(String val) {
-    _debounceTimer?.cancel();
-    if (val.length < 3) {
-      setState(() { _usernameError = 'Min 3 characters'; _usernameValid = false; });
-      return;
-    }
-    if (val.length > 20) {
-      setState(() { _usernameError = 'Max 20 characters'; _usernameValid = false; });
-      return;
-    }
+  /// Format rules shared by the live check and the form validator.
+  String? _usernameFormatError(String val) {
+    if (val.isEmpty) return 'err_username_required'.tr();
+    if (val.length < 3) return 'err_username_min'.tr();
+    if (val.length > 20) return 'err_username_max'.tr();
     if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(val)) {
-      setState(() { _usernameError = 'Only letters, numbers, underscore'; _usernameValid = false; });
+      return 'err_username_chars'.tr();
+    }
+    return null;
+  }
+
+  void _onUsernameChanged(String raw) {
+    _debounceTimer?.cancel();
+    final val = raw.trim();
+    final formatError = _usernameFormatError(val);
+    if (formatError != null) {
+      setState(() {
+        _usernameError = formatError;
+        _usernameValid = false;
+        _checkingUsername = false;
+      });
       return;
     }
     setState(() { _usernameError = null; _checkingUsername = true; });
-    _debounceTimer = Timer(const Duration(milliseconds: 500), () async {
-      final exists = await ref.read(authServiceProvider).usernameExists(val.trim());
-      if (!mounted) return;
-      setState(() {
-        _checkingUsername = false;
-        if (exists) {
-          _usernameError = 'Username taken';
-          _usernameValid = false;
-        } else {
-          _usernameError = null;
-          _usernameValid = true;
-        }
-      });
+    _debounceTimer = Timer(
+      const Duration(milliseconds: 450),
+      () => _checkAvailability(val),
+    );
+  }
+
+  /// Looks the name up. Ignores answers for a value the user has since
+  /// changed, and never leaves the spinner running: a failed lookup used to
+  /// throw inside the timer, leaving "Checking availability…" on screen for
+  /// good and the Next button refusing with "Please fix the errors above."
+  Future<void> _checkAvailability(String val) async {
+    bool? exists;
+    try {
+      exists = await ref.read(authServiceProvider).usernameExists(val);
+    } catch (e) {
+      debugPrint('[Register] username lookup failed: $e');
+    }
+    if (!mounted || _usernameCtrl.text.trim() != val) return;
+    setState(() {
+      _checkingUsername = false;
+      if (exists == true) {
+        _usernameError = 'err_username_taken'.tr();
+        _usernameValid = false;
+      } else {
+        // Unknown (offline) counts as available here; the profile transaction
+        // makes the final call and reports a clash as "taken".
+        _usernameError = null;
+        _usernameValid = true;
+      }
     });
   }
 
   void _onEmailChanged(String val) {
-    final emailRegex = RegExp(r'^[\w\.\+\-]+@[\w\-]+\.[a-zA-Z]{2,}$');
+    final v = val.trim();
     setState(() {
-      _emailError = emailRegex.hasMatch(val.trim()) ? null : 'Enter a valid email';
+      // Only complain once the address looks finished, not on every keypress.
+      _emailError =
+          v.isEmpty || !v.contains('@') || isValidEmail(v)
+              ? null
+              : 'err_invalid_email'.tr();
     });
   }
 
@@ -128,13 +159,14 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     setState(() {
       _passwordStrength = val.isEmpty ? null : strength;
       _confirmError = _confirmCtrl.text.isNotEmpty && _confirmCtrl.text != val
-          ? 'Passwords do not match' : null;
+          ? 'err_passwords_mismatch'.tr() : null;
     });
   }
 
   void _onConfirmChanged(String val) {
     setState(() {
-      _confirmError = val != _passwordCtrl.text ? 'Passwords do not match' : null;
+      _confirmError =
+          val != _passwordCtrl.text ? 'err_passwords_mismatch'.tr() : null;
     });
   }
 
@@ -199,12 +231,19 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   // ── Navigation ────────────────────────────────────────────────────────────
 
-  void _goToStep2() {
+  Future<void> _goToStep2() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
-    if (_checkingUsername || _usernameError != null || !_usernameValid) {
-      setState(() => _error = 'Please fix the errors above.');
+    // Still waiting on the debounced lookup: finish it instead of refusing.
+    if (_checkingUsername) {
+      _debounceTimer?.cancel();
+      await _checkAvailability(_usernameCtrl.text.trim());
+      if (!mounted) return;
+    }
+    if (_usernameError != null || !_usernameValid) {
+      setState(() => _error = 'err_fix_fields'.tr());
       return;
     }
+    if (!mounted) return;
     FocusScope.of(context).unfocus();
 
     _pageCtrl.animateToPage(
@@ -224,19 +263,37 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     setState(() => _currentPage = 0);
   }
 
+  @override
+  void initState() {
+    super.initState();
+    // The country picker defaults to the phone's region; still optional.
+    final region = WidgetsBinding.instance.platformDispatcher.locale.countryCode
+        ?.toUpperCase();
+    if (region != null && kCountries.any((c) => c.$1 == region)) {
+      _selectedCountryCode = region;
+    }
+  }
+
   // ── Registration ──────────────────────────────────────────────────────────
 
   Future<void> _register() async {
+    if (_loading) return;
     if (_selectedSkillIndex == null) {
-      setState(() => _error = 'Please select your skill level.');
+      setState(() => _error = 'err_select_skill'.tr());
       return;
     }
     setState(() {
       _loading = true;
       _error = null;
     });
+    // Creating the Auth account signs the user in, which makes the router
+    // re-run its redirect. Without this flag it replaced /register with /home
+    // on the spot: the profile write raced the home screen, and the
+    // verification screen below was never reached.
+    final flow = ref.read(authFlowInProgressProvider.notifier)..state = true;
     final skill = _skillLevels[_selectedSkillIndex!];
     try {
+      // The device session is recorded by ChessApp's auth listener.
       await ref.read(authServiceProvider).register(
             email: _emailCtrl.text.trim(),
             password: _passwordCtrl.text,
@@ -247,26 +304,36 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           );
       if (mounted) context.go('/email-verification');
     } catch (e) {
-      setState(() => _error = _friendlyError(e.toString()));
+      if (!mounted) return;
+      final message = _friendlyError(e);
+      setState(() => _error = message);
+      // The username/e-mail live on step 1: go back so it can be fixed.
+      if (message == 'err_username_taken'.tr() ||
+          message == 'err_email_in_use'.tr() ||
+          message == 'err_invalid_email'.tr()) {
+        _goToStep1();
+      }
     } finally {
       if (mounted) setState(() => _loading = false);
+      flow.state = false;
     }
   }
 
-  String _friendlyError(String raw) {
-    if (raw.contains('email-already-in-use')) {
-      return 'An account with this email already exists.';
-    }
+  String _friendlyError(Object e) {
+    final raw = e is FirebaseAuthException ? e.code : e.toString();
+    if (raw.contains('email-already-in-use')) return 'err_email_in_use'.tr();
     if (raw.contains('Username already taken')) {
-      return 'That username is taken. Choose another.';
+      return 'err_username_taken'.tr();
     }
-    if (raw.contains('weak-password')) {
-      return 'Password must be at least 6 characters.';
+    if (raw.contains('invalid-email')) return 'err_invalid_email'.tr();
+    if (raw.contains('weak-password')) return 'err_password_short'.tr();
+    if (raw.contains('too-many-requests')) return 'err_too_many_requests'.tr();
+    if (raw.contains('network-request-failed')) return 'err_no_internet'.tr();
+    if (raw.contains('operation-not-allowed')) {
+      // E-mail/password sign-in is switched off in the Firebase console.
+      return 'err_email_signup_disabled'.tr();
     }
-    if (raw.contains('network-request-failed')) {
-      return 'No internet connection.';
-    }
-    return 'Registration failed. Please try again.';
+    return 'err_register_failed'.tr();
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
@@ -285,8 +352,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                 children: [
                   GestureDetector(
                     onTap: () {
-                      if (_currentPage == 1) _goToStep1();
-                      else context.pop();
+                      if (_currentPage == 1) {
+                        _goToStep1();
+                      } else if (context.canPop()) {
+                        context.pop();
+                      } else {
+                        context.go('/login');
+                      }
                     },
                     child: Container(
                       width: 36, height: 36,
@@ -403,14 +475,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               controller: _usernameCtrl,
               maxLength: 20,
               onChanged: _onUsernameChanged,
-              validator: (v) {
-                if (v == null || v.isEmpty) return 'Username is required';
-                if (v.length < 3) return 'Minimum 3 characters';
-                if (!RegExp(r'^[a-zA-Z0-9_]+$').hasMatch(v)) {
-                  return 'Only letters, numbers, and underscores';
-                }
-                return null;
-              },
+              validator: (v) => _usernameFormatError(v?.trim() ?? ''),
             ).animate(delay: 100.ms).fadeIn().slideY(begin: 0.15),
             if (_checkingUsername)
               Padding(
@@ -419,7 +484,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   children: [
                     const SizedBox(width: 12, height: 12, child: CircularProgressIndicator(strokeWidth: 2)),
                     const SizedBox(width: 6),
-                    Text('Checking availability...', style: TextStyle(color: AppColors.textHint, fontSize: 12)),
+                    Text('checking_availability'.tr(), style: TextStyle(color: AppColors.textHint, fontSize: 12)),
                   ],
                 ),
               )
@@ -431,7 +496,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             else if (_usernameValid)
               Padding(
                 padding: const EdgeInsets.only(top: 4, left: 4),
-                child: Text('Username available', style: TextStyle(color: AppColors.success, fontSize: 12)),
+                child: Text('username_available'.tr(), style: TextStyle(color: AppColors.success, fontSize: 12)),
               ),
             const SizedBox(height: 16),
 
@@ -443,8 +508,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               keyboardType: TextInputType.emailAddress,
               onChanged: _onEmailChanged,
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Email is required';
-                if (!v.contains('@')) return 'Enter a valid email';
+                final value = v?.trim() ?? '';
+                if (value.isEmpty) return 'err_email_required'.tr();
+                if (!isValidEmail(value)) return 'err_invalid_email'.tr();
                 return null;
               },
             ).animate(delay: 150.ms).fadeIn().slideY(begin: 0.15),
@@ -463,8 +529,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               obscureText: true,
               onChanged: _onPasswordChanged,
               validator: (v) {
-                if (v == null || v.isEmpty) return 'Password is required';
-                if (v.length < 6) return 'Minimum 6 characters';
+                if (v == null || v.isEmpty) return 'err_password_required'.tr();
+                if (v.length < 6) return 'err_password_short'.tr();
                 return null;
               },
             ).animate(delay: 200.ms).fadeIn().slideY(begin: 0.15),
@@ -492,7 +558,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       );
                     }),
                     const SizedBox(width: 8),
-                    Text(_passwordStrength!, style: TextStyle(
+                    Text('password_${_passwordStrength!.toLowerCase()}'.tr(), style: TextStyle(
                       fontSize: 11,
                       color: switch (_passwordStrength!) {
                         'Weak' => AppColors.error,
@@ -516,7 +582,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               onChanged: _onConfirmChanged,
               onSubmitted: (_) => _goToStep2(),
               validator: (v) {
-                if (v != _passwordCtrl.text) return 'Passwords do not match';
+                if (v != _passwordCtrl.text) return 'err_passwords_mismatch'.tr();
                 return null;
               },
             ).animate(delay: 250.ms).fadeIn().slideY(begin: 0.15),
@@ -532,6 +598,10 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               selectedCode: _selectedCountryCode,
               onTap: _showCountryPicker,
             ).animate(delay: 280.ms).fadeIn().slideY(begin: 0.15),
+            if (_error != null && _currentPage == 0) ...[
+              const SizedBox(height: 16),
+              _InlineError(_error!),
+            ],
             const SizedBox(height: 24),
 
             // Guideline 1.2: the terms have to be in front of the user before
@@ -564,12 +634,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
                 Text(
-                  'already_account'.tr(),
+                  'already_account'.tr().trim(),
                   style: AppTextStyles.bodyMedium
                       .copyWith(color: AppColors.textSecondary),
                 ),
+                const SizedBox(width: 6),
                 GestureDetector(
-                  onTap: () => context.pop(),
+                  onTap: () => context.canPop() ? context.pop() : context.go('/login'),
                   child: Text(
                     'sign_in'.tr(),
                     style: AppTextStyles.bodyMedium.copyWith(
@@ -744,29 +815,7 @@ class _Step2 extends StatelessWidget {
 
           if (error != null) ...[
             const SizedBox(height: 16),
-            Container(
-              padding: const EdgeInsets.all(12),
-              decoration: BoxDecoration(
-                color: AppColors.error.withOpacity(0.1),
-                borderRadius: BorderRadius.circular(10),
-                border:
-                    Border.all(color: AppColors.error.withOpacity(0.3)),
-              ),
-              child: Row(
-                children: [
-                  const Icon(Icons.error_outline,
-                      color: AppColors.error, size: 16),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: Text(
-                      error!,
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.error),
-                    ),
-                  ),
-                ],
-              ),
-            ).animate().shake(),
+            _InlineError(error!),
           ],
 
           const SizedBox(height: 28),
@@ -782,3 +831,32 @@ class _Step2 extends StatelessWidget {
   }
 }
 
+class _InlineError extends StatelessWidget {
+  final String message;
+  const _InlineError(this.message);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(12),
+      decoration: BoxDecoration(
+        color: AppColors.error.withValues(alpha: 0.1),
+        borderRadius: BorderRadius.circular(10),
+        border: Border.all(color: AppColors.error.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.error_outline, color: AppColors.error, size: 16),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              message,
+              style: AppTextStyles.bodySmall.copyWith(color: AppColors.error),
+            ),
+          ),
+        ],
+      ),
+    ).animate().shake();
+  }
+}

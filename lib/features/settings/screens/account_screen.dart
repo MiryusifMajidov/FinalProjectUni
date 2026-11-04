@@ -11,19 +11,20 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/services/photo_service.dart';
 import '../../../core/constants/countries.dart';
+import '../../../core/widgets/guest_notice.dart';
 
+import '../../../core/theme/app_colors.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
-const _kBg           = Color(0xFF0A0A0B);
-const _kSurface      = Color(0xFF131316);
-const _kCard         = Color(0xFF1A1A1E);
-const _kAmber        = Color(0xFFE8B960);
-const _kAmberGlow    = Color(0x24E8B960);
-const _kInk          = Color(0xFFF5F3EF);
-const _kInkDim       = Color(0xFFB0A898);
-const _kInkMute      = Color(0xFF706860);
-const _kBorder       = Color(0xFF2A2520);
-const _kBorderStrong = Color(0xFF3D3530);
-const _kDanger       = Color(0xFFE05252);
+const _kBg           = AppColors.background;
+const _kSurface      = AppColors.surface;
+const _kCard         = AppColors.card;
+const _kAmber        = AppColors.amber;
+const _kAmberGlow    = AppColors.amberGlow;
+const _kInk          = AppColors.ink;
+const _kInkDim       = AppColors.inkDim;
+const _kInkMute      = AppColors.inkMute;
+const _kBorder       = AppColors.border;
+const _kDanger       = AppColors.loss;
 
 
 class AccountScreen extends ConsumerStatefulWidget {
@@ -40,6 +41,15 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   Widget build(BuildContext context) {
     final userAsync = ref.watch(currentUserProvider);
     final user = userAsync.valueOrNull;
+    final isGuest = ref.watch(isGuestProvider);
+    // Watched so the rows refresh the moment a guest links an e-mail or the
+    // address gets verified (both change the Firebase user in place).
+    final fbUser = ref.watch(authUserChangesProvider).valueOrNull;
+    final emailUnverified = !isGuest &&
+        fbUser != null &&
+        (fbUser.email ?? '').isNotEmpty &&
+        !fbUser.emailVerified &&
+        fbUser.providerData.any((p) => p.providerId == 'password');
 
     return Scaffold(
       backgroundColor: _kBg,
@@ -170,8 +180,15 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
 
                   const SizedBox(height: 24),
 
+                  // ── Guest: the one thing that matters most here ──────────
+                  if (isGuest)
+                    const GuestBanner(
+                      dismissible: false,
+                      margin: EdgeInsets.fromLTRB(16, 0, 16, 20),
+                    ),
+
                   // ── IDENTITY ──────────────────────────────────────────────
-                  _sectionLabel('IDENTITY'),
+                  _sectionLabel('account_section_identity'.tr()),
                   _SettingsGroup(children: [
                     _SettingsRow(
                       icon: PhosphorIcons.user(PhosphorIconsStyle.regular),
@@ -180,20 +197,27 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                       onTap: () => _showChangeUsernameSheet(),
                     ),
                     _SettingsRow(
-                      icon: PhosphorIcons.pencilSimple(PhosphorIconsStyle.regular),
-                      label: 'display_name'.tr(),
-                      sub: user?.username ?? '—',
-                      onTap: () => _editDisplayName(context, user),
-                    ),
-                    _SettingsRow(
                       icon: PhosphorIcons.envelope(PhosphorIconsStyle.regular),
                       label: 'email'.tr(),
-                      sub: _maskEmail(user?.email),
-                      onTap: () => _showChangeEmailSheet(),
+                      sub: isGuest
+                          ? 'guest_email_not_added'.tr()
+                          : emailUnverified
+                              ? '${_maskEmail(fbUser.email ?? user?.email)} · ${'email_not_verified'.tr()}'
+                              : _maskEmail(user?.email),
+                      subColor: isGuest || emailUnverified ? _kAmber : null,
+                      onTap: () {
+                        if (isGuest) {
+                          showLinkAccountSheet(context);
+                        } else if (emailUnverified) {
+                          context.push('/email-verification');
+                        } else {
+                          _showChangeEmailSheet();
+                        }
+                      },
                     ),
                     _SettingsRow(
                       icon: PhosphorIcons.flag(PhosphorIconsStyle.regular),
-                      label: 'Country',
+                      label: 'country'.tr(),
                       sub: _countryLabel(user),
                       onTap: () => _showChangeCountrySheet(user),
                       isLast: true,
@@ -203,22 +227,29 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   const SizedBox(height: 20),
 
                   // ── SECURITY ──────────────────────────────────────────────
-                  _sectionLabel('SECURITY'),
+                  _sectionLabel('account_section_security'.tr()),
                   _SettingsGroup(children: [
                     _SettingsRow(
                       icon: PhosphorIcons.lock(PhosphorIconsStyle.regular),
                       label: 'change_password'.tr(),
-                      sub: ref.read(authServiceProvider).hasEmailPasswordProvider
-                          ? null
-                          : 'Not available for ${_providerLabel()} accounts',
+                      sub: isGuest
+                          ? 'guest_add_email_first'.tr()
+                          : ref.read(authServiceProvider).hasEmailPasswordProvider
+                              ? null
+                              : 'password_not_available'.tr(
+                                  namedArgs: {'provider': _providerLabel()}),
                       onTap: () {
+                        if (isGuest) {
+                          showLinkAccountSheet(context);
+                          return;
+                        }
                         if (!ref
                             .read(authServiceProvider)
                             .hasEmailPasswordProvider) {
                           ScaffoldMessenger.of(context).showSnackBar(
                             SnackBar(
-                              content: Text(
-                                  'Password change is not available for ${_providerLabel()} accounts.'),
+                              content: Text('password_not_available'.tr(
+                                  namedArgs: {'provider': _providerLabel()})),
                             ),
                           );
                           return;
@@ -228,17 +259,28 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     ),
                     _SettingsRow(
                       icon: PhosphorIcons.shieldCheck(PhosphorIconsStyle.regular),
-                      label: 'Two-factor authentication',
-                      sub: user?.twoFactorEnabled == true ? 'Enabled' : 'Disabled',
-                      onTap: () => context.push(
-                        '/home/settings/account/2fa',
-                        extra: user?.twoFactorEnabled != true,
-                      ),
+                      label: 'two_factor'.tr(),
+                      sub: isGuest
+                          ? 'guest_add_email_first'.tr()
+                          : user?.twoFactorEnabled == true
+                              ? 'enabled'.tr()
+                              : 'disabled'.tr(),
+                      onTap: () {
+                        // 2FA e-mails a code — impossible without an e-mail.
+                        if (isGuest) {
+                          showLinkAccountSheet(context);
+                          return;
+                        }
+                        context.push(
+                          '/home/settings/account/2fa',
+                          extra: user?.twoFactorEnabled != true,
+                        );
+                      },
                     ),
                     _SettingsRow(
                       icon: PhosphorIcons.deviceMobile(PhosphorIconsStyle.regular),
                       label: 'active_sessions'.tr(),
-                      sub: 'Manage logged-in devices',
+                      sub: 'active_sessions_subtitle'.tr(),
                       onTap: () => context.push('/home/settings/account/sessions'),
                       isLast: true,
                     ),
@@ -247,16 +289,16 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   const SizedBox(height: 20),
 
                   // ── ACCOUNT ACTIONS ───────────────────────────────────────
-                  _sectionLabel('ACCOUNT ACTIONS'),
+                  _sectionLabel('account_section_actions'.tr()),
                   _SettingsGroup(children: [
                     _SettingsRow(
                       icon: PhosphorIcons.downloadSimple(PhosphorIconsStyle.regular),
-                      label: 'Export game history',
+                      label: 'export_history'.tr(),
                       onTap: () => _exportGameHistory(context, ref, user),
                     ),
                     _SettingsRow(
                       icon: PhosphorIcons.trash(PhosphorIconsStyle.regular),
-                      label: 'Delete account',
+                      label: 'delete_account'.tr(),
                       danger: true,
                       onTap: () => _confirmDelete(context),
                       isLast: true,
@@ -329,7 +371,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
         ],
         onSave: (values) async {
           final v = values[0].trim();
-          if (v.length < 3) throw Exception('At least 3 characters');
+          if (v.length < 3) throw Exception('err_username_min'.tr());
           await ref.read(authServiceProvider).changeUsername(v);
           ref.invalidate(currentUserProvider);
         },
@@ -365,7 +407,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               .read(authServiceProvider)
               .changeEmail(values[0], values[1].trim());
         },
-        successMessage: 'Verification sent to new email!',
+        successMessage: 'verification_sent_new_email'.tr(),
       ),
     );
   }
@@ -399,10 +441,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
         ],
         onSave: (values) async {
           if (values[1] != values[2]) {
-            throw Exception('Passwords do not match');
+            throw Exception('err_passwords_mismatch'.tr());
           }
           if (values[1].length < 6) {
-            throw Exception('At least 6 characters');
+            throw Exception('err_password_short'.tr());
           }
           await ref
               .read(authServiceProvider)
@@ -435,7 +477,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   ) async {
     if (user == null) return;
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Preparing game history…')),
+      SnackBar(content: Text('export_preparing'.tr())),
     );
     try {
       final games = await ref
@@ -445,14 +487,14 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       if (games.isEmpty) {
         if (context.mounted) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('No games found to export.')),
+            SnackBar(content: Text('export_no_games'.tr())),
           );
         }
         return;
       }
 
       final buf = StringBuffer();
-      buf.writeln('Grandmaster — Game History Export');
+      buf.writeln('CheckMate — Game History Export');
       buf.writeln('Player: ${user.username}');
       buf.writeln('Exported: ${DateTime.now().toString().substring(0, 16)}');
       buf.writeln('═' * 46);
@@ -481,12 +523,12 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
 
       await Share.share(
         buf.toString(),
-        subject: 'Grandmaster game history — ${user.username}',
+        subject: 'CheckMate game history — ${user.username}',
       );
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Export failed: $e')),
+          SnackBar(content: Text('export_failed'.tr())),
         );
       }
     }
@@ -501,6 +543,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     final auth = ref.read(authServiceProvider);
     final needsPassword = auth.hasEmailPasswordProvider;
     final isApple = auth.hasAppleProvider;
+    final isGuest = auth.isGuest;
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -538,7 +581,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   ),
                   const SizedBox(height: 14),
                   Text(
-                    'Delete account?',
+                    'delete_account_confirm'.tr(),
                     style: GoogleFonts.fraunces(
                       fontSize: 20,
                       fontWeight: FontWeight.w600,
@@ -548,7 +591,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text(
-                    'This permanently deletes your profile, games, and all data. This cannot be undone.',
+                    'delete_account_body'.tr(),
                     textAlign: TextAlign.center,
                     style: GoogleFonts.inter(
                       fontSize: 13,
@@ -564,7 +607,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                       obscureText: true,
                       style: GoogleFonts.inter(color: _kInk, fontSize: 14),
                       decoration: InputDecoration(
-                        labelText: 'Enter password to confirm',
+                        labelText: 'delete_enter_password'.tr(),
                         labelStyle: GoogleFonts.inter(color: _kInkMute),
                         errorText: error,
                         filled: true,
@@ -584,11 +627,11 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                       ),
                     ),
                     const SizedBox(height: 16),
-                  ] else ...[
+                  ] else if (!isGuest) ...[
                     Text(
                       isApple
-                          ? 'You will be prompted to sign in with Apple to confirm.'
-                          : 'You will be prompted to sign in with Google to confirm.',
+                          ? 'delete_reauth_apple'.tr()
+                          : 'delete_reauth_google'.tr(),
                       textAlign: TextAlign.center,
                       style: GoogleFonts.inter(
                           fontSize: 12, color: _kInkMute, height: 1.5),
@@ -602,7 +645,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                       onPressed: () async {
                               if (deleting) return;
                               if (needsPassword && passCtrl.text.isEmpty) {
-                                setModal(() => error = 'Password required');
+                                setModal(() => error = 'err_password_required'.tr());
                                 return;
                               }
                               setModal(() {
@@ -643,7 +686,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                                   color: Colors.white),
                             )
                           : Text(
-                              'Delete my account',
+                              'delete_account_button'.tr(),
                               style: GoogleFonts.inter(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600),
@@ -684,100 +727,6 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
   String _countryLabel(UserModel? user) {
     if (user == null || user.countryCode == null) return '—';
     return '${UserModel.flagEmoji(user.countryCode)} ${user.countryCode}';
-  }
-
-  Future<void> _editDisplayName(BuildContext context, UserModel? user) async {
-    if (user == null) return;
-    final ctrl = TextEditingController(text: user.username);
-    String? dialogError;
-
-    final confirmed = await showDialog<bool>(
-      context: context,
-      builder: (ctx) => StatefulBuilder(
-        builder: (ctx, setDialog) => AlertDialog(
-          backgroundColor: _kCard,
-          title: Text('display_name'.tr(),
-              style: GoogleFonts.fraunces(
-                  color: _kInk, fontStyle: FontStyle.italic)),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              TextField(
-                controller: ctrl,
-                style: GoogleFonts.inter(color: _kInk),
-                decoration: InputDecoration(
-                  hintText: 'Your name',
-                  hintStyle: GoogleFonts.inter(color: _kInkMute),
-                  errorText: dialogError,
-                  filled: true,
-                  fillColor: _kSurface,
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: _kBorder),
-                  ),
-                  enabledBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: _kBorder),
-                  ),
-                  focusedBorder: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: _kAmber),
-                  ),
-                ),
-              ),
-              const SizedBox(height: 6),
-              Text(
-                'This also updates your username.',
-                style: GoogleFonts.inter(fontSize: 11, color: _kInkMute),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, false),
-              child: Text('cancel'.tr(), style: GoogleFonts.inter(color: _kInkDim)),
-            ),
-            TextButton(
-              onPressed: () {
-                final v = ctrl.text.trim();
-                if (v.length < 3) {
-                  setDialog(() => dialogError = 'At least 3 characters');
-                  return;
-                }
-                Navigator.pop(ctx, true);
-              },
-              child: Text('save'.tr(),
-                  style: GoogleFonts.inter(
-                      color: _kAmber, fontWeight: FontWeight.w600)),
-            ),
-          ],
-        ),
-      ),
-    );
-
-    if (confirmed == true && mounted) {
-      final newName = ctrl.text.trim();
-      if (newName.isEmpty || newName == user.username) return;
-      try {
-        // changeUsername updates both users doc AND usernames collection
-        await ref.read(authServiceProvider).changeUsername(newName);
-        ref.invalidate(currentUserProvider);
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('display_name_updated'.tr())),
-          );
-        }
-      } catch (e) {
-        if (mounted) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(e.toString().replaceFirst('Exception: ', '')),
-            ),
-          );
-        }
-      }
-    }
   }
 
   Widget _sectionLabel(String label) {
@@ -953,21 +902,30 @@ class _EditSheetState extends State<_EditSheet> {
     final raw = e.toString();
     if (raw.contains('wrong-password') || raw.contains('invalid-credential') ||
         raw.contains('INVALID_PASSWORD')) {
-      return 'Incorrect current password.';
+      return 'err_wrong_password'.tr();
     }
     if (raw.contains('too-many-requests')) {
-      return 'Too many attempts. Please try again later.';
+      return 'err_too_many_requests'.tr();
     }
     if (raw.contains('network-request-failed')) {
-      return 'No internet connection.';
+      return 'err_no_internet'.tr();
     }
     if (raw.contains('requires-recent-login')) {
-      return 'Please sign out and sign back in, then try again.';
+      return 'err_requires_recent_login'.tr();
+    }
+    if (raw.contains('email-already-in-use')) {
+      return 'err_email_in_use'.tr();
+    }
+    if (raw.contains('invalid-email')) {
+      return 'err_invalid_email'.tr();
+    }
+    if (raw.contains('Username already taken')) {
+      return 'err_username_taken'.tr();
     }
     if (raw.contains('no-such-provider') ||
         raw.contains('no-password') ||
         raw.contains('INVALID_LOGIN_CREDENTIALS')) {
-      return 'Password change is not available for this account type.';
+      return 'err_password_unavailable'.tr();
     }
     return raw.replaceFirst('Exception: ', '');
   }
@@ -1109,6 +1067,7 @@ class _SettingsRow extends StatelessWidget {
   final IconData icon;
   final String label;
   final String? sub;
+  final Color? subColor;
   final VoidCallback? onTap;
   final bool isLast;
   final bool danger;
@@ -1117,6 +1076,7 @@ class _SettingsRow extends StatelessWidget {
     required this.icon,
     required this.label,
     this.sub,
+    this.subColor,
     this.onTap,
     this.isLast = false,
     this.danger = false,
@@ -1173,7 +1133,7 @@ class _SettingsRow extends StatelessWidget {
                         Text(
                           sub!,
                           style: GoogleFonts.inter(
-                              fontSize: 11, color: _kInkMute),
+                              fontSize: 12, color: subColor ?? _kInkMute),
                         ),
                       ],
                     ],

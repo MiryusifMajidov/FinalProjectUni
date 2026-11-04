@@ -92,7 +92,13 @@ void main() async {
       ],
       path: 'assets/translations',
       fallbackLocale: const Locale('en'),
-      startLocale: const Locale('en'),
+      // A key missing from one language shows the English text instead of the
+      // raw key: de/es/fr/hi/ur/zh lack 28 keys, so German players were
+      // literally reading "register_story_headline" on the sign-up screen.
+      useFallbackTranslations: true,
+      // No startLocale: first launch follows the phone's language when we
+      // have it (most players are Azerbaijani, Turkish or Russian speakers),
+      // English otherwise. A language picked in Settings is saved and wins.
       child: ProviderScope(
         overrides: [
           cacheServiceProvider.overrideWith((_) => cache),

@@ -62,6 +62,9 @@ import '../services/auth_service.dart';
 class _RouterNotifier extends ChangeNotifier {
   _RouterNotifier(this._ref) {
     _ref.listen(authStateProvider, (_, __) => notifyListeners());
+    // Re-check once an auth flow finishes, in case its screen did not
+    // navigate on its own (e.g. it was disposed mid-flow).
+    _ref.listen(authFlowInProgressProvider, (_, __) => notifyListeners());
   }
   final Ref _ref;
 }
@@ -84,16 +87,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (isLoading) return '/splash';
 
       final isLoggedIn = authState.valueOrNull != null;
-      final onAuthPath = state.matchedLocation == '/login' ||
-          state.matchedLocation == '/register' ||
-          state.matchedLocation == '/splash';
+      final loc = state.matchedLocation;
+      final onAuthPath =
+          loc == '/login' || loc == '/register' || loc == '/splash';
 
-      // Post-registration screens that require auth but aren't "home" yet.
-      final onPostRegPath = state.matchedLocation == '/email-verification' ||
-          state.matchedLocation == '/auth/profile-photo';
-
-      if (!isLoggedIn && !onAuthPath && !onPostRegPath) return '/login';
-      if (isLoggedIn && onAuthPath && state.matchedLocation != '/splash') {
+      // Everything else — including the post-registration screens
+      // (/email-verification, /auth/profile-photo) — needs a signed-in user.
+      if (!isLoggedIn && !onAuthPath) return '/login';
+      if (isLoggedIn && onAuthPath && loc != '/splash') {
+        // A login / register / guest flow is still running (2FA check,
+        // profile creation, verification e-mail…). Its screen navigates when
+        // it is done; jumping to /home here is what used to skip those steps.
+        if (ref.read(authFlowInProgressProvider)) return null;
         return '/home';
       }
       return null;

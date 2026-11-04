@@ -1,9 +1,11 @@
+import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
 import 'legal_texts.dart';
 
+import '../theme/app_colors.dart';
 /// The date shown under a legal document's title. Bump it whenever
 /// [kTermsParagraphs] or [kPolicyParagraphs] changes in a way a user would care
 /// about — section 11 of the terms promises a new date on every revision.
@@ -12,11 +14,11 @@ const kLegalUpdated = '30 September 2026';
 // The sheet is its own small design island: the auth screens and the About
 // screen use different palettes, and a legal document should look the same from
 // both. These match the About screen's tokens.
-const _kCard    = Color(0xFF1A1A1E);
-const _kBorder  = Color(0xFF2A2520);
-const _kInk     = Color(0xFFF5F3EF);
-const _kInkDim  = Color(0xFFB0A898);
-const _kInkMute = Color(0xFF706860);
+const _kCard    = AppColors.card;
+const _kBorder  = AppColors.border;
+const _kInk     = AppColors.ink;
+const _kInkDim  = AppColors.inkDim;
+const _kInkMute = AppColors.inkMute;
 
 /// Opens a legal document as a draggable bottom sheet.
 ///
@@ -136,9 +138,11 @@ class LegalConsentNotice extends StatelessWidget {
         TextSpan(
           style: base,
           children: [
-            const TextSpan(text: 'By continuing you agree to the '),
+            // Split into five pieces so each language can keep its own word
+            // order around the two links.
+            TextSpan(text: 'legal_agree_prefix'.tr()),
             TextSpan(
-              text: 'Terms of Service',
+              text: 'legal_terms'.tr(),
               style: link,
               recognizer: _tap(() => showLegalDocSheet(
                     context,
@@ -146,9 +150,9 @@ class LegalConsentNotice extends StatelessWidget {
                     paragraphs: kTermsParagraphs,
                   )),
             ),
-            const TextSpan(text: ' and the '),
+            TextSpan(text: 'legal_and'.tr()),
             TextSpan(
-              text: 'Privacy Policy',
+              text: 'legal_privacy'.tr(),
               style: link,
               recognizer: _tap(() => showLegalDocSheet(
                     context,
@@ -156,10 +160,7 @@ class LegalConsentNotice extends StatelessWidget {
                     paragraphs: kPolicyParagraphs,
                   )),
             ),
-            const TextSpan(
-              text: '. CheckMate has no tolerance for objectionable content or '
-                  'abusive users.',
-            ),
+            TextSpan(text: 'legal_suffix'.tr()),
           ],
         ),
         textAlign: TextAlign.center,

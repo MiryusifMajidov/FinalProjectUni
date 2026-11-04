@@ -68,6 +68,11 @@ class UserModel {
   final List<String> recentGameIds;
   final String? currentGameId; // set while in a live online game
 
+  /// True for accounts created with "Continue as guest" (Firebase anonymous
+  /// auth) that have not yet linked an e-mail, Google or Apple sign-in.
+  /// Such an account lives only on the device that created it.
+  final bool isGuest;
+
   // ── Privacy / security extras ─────────────────────────────────────────────
   final bool twoFactorEnabled;          // 2FA via email OTP on login
   final bool showOnlineStatus;          // show "online" dot to others
@@ -108,6 +113,7 @@ class UserModel {
     this.dominoCampaignProgress = 0,
     this.recentGameIds = const [],
     this.currentGameId,
+    this.isGuest = false,
     this.twoFactorEnabled = false,
     this.showOnlineStatus = true,
     this.invisibleMode = false,
@@ -123,16 +129,19 @@ class UserModel {
   });
 
   /// Average rating across only the game modes the user has actually played.
-  /// Falls back to 1200 if no rated games have been played yet.
+  /// Before the first rated game it is the average of the three starting
+  /// ratings, which registration sets from the chosen skill level. (It used to
+  /// fall back to a flat 1200, so a "Beginner" saw 1,200 on the home card
+  /// while every time-control tile right below it said 400.)
   int get overallRating {
     final played = <RatingStats>[
       if (bulletStats.games > 0) bulletStats,
       if (blitzStats.games > 0) blitzStats,
       if (rapidStats.games > 0) rapidStats,
     ];
-    if (played.isEmpty) return 1200;
-    return (played.map((s) => s.rating).reduce((a, b) => a + b) /
-            played.length)
+    final pool =
+        played.isEmpty ? [bulletStats, blitzStats, rapidStats] : played;
+    return (pool.map((s) => s.rating).reduce((a, b) => a + b) / pool.length)
         .round();
   }
 
@@ -170,6 +179,7 @@ class UserModel {
         'dominoCampaignProgress': dominoCampaignProgress,
         'recentGameIds': recentGameIds,
         if (currentGameId != null) 'currentGameId': currentGameId,
+        'isGuest': isGuest,
         'twoFactorEnabled': twoFactorEnabled,
         'showOnlineStatus': showOnlineStatus,
         'invisibleMode': invisibleMode,
@@ -197,7 +207,7 @@ class UserModel {
         showOnMap: (map['showOnMap'] as bool?) ?? false,
         profileVisibility: (map['profileVisibility'] as String?) ?? 'Public',
         lastSeen: (map['lastSeen'] as Timestamp?)?.toDate(),
-        createdAt: (map['createdAt'] as Timestamp).toDate(),
+        createdAt: (map['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
         bulletStats: RatingStats.fromMap(
             (map['bulletStats'] as Map<String, dynamic>?) ?? {}),
         blitzStats: RatingStats.fromMap(
@@ -214,6 +224,7 @@ class UserModel {
         recentGameIds:
             (map['recentGameIds'] as List<dynamic>?)?.cast<String>() ?? [],
         currentGameId: map['currentGameId'] as String?,
+        isGuest: (map['isGuest'] as bool?) ?? false,
         twoFactorEnabled: (map['twoFactorEnabled'] as bool?) ?? false,
         showOnlineStatus: (map['showOnlineStatus'] as bool?) ?? true,
         invisibleMode: (map['invisibleMode'] as bool?) ?? false,
@@ -259,6 +270,7 @@ class UserModel {
     int? checkersCampaignProgress,
     int? dominoCampaignProgress,
     List<String>? recentGameIds,
+    bool? isGuest,
     bool? twoFactorEnabled,
     bool? showOnlineStatus,
     bool? invisibleMode,
@@ -296,6 +308,7 @@ class UserModel {
         checkersCampaignProgress: checkersCampaignProgress ?? this.checkersCampaignProgress,
         dominoCampaignProgress: dominoCampaignProgress ?? this.dominoCampaignProgress,
         recentGameIds: recentGameIds ?? this.recentGameIds,
+        isGuest: isGuest ?? this.isGuest,
         twoFactorEnabled: twoFactorEnabled ?? this.twoFactorEnabled,
         showOnlineStatus: showOnlineStatus ?? this.showOnlineStatus,
         invisibleMode: invisibleMode ?? this.invisibleMode,

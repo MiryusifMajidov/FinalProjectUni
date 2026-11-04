@@ -31,6 +31,9 @@ class _AppleSignInButtonState extends ConsumerState<AppleSignInButton> {
 
   Future<void> _signIn() async {
     setState(() => _loading = true);
+    // Keeps the router from yanking the screen to /home the instant Firebase
+    // signs in, before the 2FA check and profile setup below have run.
+    final flow = ref.read(authFlowInProgressProvider.notifier)..state = true;
     try {
       final result = await ref.read(authServiceProvider).signInWithApple();
       if (!mounted) return;
@@ -46,10 +49,9 @@ class _AppleSignInButtonState extends ConsumerState<AppleSignInButton> {
         if (!mounted) return;
         if (!emailSent) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text(
-                  'Verification email may be delayed — tap "Resend code" if it doesn\'t arrive.'),
-              duration: Duration(seconds: 5),
+            SnackBar(
+              content: Text('verification_email_delayed'.tr()),
+              duration: const Duration(seconds: 5),
             ),
           );
         }
@@ -97,9 +99,9 @@ class _AppleSignInButtonState extends ConsumerState<AppleSignInButton> {
       if (msg.contains('cancelled') || msg.contains('canceled')) {
         // user dismissed — no error shown
       } else if (mounted) {
-        String friendly = 'Apple sign-in failed.';
+        String friendly = 'apple_sign_in_failed'.tr();
         if (msg.contains('network') || msg.contains('NETWORK')) {
-          friendly = 'No internet connection.';
+          friendly = 'err_no_internet'.tr();
         } else if (msg.contains('notHandled') ||
             msg.contains('invalid-credential')) {
           friendly =
@@ -114,6 +116,7 @@ class _AppleSignInButtonState extends ConsumerState<AppleSignInButton> {
       }
     } finally {
       if (mounted) setState(() => _loading = false);
+      flow.state = false;
     }
   }
 
@@ -154,7 +157,7 @@ class _AppleSignInButtonState extends ConsumerState<AppleSignInButton> {
                   ),
                   const SizedBox(width: 10),
                   Text(
-                    'Continue with Apple',
+                    'continue_with_apple'.tr(),
                     style: AppTextStyles.labelLarge.copyWith(
                       color: Colors.white,
                     ),

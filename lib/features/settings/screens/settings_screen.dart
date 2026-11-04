@@ -16,6 +16,8 @@ import '../../../core/theme/board_themes.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/cache_service.dart';
+import '../../../core/widgets/guest_notice.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import '../../../core/services/photo_service.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/widgets/user_avatar.dart';
@@ -175,24 +177,29 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
-const _kBg            = Color(0xFF0A0A0B);
-const _kSurface       = Color(0xFF131316);
-const _kCard          = Color(0xFF1A1A1E);
-const _kCardElevated  = Color(0xFF202026);
-const _kAmber         = Color(0xFFE8B960);
-const _kAmberDeep     = Color(0xFFB88A3A);
-const _kAmberGlow     = Color(0x24E8B960);
-const _kWin           = Color(0xFF5FD4A3);
-const _kLoss          = Color(0xFFF07079);
-const _kInk           = Color(0xFFF5F3EF);
-const _kInkDim        = Color(0xFFA8A39A);
-const _kInkMute       = Color(0xFF706B62);
-const _kInkFaint      = Color(0xFF4A4740);
-const _kBorder        = Color(0x0FFFFFFF);  // rgba(255,255,255,0.06)
-const _kBorderStrong  = Color(0x1AFFFFFF);  // rgba(255,255,255,0.10)
+const _kBg            = AppColors.background;
+const _kSurface       = AppColors.surface;
+const _kCard          = AppColors.card;
+const _kCardElevated  = AppColors.cardElevated;
+const _kAmber         = AppColors.amber;
+const _kAmberDeep     = AppColors.amberDeep;
+const _kAmberGlow     = AppColors.amberGlow;
+const _kWin           = AppColors.win;
+const _kLoss          = AppColors.loss;
+const _kInk           = AppColors.ink;
+const _kInkDim        = AppColors.inkDim;
+const _kInkMute       = AppColors.inkMute;
+const _kInkFaint      = AppColors.inkFaint;
+const _kBorder        = AppColors.border;  // rgba(255,255,255,0.06)
+const _kBorderStrong  = AppColors.borderStrong;  // rgba(255,255,255,0.10)
 const _kLossBorder    = Color(0x38F07079);  // rgba(240,112,121,0.22)
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
+
+final _appVersionProvider = FutureProvider<String>((ref) async {
+  final info = await PackageInfo.fromPlatform();
+  return 'v${info.version}';
+});
 
 class SettingsScreen extends ConsumerWidget {
   const SettingsScreen({super.key});
@@ -366,7 +373,8 @@ class SettingsScreen extends ConsumerWidget {
               _SettingsRow(
                 icon: PhosphorIcons.info(PhosphorIconsStyle.regular),
                 label: 'about'.tr(),
-                sub: 'v2.4.0',
+                // Was a hard-coded "v2.4.0" while the app shipped as 1.1.0.
+                sub: ref.watch(_appVersionProvider).valueOrNull,
                 onTap: () => context.push('/home/settings/about'),
                 isLast: true,
               ),
@@ -380,6 +388,11 @@ class SettingsScreen extends ConsumerWidget {
             padding: const EdgeInsets.fromLTRB(14, 14, 14, 0),
             child: GestureDetector(
               onTap: () async {
+                // A guest account has no way back in once signed out.
+                if (ref.read(isGuestProvider)) {
+                  final confirmed = await confirmGuestSignOut(context);
+                  if (!confirmed || !context.mounted) return;
+                }
                 await ref.read(authServiceProvider).signOut();
                 if (context.mounted) context.go('/login');
               },
@@ -411,7 +424,7 @@ class SettingsScreen extends ConsumerWidget {
             padding: const EdgeInsets.only(bottom: 20),
             child: Center(
               child: Text(
-                'GRANDMASTER · LUDODO',
+                'CHECKMATE · LUDODO',
                 style: GoogleFonts.jetBrainsMono(
                   fontSize: 10,
                   color: _kInkFaint,
