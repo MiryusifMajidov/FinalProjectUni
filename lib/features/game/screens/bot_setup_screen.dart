@@ -13,16 +13,16 @@ import '../../../core/services/auth_service.dart';
 
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
-const _kBg            = Color(0xFF0A0A0B);
-const _kCard          = Color(0xFF1A1A1E);
-const _kAmber         = Color(0xFFE8B960);
-const _kAmberDeep     = Color(0xFFB88A3A);
-const _kAmberGlow     = Color(0x24E8B960);
-const _kAmberSoft     = Color(0xFFFFD98B);
-const _kInk           = Color(0xFFF5F3EF);
-const _kInkDim        = Color(0xFFA8A39A);
-const _kInkMute       = Color(0xFF706B62);
-const _kBorder        = Color(0x0FFFFFFF);
+const _kBg            = AppColors.background;
+const _kCard          = AppColors.card;
+const _kAmber         = AppColors.amber;
+const _kAmberDeep     = AppColors.amberDeep;
+const _kAmberGlow     = AppColors.amberGlow;
+const _kAmberSoft     = AppColors.amberSoft;
+const _kInk           = AppColors.ink;
+const _kInkDim        = AppColors.inkDim;
+const _kInkMute       = AppColors.inkMute;
+const _kBorder        = AppColors.border;
 const _kBoardDark     = Color(0x2E1A1205); // #1a1205 opacity 0.18
 
 // ── Level data ────────────────────────────────────────────────────────────────

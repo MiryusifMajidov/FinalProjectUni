@@ -4,16 +4,17 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
+import '../../../core/theme/app_colors.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
-const _kBg           = Color(0xFF0A0A0B);
-const _kSurface      = Color(0xFF131316);
-const _kCard         = Color(0xFF1A1A1E);
-const _kAmber        = Color(0xFFE8B960);
-const _kAmberGlow    = Color(0x24E8B960);
-const _kInk          = Color(0xFFF5F3EF);
-const _kInkDim       = Color(0xFFB0A898);
-const _kInkMute      = Color(0xFF706860);
-const _kBorder       = Color(0xFF2A2520);
+const _kBg           = AppColors.background;
+const _kSurface      = AppColors.surface;
+const _kCard         = AppColors.card;
+const _kAmber        = AppColors.amber;
+const _kAmberGlow    = AppColors.amberGlow;
+const _kInk          = AppColors.ink;
+const _kInkDim       = AppColors.inkDim;
+const _kInkMute      = AppColors.inkMute;
+const _kBorder       = AppColors.border;
 
 class LanguageScreen extends StatelessWidget {
   const LanguageScreen({super.key});

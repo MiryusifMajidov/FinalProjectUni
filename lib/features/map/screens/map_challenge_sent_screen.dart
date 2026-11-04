@@ -6,17 +6,18 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/models/user_model.dart';
 
+import '../../../core/theme/app_colors.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg          = Color(0xFF0D1014);
-const _kCard        = Color(0xFF1A1A1E);
-const _kAmber       = Color(0xFFE8B960);
-const _kAmberDeep   = Color(0xFFC49A45);
-const _kInk         = Color(0xFFF5F3EF);
-const _kInkDim      = Color(0xFFB0A898);
-const _kInkMute     = Color(0xFF706860);
-const _kBorder      = Color(0xFF2A2520);
-const _kBorderStrong = Color(0xFF3D3530);
-const _kWin         = Color(0xFF5AB67A);
+const _kCard        = AppColors.card;
+const _kAmber       = AppColors.amber;
+const _kAmberDeep   = AppColors.amberDeep;
+const _kInk         = AppColors.ink;
+const _kInkDim      = AppColors.inkDim;
+const _kInkMute     = AppColors.inkMute;
+const _kBorder      = AppColors.border;
+const _kBorderStrong = AppColors.borderStrong;
+const _kWin         = AppColors.win;
 
 class MapChallengeSentScreen extends StatefulWidget {
   final UserModel opponent;

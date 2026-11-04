@@ -9,18 +9,19 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/firestore_service.dart';
 import '../../../core/services/otp_service.dart';
 
+import '../../../core/theme/app_colors.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
-const _kBg        = Color(0xFF0A0A0B);
-const _kSurface   = Color(0xFF131316);
-const _kCard      = Color(0xFF1A1A1E);
-const _kAmber     = Color(0xFFE8B960);
-const _kAmberGlow = Color(0x24E8B960);
-const _kInk       = Color(0xFFF5F3EF);
-const _kInkDim    = Color(0xFFB0A898);
-const _kInkMute   = Color(0xFF706860);
-const _kBorder    = Color(0xFF2A2520);
-const _kLoss      = Color(0xFFF07079);
-const _kWin       = Color(0xFF5AB67A);
+const _kBg        = AppColors.background;
+const _kSurface   = AppColors.surface;
+const _kCard      = AppColors.card;
+const _kAmber     = AppColors.amber;
+const _kAmberGlow = AppColors.amberGlow;
+const _kInk       = AppColors.ink;
+const _kInkDim    = AppColors.inkDim;
+const _kInkMute   = AppColors.inkMute;
+const _kBorder    = AppColors.border;
+const _kLoss      = AppColors.loss;
+const _kWin       = AppColors.win;
 
 enum _TfaStep { intro, verify, done }
 

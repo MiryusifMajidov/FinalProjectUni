@@ -15,16 +15,17 @@ import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
 import '../../settings/screens/settings_screen.dart';
 
+import '../../../core/theme/app_colors.dart';
 // ── Design tokens (map-specific dark palette) ─────────────────────────────────
 const _kMapBg        = Color(0xFF0D1014);
-const _kAmber        = Color(0xFFE8B960);
-const _kAmberDeep    = Color(0xFFC49A45);
-const _kAmberGlow    = Color(0x24E8B960);
-const _kInk          = Color(0xFFF5F3EF);
-const _kInkDim       = Color(0xFFB0A898);
-const _kInkMute      = Color(0xFF706860);
-const _kWin          = Color(0xFF5CB85C);
-const _kCard         = Color(0xFF1A1A1E);
+const _kAmber        = AppColors.amber;
+const _kAmberDeep    = AppColors.amberDeep;
+const _kAmberGlow    = AppColors.amberGlow;
+const _kInk          = AppColors.ink;
+const _kInkDim       = AppColors.inkDim;
+const _kInkMute      = AppColors.inkMute;
+const _kWin          = AppColors.win;
+const _kCard         = AppColors.card;
 
 // Frosted glass backgrounds for overlay panels
 const _kFrost        = Color(0xF00F1217); // ~94% opacity dark

@@ -13,16 +13,17 @@ import '../../game/engine/chess_engine.dart';
 import '../../game/widgets/chess_board_widget.dart';
 import 'settings_screen.dart';
 
+import '../../../core/theme/app_colors.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
-const _kBg           = Color(0xFF0A0A0B);
-const _kSurface      = Color(0xFF131316);
-const _kCard         = Color(0xFF1A1A1E);
-const _kAmber        = Color(0xFFE8B960);
-const _kInk          = Color(0xFFF5F3EF);
-const _kInkDim       = Color(0xFFB0A898);
-const _kInkMute      = Color(0xFF706860);
-const _kBorder       = Color(0xFF2A2520);
-const _kBorderStrong = Color(0xFF3D3530);
+const _kBg           = AppColors.background;
+const _kSurface      = AppColors.surface;
+const _kCard         = AppColors.card;
+const _kAmber        = AppColors.amber;
+const _kInk          = AppColors.ink;
+const _kInkDim       = AppColors.inkDim;
+const _kInkMute      = AppColors.inkMute;
+const _kBorder       = AppColors.border;
+const _kBorderStrong = AppColors.borderStrong;
 
 class GameSettingsScreen extends ConsumerStatefulWidget {
   const GameSettingsScreen({super.key});

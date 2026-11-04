@@ -55,7 +55,7 @@ class AppColors {
   // ─── Text / Ink ───────────────────────────────────────────────────────────
   static const ink           = Color(0xFFF5F3EF);
   static const inkDim        = Color(0xFFA8A39A);
-  static const inkMute       = Color(0xFF706B62);
+  static const inkMute       = Color(0xFF8A847A); // 5.3:1 on background (was 3.7:1)
   static const inkFaint      = Color(0xFF4A4740);
 
   // Legacy aliases
