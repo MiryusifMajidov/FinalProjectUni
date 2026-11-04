@@ -487,7 +487,7 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout>
     Widget gameRow(GameModel g) => Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: GestureDetector(
-        // Move-by-move replay/analysis exists for chess only —
+        // Move-by-move replay exists for chess only —
         // checkers/domino entries are informational.
         onTap: g.gameType == 'chess'
             ? () => context.push('/home/game-replay/${g.id}', extra: myUid)

@@ -40,12 +40,15 @@ const kPolicyParagraphs = [
   '4. How We Use Your Information\n'
   'To run your account and your games; to show ratings and leaderboards; to '
   'deliver the notifications you opted into; to answer support requests; and '
-  'to detect cheating, abuse and other conduct that breaks our terms.',
+  'to detect cheating, abuse and other conduct that breaks our terms. When '
+  'you start as a guest, our server looks up the country of your IP address '
+  'once to show a flag next to your name; the address itself is not stored, '
+  'and you can change or remove the country in Account settings.',
 
   '5. Third-Party Services\n'
   'Firebase (Google) hosts authentication, the database, file storage, '
-  'messaging and server functions. Bot moves and post-game analysis send the '
-  'board position to the Stockfish Online API at stockfish.online, which also '
+  'messaging and server functions. Bot moves and hints send the board '
+  'position to the Stockfish Online API at stockfish.online, which also '
   'receives your IP address; we do not send your username or email with it. '
   'The player map loads tiles from tile.openstreetmap.org, which receives '
   'your IP address and the area of the map you are viewing. Interface fonts '

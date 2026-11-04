@@ -259,7 +259,6 @@
   "skill_master": "ماسٹر",
   "arena": "ایرینا",
   "replay": "ریپلے",
-  "analyze_game": "گیم کا تجزیہ",
   "promote_pawn": "پیادے کو ترقی دیں",
   "no_moves_yet": "ابھی تک کوئی چال نہیں",
   "no_moves_played_yet": "ابھی تک کوئی چال نہیں چلی۔",
@@ -631,5 +630,12 @@
   "mm_in_queue": "قطار میں",
   "mm_avg_wait": "اوسط انتظار",
   "mm_bot_found": "بوٹ کے ساتھ گیم",
-  "mm_bot_found_note": "ابھی کوئی کھلاڑی فارغ نہیں۔ یہ گیم ریٹنگ پر اثر نہیں ڈالے گا۔"
+  "mm_bot_found_note": "ابھی کوئی کھلاڑی فارغ نہیں۔ یہ گیم ریٹنگ پر اثر نہیں ڈالے گا۔",
+  "replay_start": "ابتدائی پوزیشن",
+  "replay_move_of": "چال {n} / {total}",
+  "replay_first": "پہلی چال",
+  "replay_previous": "پچھلی چال",
+  "replay_next": "اگلی چال",
+  "replay_last": "آخری چال",
+  "game_not_found": "یہ گیم نہیں ملا۔"
 }

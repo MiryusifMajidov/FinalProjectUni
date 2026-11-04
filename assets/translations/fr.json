@@ -259,7 +259,6 @@
   "skill_master": "Maître",
   "arena": "Arène",
   "replay": "Replay",
-  "analyze_game": "Analyser la partie",
   "promote_pawn": "Promouvoir le pion",
   "no_moves_yet": "Pas encore de coups",
   "no_moves_played_yet": "Aucun coup joué pour l'instant.",
@@ -631,5 +630,12 @@
   "mm_in_queue": "En file",
   "mm_avg_wait": "Attente moy.",
   "mm_bot_found": "Partie contre un bot",
-  "mm_bot_found_note": "Personne n'est libre pour le moment. Cette partie n'est pas classée."
+  "mm_bot_found_note": "Personne n'est libre pour le moment. Cette partie n'est pas classée.",
+  "replay_start": "Position de départ",
+  "replay_move_of": "Coup {n} sur {total}",
+  "replay_first": "Premier coup",
+  "replay_previous": "Coup précédent",
+  "replay_next": "Coup suivant",
+  "replay_last": "Dernier coup",
+  "game_not_found": "Cette partie est introuvable."
 }

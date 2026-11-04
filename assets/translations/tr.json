@@ -269,7 +269,6 @@
   "skill_master": "Usta",
   "arena": "Arena",
   "replay": "Tekrar Oynat",
-  "analyze_game": "Oyunu Analiz Et",
   "promote_pawn": "Piyonu Terfi Et",
   "no_moves_yet": "Henüz hamle yok",
   "no_moves_played_yet": "Henüz hamle yapılmadı.",
@@ -643,5 +642,12 @@
   "mm_in_queue": "Sırada",
   "mm_avg_wait": "Ort. bekleme",
   "mm_bot_found": "Bir botla oynuyorsun",
-  "mm_bot_found_note": "Şu anda boşta oyuncu yok. Bu oyun dereceyi etkilemez."
+  "mm_bot_found_note": "Şu anda boşta oyuncu yok. Bu oyun dereceyi etkilemez.",
+  "replay_start": "Başlangıç pozisyonu",
+  "replay_move_of": "Hamle {n} / {total}",
+  "replay_first": "İlk hamle",
+  "replay_previous": "Önceki hamle",
+  "replay_next": "Sonraki hamle",
+  "replay_last": "Son hamle",
+  "game_not_found": "Bu oyun bulunamadı."
 }

@@ -259,7 +259,6 @@
   "skill_master": "Maestro",
   "arena": "Arena",
   "replay": "Repetición",
-  "analyze_game": "Analizar partida",
   "promote_pawn": "Coronar peón",
   "no_moves_yet": "Sin movimientos aún",
   "no_moves_played_yet": "Aún no se han realizado movimientos.",
@@ -631,5 +630,12 @@
   "mm_in_queue": "En cola",
   "mm_avg_wait": "Espera media",
   "mm_bot_found": "Partida contra un bot",
-  "mm_bot_found_note": "Ahora no hay nadie libre. Esta partida no cuenta para la clasificación."
+  "mm_bot_found_note": "Ahora no hay nadie libre. Esta partida no cuenta para la clasificación.",
+  "replay_start": "Posición inicial",
+  "replay_move_of": "Jugada {n} de {total}",
+  "replay_first": "Primera jugada",
+  "replay_previous": "Jugada anterior",
+  "replay_next": "Jugada siguiente",
+  "replay_last": "Última jugada",
+  "game_not_found": "No se encontró esta partida."
 }

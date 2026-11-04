@@ -259,7 +259,6 @@
   "skill_master": "大师",
   "arena": "竞技场",
   "replay": "回放",
-  "analyze_game": "分析棋局",
   "promote_pawn": "升变兵",
   "no_moves_yet": "暂无走棋",
   "no_moves_played_yet": "暂无走棋记录。",
@@ -631,5 +630,12 @@
   "mm_in_queue": "排队中",
   "mm_avg_wait": "平均等待",
   "mm_bot_found": "与机器人对局",
-  "mm_bot_found_note": "目前没有空闲的玩家。本局不计入等级分。"
+  "mm_bot_found_note": "目前没有空闲的玩家。本局不计入等级分。",
+  "replay_start": "初始局面",
+  "replay_move_of": "第 {n} 步，共 {total} 步",
+  "replay_first": "第一步",
+  "replay_previous": "上一步",
+  "replay_next": "下一步",
+  "replay_last": "最后一步",
+  "game_not_found": "找不到这局对局。"
 }

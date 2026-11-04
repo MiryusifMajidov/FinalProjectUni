@@ -259,7 +259,6 @@
   "skill_master": "Meister",
   "arena": "Arena",
   "replay": "Wiederholung",
-  "analyze_game": "Partie analysieren",
   "promote_pawn": "Bauern umwandeln",
   "no_moves_yet": "Noch keine Züge",
   "no_moves_played_yet": "Noch keine Züge gespielt.",
@@ -631,5 +630,12 @@
   "mm_in_queue": "In der Warteschlange",
   "mm_avg_wait": "Ø Wartezeit",
   "mm_bot_found": "Partie gegen einen Bot",
-  "mm_bot_found_note": "Gerade ist niemand frei. Diese Partie wird nicht gewertet."
+  "mm_bot_found_note": "Gerade ist niemand frei. Diese Partie wird nicht gewertet.",
+  "replay_start": "Ausgangsstellung",
+  "replay_move_of": "Zug {n} von {total}",
+  "replay_first": "Erster Zug",
+  "replay_previous": "Vorheriger Zug",
+  "replay_next": "Nächster Zug",
+  "replay_last": "Letzter Zug",
+  "game_not_found": "Diese Partie wurde nicht gefunden."
 }

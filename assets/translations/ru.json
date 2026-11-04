@@ -269,7 +269,6 @@
   "skill_master": "Мастер",
   "arena": "Арена",
   "replay": "Повтор",
-  "analyze_game": "Анализ игры",
   "promote_pawn": "Превратить пешку",
   "no_moves_yet": "Ходов пока нет",
   "no_moves_played_yet": "Ходов ещё не было.",
@@ -643,5 +642,12 @@
   "mm_in_queue": "В очереди",
   "mm_avg_wait": "Ожидание",
   "mm_bot_found": "Игра с ботом",
-  "mm_bot_found_note": "Сейчас нет свободных игроков. Эта партия не влияет на рейтинг."
+  "mm_bot_found_note": "Сейчас нет свободных игроков. Эта партия не влияет на рейтинг.",
+  "replay_start": "Начальная позиция",
+  "replay_move_of": "Ход {n} из {total}",
+  "replay_first": "Первый ход",
+  "replay_previous": "Предыдущий ход",
+  "replay_next": "Следующий ход",
+  "replay_last": "Последний ход",
+  "game_not_found": "Эта партия не найдена."
 }

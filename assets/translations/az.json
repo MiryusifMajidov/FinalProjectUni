@@ -269,7 +269,6 @@
   "skill_master": "Master",
   "arena": "Arena",
   "replay": "Təkrar oynat",
-  "analyze_game": "Oyunu Analiz Et",
   "promote_pawn": "Piyadanı Yüksəlt",
   "no_moves_yet": "Hələ gediş yoxdur",
   "no_moves_played_yet": "Hələ gediş edilməyib.",
@@ -645,5 +644,12 @@
   "mm_in_queue": "Növbədə",
   "mm_avg_wait": "Orta gözləmə",
   "mm_bot_found": "Botla oyun",
-  "mm_bot_found_note": "Hazırda boş oyunçu yoxdur. Bu oyun reytinqə təsir etmir."
+  "mm_bot_found_note": "Hazırda boş oyunçu yoxdur. Bu oyun reytinqə təsir etmir.",
+  "replay_start": "Başlanğıc vəziyyət",
+  "replay_move_of": "Gediş {n} / {total}",
+  "replay_first": "İlk gediş",
+  "replay_previous": "Əvvəlki gediş",
+  "replay_next": "Növbəti gediş",
+  "replay_last": "Son gediş",
+  "game_not_found": "Bu oyun tapılmadı."
 }

@@ -724,8 +724,17 @@ void _registerBundledAssetLicences() {
     );
 
     yield const LicenseEntryWithLineBreaks(
+      ['CheckMate services: IP country data'],
+      "A guest's country is looked up on our server in the GeoFeed + Whois + "
+      'ASN country database from ip-location-db '
+      '(https://github.com/sapics/ip-location-db), licensed under CC BY 4.0 '
+      '(https://creativecommons.org/licenses/by/4.0/) by the Number Resource '
+      'Organization (https://www.nro.net).',
+    );
+
+    yield const LicenseEntryWithLineBreaks(
       ['CheckMate services: Stockfish Online API'],
-      'Bot moves and post-game analysis are computed by the Stockfish Online '
+      'Bot moves and hints are computed by the Stockfish Online '
       'API (https://stockfish.online), a third-party HTTPS service that runs '
       'the Stockfish chess engine. Stockfish itself is published under the GNU '
       'General Public License version 3: https://stockfishchess.org\n\n'

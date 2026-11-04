@@ -269,7 +269,6 @@
   "skill_master": "Master",
   "arena": "Arena",
   "replay": "Replay",
-  "analyze_game": "Analyze Game",
   "promote_pawn": "Promote Pawn",
   "no_moves_yet": "No moves yet",
   "no_moves_played_yet": "No moves played yet.",
@@ -645,5 +644,12 @@
   "mm_in_queue": "In queue",
   "mm_avg_wait": "Avg wait",
   "mm_bot_found": "Playing a bot",
-  "mm_bot_found_note": "Nobody was free right now. This game is unrated."
+  "mm_bot_found_note": "Nobody was free right now. This game is unrated.",
+  "replay_start": "Starting position",
+  "replay_move_of": "Move {n} of {total}",
+  "replay_first": "First move",
+  "replay_previous": "Previous move",
+  "replay_next": "Next move",
+  "replay_last": "Last move",
+  "game_not_found": "This game could not be found."
 }

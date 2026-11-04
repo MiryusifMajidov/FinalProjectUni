@@ -259,7 +259,6 @@
   "skill_master": "मास्टर",
   "arena": "एरेना",
   "replay": "रीप्ले",
-  "analyze_game": "खेल विश्लेषण",
   "promote_pawn": "प्यादे को पदोन्नत करें",
   "no_moves_yet": "अभी तक कोई चाल नहीं",
   "no_moves_played_yet": "अभी तक कोई चाल नहीं चली।",
@@ -631,5 +630,12 @@
   "mm_in_queue": "कतार में",
   "mm_avg_wait": "औसत प्रतीक्षा",
   "mm_bot_found": "बॉट से गेम",
-  "mm_bot_found_note": "अभी कोई खिलाड़ी खाली नहीं है। इस गेम से रेटिंग नहीं बदलेगी।"
+  "mm_bot_found_note": "अभी कोई खिलाड़ी खाली नहीं है। इस गेम से रेटिंग नहीं बदलेगी।",
+  "replay_start": "शुरुआती स्थिति",
+  "replay_move_of": "चाल {n} / {total}",
+  "replay_first": "पहली चाल",
+  "replay_previous": "पिछली चाल",
+  "replay_next": "अगली चाल",
+  "replay_last": "आखिरी चाल",
+  "game_not_found": "यह गेम नहीं मिला।"
 }
