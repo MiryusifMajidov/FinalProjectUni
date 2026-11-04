@@ -492,7 +492,9 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout> {
     Widget recentGames() => gamesAsync.when(
       loading: () => const ShimmerList(count: 4, itemHeight: 70),
       error: (_, __) => const SizedBox.shrink(),
-      data: (games) => Column(
+      data: (games) => games.isEmpty
+          ? const _NoGamesYet()
+          : Column(
         children: games.map((g) => Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: GestureDetector(
@@ -522,13 +524,14 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout> {
             icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.regular), color: AppColors.inkDim),
             onPressed: () => Navigator.of(context).maybePop(),
           ),
-          title: Text('Profile',
+          title: Text('profile'.tr(),
               style: _inter(size: 13, weight: FontWeight.w600, color: AppColors.inkDim)),
           actions: [
             IconButton(
               icon: Icon(PhosphorIcons.pencilSimple(PhosphorIconsStyle.regular),
                   color: AppColors.inkDim, size: 20),
-              onPressed: () => context.push('/home/settings'),
+              tooltip: 'account'.tr(),
+              onPressed: () => context.push('/home/settings/account'),
             ),
           ],
         ),
@@ -962,7 +965,9 @@ class _OtherProfileLayout extends ConsumerWidget {
     Widget recentGames() => gamesAsync.when(
       loading: () => const ShimmerList(count: 4, itemHeight: 70),
       error: (_, __) => const SizedBox.shrink(),
-      data: (games) => Column(
+      data: (games) => games.isEmpty
+          ? const _NoGamesYet()
+          : Column(
         children: games.map((g) => Padding(
           padding: const EdgeInsets.only(bottom: 8),
           child: RecentGameTile(game: g, uid: user.uid),
@@ -2671,6 +2676,37 @@ class _ChallengeSheetState extends ConsumerState<_ChallengeSheet> {
           AppButton(
             label: 'Send Challenge',
             onTap: () => widget.onSend(_tc, _color),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Shown instead of an empty "Recent games" header with nothing under it.
+class _NoGamesYet extends StatelessWidget {
+  const _NoGamesYet();
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 18),
+      decoration: BoxDecoration(
+        color: AppColors.card,
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: AppColors.border),
+      ),
+      child: Row(
+        children: [
+          Icon(PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.regular),
+              size: 20, color: AppColors.inkMute),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Text(
+              'no_games_start_playing'.tr(),
+              style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkDim),
+            ),
           ),
         ],
       ),

@@ -4,16 +4,18 @@ import 'package:go_router/go_router.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/text_case.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
-const _kCard        = Color(0xFF1A1A1E);
-const _kCardElevated = Color(0xFF1E1E23);
-const _kAmber       = Color(0xFFE8B960);
-const _kInk         = Color(0xFFF5F3EF);
-const _kInkDim      = Color(0xFFB0A898);
-const _kBorder      = Color(0xFF2A2520);
-const _kWin         = Color(0xFF5AB67A);
-const _kLoss        = Color(0xFFF07079);
-const _kLossSoft    = Color(0x22F07079);
+const _kCard        = AppColors.card;
+const _kCardElevated = AppColors.cardElevated;
+const _kAmber       = AppColors.amber;
+const _kInk         = AppColors.ink;
+const _kInkDim      = AppColors.inkDim;
+const _kBorder      = AppColors.border;
+const _kWin         = AppColors.win;
+const _kLoss        = AppColors.loss;
+const _kLossSoft    = AppColors.lossSoft;
 
 enum GameOutcome { win, loss, draw }
 
@@ -149,7 +151,7 @@ class GameResultSheet extends StatelessWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'rating'.tr().toUpperCase(),
+                          'rating'.tr().toUpperCaseFor(context),
                           style: GoogleFonts.jetBrainsMono(
                             fontSize: 9,
                             color: _kInkDim,

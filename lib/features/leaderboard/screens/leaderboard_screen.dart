@@ -12,6 +12,7 @@ import '../../../core/models/game_type.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../../core/widgets/game_switch.dart';
 
+import '../../../core/utils/text_case.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg           = AppColors.background;
 const _kSurface      = AppColors.surface;
@@ -710,7 +711,7 @@ class _StickyOwnRank extends StatelessWidget {
         children: [
           // "YOUR RANK" label
           Text(
-            'YOUR RANK',
+            'your_rank'.tr().toUpperCaseFor(context),
             style: GoogleFonts.jetBrainsMono(
               fontSize: 9,
               fontWeight: FontWeight.w600,

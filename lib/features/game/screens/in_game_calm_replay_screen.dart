@@ -11,17 +11,19 @@ import '../../settings/screens/settings_screen.dart';
 import '../engine/chess_engine.dart';
 import '../widgets/chess_board_widget.dart';
 
+import '../../../core/theme/app_colors.dart';
+import '../../../core/utils/text_case.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
-const _kBg       = Color(0xFF0A0908);
-const _kCard     = Color(0xFF1A1A1E);
-const _kAmber    = Color(0xFFE8B960);
-const _kWin      = Color(0xFF5FD4A3);
-const _kWinSoft  = Color(0x255FD4A3);
+const _kBg       = AppColors.background;
+const _kCard     = AppColors.card;
+const _kAmber    = AppColors.amber;
+const _kWin      = AppColors.win;
+const _kWinSoft  = AppColors.winSoft;
 const _kWarn     = Color(0xFFF5A462);   // inaccuracy / orange
-const _kBad      = Color(0xFFF07079);   // mistake / blunder / red
-const _kInk      = Color(0xFFF5F3EF);
-const _kInkDim   = Color(0xFFB0A898);
-const _kInkMute  = Color(0xFF706860);
+const _kBad      = AppColors.loss;   // mistake / blunder / red
+const _kInk      = AppColors.ink;
+const _kInkDim   = AppColors.inkDim;
+const _kInkMute  = AppColors.inkMute;
 
 // ── Move chip annotation kinds ────────────────────────────────────────────────
 
@@ -98,9 +100,9 @@ class _InGameCalmReplayScreenState
   // ── Helpers ──────────────────────────────────────────────────────────────────
 
   String _resultLabel(GameResult r) => switch (r) {
-    GameResult.white => 'white_wins'.tr().toUpperCase(),
-    GameResult.black => 'black_wins'.tr().toUpperCase(),
-    GameResult.draw  => 'game_drawn'.tr().toUpperCase(),
+    GameResult.white => 'white_wins'.tr().toUpperCaseFor(context),
+    GameResult.black => 'black_wins'.tr().toUpperCaseFor(context),
+    GameResult.draw  => 'game_drawn'.tr().toUpperCaseFor(context),
     _                => 'ENDED',
   };
 
