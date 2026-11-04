@@ -593,5 +593,10 @@
   "chat_unmuted": "已开启此聊天的通知。",
   "challenge_send_failed": "无法发送挑战，请重试。",
   "friend_request_sent_to": "已向 {} 发送好友请求",
-  "remove_friend_confirm": "将 {} 从好友中移除？"
+  "remove_friend_confirm": "将 {} 从好友中移除？",
+  "boneyard_title": "牌堆 · 剩 {} 张",
+  "boneyard_pick_hint": "从牌堆里选一张牌。",
+  "boneyard_pick_hint_one": "你手里没有能接 {} 的牌——选一张吧。",
+  "boneyard_pick_hint_two": "你手里没有能接 {} 或 {} 的牌——选一张吧。",
+  "boneyard_tile": "背面朝上的牌"
 }

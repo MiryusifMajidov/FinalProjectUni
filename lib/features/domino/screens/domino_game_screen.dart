@@ -17,7 +17,6 @@ import '../../../core/services/cache_service.dart';
 import '../../../core/services/realtime_game_service.dart';
 import '../../../core/services/tournament_service.dart';
 import '../../../core/utils/text_case.dart';
-import '../../../core/widgets/game_icon.dart';
 import '../../game/widgets/game_chat_panel.dart';
 import '../../game/widgets/game_chrome.dart';
 import '../engine/domino_engine.dart';
@@ -54,6 +53,11 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
   /// glows until the tile is played or another one is picked.
   DominoEnd? _hintEnd;
   bool _hinting = false;
+
+  /// The boneyard slot the player just tapped, shown face up for a moment
+  /// with the tile that came out of it before it goes into the hand.
+  int? _revealSlot;
+  DominoTile? _revealTile;
   bool _gameSaved = false;
   bool _resultShown = false;
   bool _roomLoading = false;
@@ -811,6 +815,41 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
     if (_isOnline) _pushOwnAction({'type': 'draw'});
     _resetTurnClock();
     setState(() {});
+  }
+
+  /// The player tapped a face-down tile in the boneyard.
+  ///
+  /// The tile that comes out is the next one of the shuffled boneyard, not
+  /// the one at the tapped position: every face-down tile is equally likely
+  /// either way, and online games keep syncing a plain `draw` action, so
+  /// they stay in step with players still on the previous version.
+  void _drawFromBoneyard(int slot) {
+    final engine = _engine;
+    if (engine == null || !_isHumanTurn || _thinking) return;
+    if (_revealTile != null || !engine.canDraw) return;
+    final tile = engine.drawTile();
+    if (tile == null) return;
+    if (_isOnline) _pushOwnAction({'type': 'draw'});
+    _resetTurnClock();
+    setState(() {
+      _revealSlot = slot;
+      _revealTile = tile;
+    });
+    Future.delayed(const Duration(milliseconds: 700), () {
+      if (!mounted) return;
+      setState(() {
+        _revealSlot = null;
+        _revealTile = null;
+        // A tile that fits comes into the hand ready to play.
+        final e = _engine;
+        if (e != null &&
+            _isHumanTurn &&
+            e.legalPlays().any((p) => p.tile == tile)) {
+          _selectedTile = tile;
+          _hintEnd = null;
+        }
+      });
+    });
   }
 
   void _onPass() {
@@ -1576,6 +1615,11 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
 
     final showClock = _isOnline && activeGame;
 
+    final mustDraw = engine.canDraw &&
+        _isHumanTurn &&
+        !_thinking &&
+        _finalWinnerEntity == null;
+
     return PopScope(
       canPop: !activeGame,
       onPopInvokedWithResult: (didPop, _) {
@@ -1654,7 +1698,9 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                       color: _accent.withValues(alpha: 0.15),
                     ),
                   ),
-                  child: Padding(
+                  child: Stack(
+                    children: [
+                      Padding(
                     padding: const EdgeInsets.all(12),
                     child: DominoSnakeBoard(
                       chain: engine.chain,
@@ -1678,26 +1724,23 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                       highlightTile: highlightTile,
                     ),
                   ),
-                ),
-              ),
-
-              // Open ends indicator
-              if (engine.chain.isNotEmpty)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 6),
-                  child: Row(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      _EndChip(
-                          label: '${'left_end'.tr()}: ${engine.leftEnd}',
-                          accent: _accent),
-                      const SizedBox(width: 12),
-                      _EndChip(
-                          label: '${'right_end'.tr()}: ${engine.rightEnd}',
-                          accent: _accent),
+                      // Nothing in the hand fits: the boneyard comes up face
+                      // down and the player picks a tile from it.
+                      if (mustDraw || _revealTile != null)
+                        Positioned.fill(
+                          child: _BoneyardPicker(
+                            faceDownCount: engine.boneyardCount,
+                            revealSlot: _revealSlot,
+                            revealTile: _revealTile,
+                            leftEnd: engine.chain.isEmpty ? null : engine.leftEnd,
+                            rightEnd: engine.chain.isEmpty ? null : engine.rightEnd,
+                            onPick: _drawFromBoneyard,
+                          ),
+                        ),
                     ],
                   ),
                 ),
+              ),
 
               // ── My row + hand ────────────────────────────────────────────
               _strip(
@@ -1794,10 +1837,24 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
     final active = engine.turnSeat == seat;
     final timer = showClock && active;
     final isOpponent = !_isLocalGame && seat != _mySeat;
+    final name = _seatName(seat);
+    // Domino has no sides, so the avatar shows who the player is: their
+    // photo or first letter (every seat used to show the same tile icon).
+    final photoUrl = !_isLocalGame && seat == _mySeat
+        ? ref.watch(currentUserProvider).valueOrNull?.photoUrl
+        : null;
     return GamePlayerStrip(
-      name: _seatName(seat),
+      name: name,
+      photoUrl: photoUrl,
       isActive: active,
-      token: GameIcon(type: GameType.domino, size: 20, color: _accent),
+      token: Text(
+        name.isEmpty ? '?' : name.characters.first.toUpperCase(),
+        style: GoogleFonts.inter(
+          fontSize: 16,
+          fontWeight: FontWeight.w700,
+          color: AppColors.inkDim,
+        ),
+      ),
       details: [
         GamePlayerStrip.detail('${engine.handOf(seat).length} ${'tiles'.tr()}'),
       ],
@@ -1819,29 +1876,14 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
         !_thinking &&
         !engine.matchOver &&
         _finalWinnerEntity == null;
-    // One slot for "draw a tile" / "pass": whichever the rules allow now.
-    final drawVariant = engine.config.variant == DominoVariant.draw &&
-        engine.boneyardCount > 0;
-    final GameAction drawOrPass;
-    if (engine.canDraw) {
-      drawOrPass = GameAction(
-        icon: PhosphorIcons.plus(PhosphorIconsStyle.regular),
-        label: 'draw_tile'.tr(),
-        onTap: myTurn ? _onDraw : null,
-      );
-    } else if (drawVariant && legalPlays.isNotEmpty) {
-      drawOrPass = GameAction(
-        icon: PhosphorIcons.plus(PhosphorIconsStyle.regular),
-        label: 'draw_tile'.tr(),
-        onTap: null,
-      );
-    } else {
-      drawOrPass = GameAction(
-        icon: PhosphorIcons.skipForward(PhosphorIconsStyle.regular),
-        label: 'pass_turn'.tr(),
-        onTap: myTurn && legalPlays.isEmpty ? _onPass : null,
-      );
-    }
+    // Drawing happens by picking a face-down tile in the boneyard (it comes
+    // up on the table by itself). Passing is only possible once nothing fits
+    // and there is nothing left to draw.
+    final drawOrPass = GameAction(
+      icon: PhosphorIcons.skipForward(PhosphorIconsStyle.regular),
+      label: 'pass_turn'.tr(),
+      onTap: myTurn && legalPlays.isEmpty && !engine.canDraw ? _onPass : null,
+    );
     final resign = GameAction(
       icon: PhosphorIcons.flag(PhosphorIconsStyle.regular),
       label: 'resign'.tr(),
@@ -1877,6 +1919,145 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
 
   List<int> _otherSeatsInTurnOrder() =>
       [for (int i = 1; i < _playerCount; i++) (_mySeat + i) % _playerCount];
+}
+
+// ── Boneyard picker ──────────────────────────────────────────────────────────
+
+/// The boneyard laid out face down over the table, as at a real table: when
+/// nothing in the hand fits, the player taps a tile to draw it. The tile turns
+/// over for a moment, then goes into the hand; if it does not fit either,
+/// the player picks again.
+class _BoneyardPicker extends StatelessWidget {
+  final int faceDownCount;
+  final int? revealSlot;
+  final DominoTile? revealTile;
+  final int? leftEnd;
+  final int? rightEnd;
+  final ValueChanged<int> onPick;
+
+  const _BoneyardPicker({
+    required this.faceDownCount,
+    required this.revealSlot,
+    required this.revealTile,
+    required this.leftEnd,
+    required this.rightEnd,
+    required this.onPick,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final revealing = revealTile != null;
+    // While a tile is turning over, its slot stays in place.
+    final slots = faceDownCount + (revealing ? 1 : 0);
+    final String hint;
+    if (leftEnd == null || rightEnd == null) {
+      hint = 'boneyard_pick_hint'.tr();
+    } else if (leftEnd == rightEnd) {
+      hint = 'boneyard_pick_hint_one'.tr(args: ['$leftEnd']);
+    } else {
+      hint = 'boneyard_pick_hint_two'.tr(args: ['$leftEnd', '$rightEnd']);
+    }
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        color: const Color(0xFF142219),
+        borderRadius: BorderRadius.circular(16),
+      ),
+      child: Center(
+        child: SingleChildScrollView(
+          padding: const EdgeInsets.all(16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Text(
+                'boneyard_title'.tr(args: ['$faceDownCount']),
+                style: GoogleFonts.inter(
+                  fontSize: 16,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.ink,
+                ),
+              ),
+              const SizedBox(height: 4),
+              Text(
+                hint,
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 12.5,
+                  color: AppColors.inkDim,
+                  height: 1.4,
+                ),
+              ),
+              const SizedBox(height: 16),
+              Wrap(
+                alignment: WrapAlignment.center,
+                spacing: 8,
+                runSpacing: 10,
+                children: [
+                  for (var i = 0; i < slots; i++)
+                    _BoneyardSlot(
+                      key: ValueKey(i),
+                      faceUp: i == revealSlot ? revealTile : null,
+                      onTap: revealing ? null : () => onPick(i),
+                    ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+/// One tile of the boneyard: face down until it is the one just drawn, then
+/// it turns over.
+class _BoneyardSlot extends StatelessWidget {
+  final DominoTile? faceUp;
+  final VoidCallback? onTap;
+
+  const _BoneyardSlot({super.key, required this.faceUp, required this.onTap});
+
+  static const double _size = 60;
+
+  @override
+  Widget build(BuildContext context) {
+    final tile = faceUp;
+    return Semantics(
+      button: onTap != null,
+      label: 'boneyard_tile'.tr(),
+      excludeSemantics: true,
+      child: GestureDetector(
+        onTap: onTap,
+        behavior: HitTestBehavior.opaque,
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 260),
+          // Squeeze horizontally and back out: the tile turns over.
+          transitionBuilder: (child, animation) => AnimatedBuilder(
+            animation: animation,
+            child: child,
+            builder: (_, child) => Transform(
+              alignment: Alignment.center,
+              transform: Matrix4.diagonal3Values(animation.value, 1, 1),
+              child: child,
+            ),
+          ),
+          child: tile == null
+              ? const DominoTileWidget(
+                  key: ValueKey('back'),
+                  tile: DominoTile(0, 0),
+                  faceDown: true,
+                  size: _size,
+                )
+              : DominoTileWidget(
+                  key: const ValueKey('face'),
+                  tile: tile,
+                  size: _size,
+                  selected: true,
+                ),
+        ),
+      ),
+    );
+  }
 }
 
 // ── Score header ─────────────────────────────────────────────────────────────
@@ -2116,26 +2297,3 @@ class _WaitingSeatTile extends StatelessWidget {
   }
 }
 
-class _EndChip extends StatelessWidget {
-  final String label;
-  final Color accent;
-
-  const _EndChip({required this.label, required this.accent});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-      decoration: BoxDecoration(
-        color: accent.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: accent.withValues(alpha: 0.25)),
-      ),
-      child: Text(
-        label,
-        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w600, color: accent,
-        ),
-      ),
-    );
-  }
-}

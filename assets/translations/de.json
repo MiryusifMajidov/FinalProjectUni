@@ -593,5 +593,10 @@
   "chat_unmuted": "Benachrichtigungen für diesen Chat sind an.",
   "challenge_send_failed": "Herausforderung konnte nicht gesendet werden. Bitte erneut versuchen.",
   "friend_request_sent_to": "Freundschaftsanfrage an {} gesendet",
-  "remove_friend_confirm": "{} aus deinen Freunden entfernen?"
+  "remove_friend_confirm": "{} aus deinen Freunden entfernen?",
+  "boneyard_title": "Vorrat · noch {}",
+  "boneyard_pick_hint": "Wähle einen Stein aus dem Vorrat.",
+  "boneyard_pick_hint_one": "Nichts in deiner Hand passt zu {} – wähle einen Stein.",
+  "boneyard_pick_hint_two": "Nichts in deiner Hand passt zu {} oder {} – wähle einen Stein.",
+  "boneyard_tile": "Verdeckter Stein"
 }

@@ -593,5 +593,10 @@
   "chat_unmuted": "इस चैट की सूचनाएँ चालू हैं।",
   "challenge_send_failed": "चुनौती नहीं भेजी जा सकी। फिर से कोशिश करें।",
   "friend_request_sent_to": "{} को मित्रता अनुरोध भेजा गया",
-  "remove_friend_confirm": "{} को दोस्तों से हटाएँ?"
+  "remove_friend_confirm": "{} को दोस्तों से हटाएँ?",
+  "boneyard_title": "बोनयार्ड · {} बाकी",
+  "boneyard_pick_hint": "बोनयार्ड से एक टाइल चुनें।",
+  "boneyard_pick_hint_one": "आपके हाथ में {} पर बैठने वाली टाइल नहीं है — एक चुनें।",
+  "boneyard_pick_hint_two": "आपके हाथ में {} या {} पर बैठने वाली टाइल नहीं है — एक चुनें।",
+  "boneyard_tile": "उल्टी टाइल"
 }

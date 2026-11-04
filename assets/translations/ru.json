@@ -605,5 +605,10 @@
   "chat_unmuted": "Уведомления этого чата включены.",
   "challenge_send_failed": "Не удалось отправить вызов. Попробуй ещё раз.",
   "friend_request_sent_to": "Запрос в друзья отправлен: {}",
-  "remove_friend_confirm": "Удалить {} из друзей?"
+  "remove_friend_confirm": "Удалить {} из друзей?",
+  "boneyard_title": "Базар · осталось: {}",
+  "boneyard_pick_hint": "Выбери кость из базара.",
+  "boneyard_pick_hint_one": "Нет кости под {} — выбери одну.",
+  "boneyard_pick_hint_two": "Нет кости под {} или {} — выбери одну.",
+  "boneyard_tile": "Закрытая кость"
 }

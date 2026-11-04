@@ -593,5 +593,10 @@
   "chat_unmuted": "Notificaciones de este chat activadas.",
   "challenge_send_failed": "No se pudo enviar el desafío. Inténtalo de nuevo.",
   "friend_request_sent_to": "Solicitud de amistad enviada a {}",
-  "remove_friend_confirm": "¿Eliminar a {} de tus amigos?"
+  "remove_friend_confirm": "¿Eliminar a {} de tus amigos?",
+  "boneyard_title": "Pozo · quedan {}",
+  "boneyard_pick_hint": "Elige una ficha del pozo.",
+  "boneyard_pick_hint_one": "Nada de tu mano encaja con {}: elige una ficha.",
+  "boneyard_pick_hint_two": "Nada de tu mano encaja con {} o {}: elige una ficha.",
+  "boneyard_tile": "Ficha boca abajo"
 }

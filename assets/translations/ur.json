@@ -593,5 +593,10 @@
   "chat_unmuted": "اس چیٹ کی اطلاعات آن ہیں۔",
   "challenge_send_failed": "چیلنج نہیں بھیجا جا سکا۔ دوبارہ کوشش کریں۔",
   "friend_request_sent_to": "{} کو دوستی کی درخواست بھیجی گئی",
-  "remove_friend_confirm": "{} کو دوستوں سے ہٹائیں؟"
+  "remove_friend_confirm": "{} کو دوستوں سے ہٹائیں؟",
+  "boneyard_title": "بون یارڈ · {} باقی",
+  "boneyard_pick_hint": "بون یارڈ سے ایک ٹائل منتخب کریں۔",
+  "boneyard_pick_hint_one": "آپ کے ہاتھ میں {} پر بیٹھنے والی ٹائل نہیں — ایک منتخب کریں۔",
+  "boneyard_pick_hint_two": "آپ کے ہاتھ میں {} یا {} پر بیٹھنے والی ٹائل نہیں — ایک منتخب کریں۔",
+  "boneyard_tile": "الٹی ٹائل"
 }

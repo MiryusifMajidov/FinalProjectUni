@@ -607,5 +607,10 @@
   "chat_unmuted": "Notifications for this chat are on.",
   "challenge_send_failed": "Couldn't send the challenge. Please try again.",
   "friend_request_sent_to": "Friend request sent to {}",
-  "remove_friend_confirm": "Remove {} from your friends?"
+  "remove_friend_confirm": "Remove {} from your friends?",
+  "boneyard_title": "Boneyard · {} left",
+  "boneyard_pick_hint": "Pick a tile from the boneyard.",
+  "boneyard_pick_hint_one": "Nothing in your hand fits {} — pick a tile.",
+  "boneyard_pick_hint_two": "Nothing in your hand fits {} or {} — pick a tile.",
+  "boneyard_tile": "Face-down tile"
 }

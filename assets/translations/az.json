@@ -607,5 +607,10 @@
   "chat_unmuted": "Bu söhbət üçün bildirişlər açıldı.",
   "challenge_send_failed": "Çağırışı göndərmək olmadı. Yenidən cəhd et.",
   "friend_request_sent_to": "{} adlı oyunçuya dostluq sorğusu göndərildi",
-  "remove_friend_confirm": "{} dost siyahından silinsin?"
+  "remove_friend_confirm": "{} dost siyahından silinsin?",
+  "boneyard_title": "Bazar · {} daş qalıb",
+  "boneyard_pick_hint": "Bazardan bir daş seç.",
+  "boneyard_pick_hint_one": "Əlində {} üçün daş yoxdur — bir daş seç.",
+  "boneyard_pick_hint_two": "Əlində {} və ya {} üçün daş yoxdur — bir daş seç.",
+  "boneyard_tile": "Üzü aşağı daş"
 }

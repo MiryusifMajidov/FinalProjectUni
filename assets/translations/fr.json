@@ -593,5 +593,10 @@
   "chat_unmuted": "Notifications de cette discussion activées.",
   "challenge_send_failed": "Impossible d'envoyer le défi. Réessaie.",
   "friend_request_sent_to": "Demande d'ami envoyée à {}",
-  "remove_friend_confirm": "Retirer {} de tes amis ?"
+  "remove_friend_confirm": "Retirer {} de tes amis ?",
+  "boneyard_title": "Pioche · reste {}",
+  "boneyard_pick_hint": "Choisis un domino dans la pioche.",
+  "boneyard_pick_hint_one": "Rien dans ta main ne va sur {} — choisis un domino.",
+  "boneyard_pick_hint_two": "Rien dans ta main ne va sur {} ou {} — choisis un domino.",
+  "boneyard_tile": "Domino face cachée"
 }
