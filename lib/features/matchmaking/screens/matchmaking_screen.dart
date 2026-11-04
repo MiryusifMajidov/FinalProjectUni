@@ -11,10 +11,14 @@ import 'package:uuid/uuid.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/game_model.dart';
 import '../../../core/models/game_type.dart';
+import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/bot_pool.dart';
 import '../../../core/services/realtime_game_service.dart';
-
+import '../../../core/utils/text_case.dart';
+import '../../../core/widgets/bot_badge.dart';
 import '../../../core/widgets/game_icon.dart';
+
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kCard      = AppColors.card;
@@ -31,8 +35,6 @@ class MatchmakingScreen extends ConsumerStatefulWidget {
   ConsumerState<MatchmakingScreen> createState() => _MatchmakingScreenState();
 }
 
-// Fake usernames are now per-game via GameTypeX.fakeBotNames
-
 class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
   TimeControl _timeControl = TimeControls.blitz5;
   bool _searching = false;
@@ -42,7 +44,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
   StreamSubscription? _queueSub;
   StreamSubscription? _myEntrySub;
   bool _matched = false;
-  bool _matchFound = false;   // brief "Opponent found!" banner state
+  bool _matchFound = false;   // brief "Playing a bot" banner state
   String _matchFoundName = '';
 
   String? _uid;
@@ -82,6 +84,31 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     super.dispose();
   }
 
+  /// My rating for the selected game (and, for chess, the selected speed).
+  int _ratingOf(UserModel user) => switch (_gameType) {
+        GameType.checkers => user.checkersStats.rating,
+        GameType.domino => user.dominoStats.rating,
+        GameType.chess => switch (_timeControl.category) {
+            TimeControlCategory.bullet => user.bulletStats.rating,
+            TimeControlCategory.blitz => user.blitzStats.rating,
+            TimeControlCategory.rapid => user.rapidStats.rating,
+          },
+      };
+
+  /// What the searching view shows for the queue: "5 min", "Russian (8×8)",
+  /// "Draw · 2 Players" (the queue key itself is not for people).
+  String get _queueDisplayLabel {
+    String name(List<(String, String)> options, String key) =>
+        options.firstWhere((o) => o.$1 == key, orElse: () => (key, key)).$2;
+    return switch (_gameType) {
+      GameType.chess => _timeControl.label,
+      GameType.checkers => name(GameTypeX.checkersVariants, _checkersVariant),
+      GameType.domino =>
+        '${name(GameTypeX.dominoVariants, _dominoVariant)} · '
+            '${name(GameTypeX.dominoPlayerCounts, _dominoPlayerCount)}',
+    };
+  }
+
   // ── Search lifecycle ──────────────────────────────────────────────────────
 
   Future<void> _startSearch() async {
@@ -93,15 +120,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     _matched = false;
     _claiming4P = false;
 
-    _myRating = switch (_gameType) {
-      GameType.checkers => user.checkersStats.rating,
-      GameType.domino   => user.dominoStats.rating,
-      GameType.chess    => switch (_timeControl.category) {
-        TimeControlCategory.bullet => user.bulletStats.rating,
-        TimeControlCategory.blitz  => user.blitzStats.rating,
-        TimeControlCategory.rapid  => user.rapidStats.rating,
-      },
-    };
+    _myRating = _ratingOf(user);
 
     final service = ref.read(realtimeGameServiceProvider);
     _cachedService = service;
@@ -122,9 +141,9 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
       }
       if (_isDomino4P) {
         // 4P domino: at the 30 s deadline the host starts the table with
-        // however many real players showed up — empty seats get AI
-        // stand-ins disguised as players. If nobody claimed us by 40 s
-        // (e.g. a stale host entry), fall back to a solo disguised table.
+        // however many real players showed up — empty seats get bots (with
+        // a BOT badge). If nobody claimed us by 40 s (e.g. a stale host
+        // entry), fall back to a table of bots.
         if (_searchSeconds == 30 && !_matched) {
           _try4PHostClaim(force: true);
         }
@@ -132,7 +151,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
           _matchWithBot();
         }
       } else {
-        // After 30 s with no real match, silently pair with a bot
+        // After 30 s with no real match, play a bot (shown as one, unrated)
         if (_searchSeconds == 30 && !_matched) {
           _matchWithBot();
         }
@@ -265,7 +284,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
   // The lowest-uid waiting player acts as host. They wait until either four
   // compatible players are queued, or the 30 s deadline passes — then they
   // atomically claim up to three opponents, write the room (seat list +
-  // config) and fill the remaining seats with disguised AI stand-ins.
+  // config) and fill the remaining seats with bots.
   Future<void> _try4PHostClaim({required bool force}) async {
     if (!_searching || _matched || _claiming4P) return;
     final queue = _lastQueueSnapshot;
@@ -324,9 +343,9 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
         return; // everyone got claimed elsewhere — keep waiting
       }
 
-      // Fill the empty seats with AI stand-ins disguised as players.
-      final botNames = ([...GameType.domino.fakeBotNames]..shuffle())
-          .take(3 - claimed.length)
+      // Fill the empty seats with bots (shown with a BOT badge).
+      final botNames = (await BotPool.some(3 - claimed.length))
+          .map((b) => b.username)
           .toList();
 
       final seats = <String, Map<String, dynamic>>{
@@ -371,50 +390,58 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
   }
 
   // ── Bot fallback after 30 s ───────────────────────────────────────────────
+  //
+  // Nobody free: play one of the app's bots, near your rating. It is shown
+  // as a bot (its name, flag and a BOT badge) and the game is unrated. It
+  // used to be passed off as a person and rated, which was neither honest
+  // nor a fair way to move anyone's rating.
 
-  void _matchWithBot() {
+  Future<void> _matchWithBot() async {
     if (_matched) return;
     _matched = true;
     _stopSearch(removeFromQueue: true);
     if (!mounted) return;
 
-    final rng   = math.Random();
-    final names  = _gameType.fakeBotNames;
-    final fakeName   = names[rng.nextInt(names.length)];
-    // Score within ±50 of the user — indistinguishable from a real opponent
-    final clampLo = _gameType.isPointBased ? 100 : 400;
-    final clampHi = _gameType.isPointBased ? 2000 : 3000;
-    final fakeRating = (_myRating + rng.nextInt(101) - 50).clamp(clampLo, clampHi);
-    final gameId     = const Uuid().v4();
-    final isWhite    = rng.nextBool();
-    final user       = ref.read(currentUserProvider).valueOrNull;
+    final gameId = const Uuid().v4();
+    final isWhite = math.Random().nextBool();
+    final user = ref.read(currentUserProvider).valueOrNull;
+    final bot = await BotPool.near(_gameType, _myRating);
+    final tableBots = _isDomino4P
+        ? (await BotPool.some(3)).map((b) => b.username).toList()
+        : const <String>[];
+    if (!mounted) return;
+    final botRating = bot.ratingFor(_gameType);
 
-    // Brief "Opponent found!" flash before navigating
+    // A short "Playing a bot" card before the board opens.
     setState(() {
-      _matchFound     = true;
-      _matchFoundName = fakeName;
+      _matchFound = true;
+      _matchFoundName = _isDomino4P ? tableBots.join(' · ') : bot.username;
     });
 
     Future.delayed(const Duration(milliseconds: 1800), () {
       if (!mounted) return;
       context.pushReplacement(_gameType.gameRoute(gameId), extra: {
-        'mode'             : GameMode.bot.name,
-        'gameType'         : _gameType.name,
-        'timeControl'      : _timeControl.toMap(),
-        'playerIsWhite'    : isWhite,
-        'isRated'          : true,           // rated → real score change applies
-        'gameId'           : gameId,
-        'myUsername'       : user?.username ?? 'You',
-        'opponentUsername' : fakeName,
-        'botRating'        : fakeRating,
-        'opponentRating'   : fakeRating,     // used by _processRatingChange
-        'isFakeBotFallback': true,           // hides "Bot" label, shows fake name
+        'mode': GameMode.bot.name,
+        'gameType': _gameType.name,
+        'timeControl': _timeControl.toMap(),
+        'playerIsWhite': isWhite,
+        'isRated': false,
+        'gameId': gameId,
+        'myUsername': user?.username ?? 'You',
+        'opponentUsername': bot.username,
+        'opponentCountryCode': bot.countryCode,
+        'opponentRating': botRating,
+        'opponentIsBot': true,
+        'botRating': botRating,
+        // Checkers/domino bots take a search depth instead of a rating.
+        'botDepth': (1 + (botRating - 150) ~/ 110).clamp(1, 6),
         if (_gameType == GameType.checkers) 'checkersVariant': _checkersVariant,
         if (_gameType == GameType.domino) ...{
           'dominoPlayerCount': _dominoPlayerCount,
           'dominoVariant': _dominoVariant,
           'dominoTarget': 100,
           'dominoTeams': false,
+          if (_isDomino4P) 'botNames': tableBots,
         },
       });
     });
@@ -436,21 +463,22 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
 
   String get _waitLabel {
     if (_gameType.isPointBased) {
-      // Non-chess: simple search, no ELO range expansion
-      if (_searchSeconds < 30) return 'Searching for opponent…';
-      return 'Matching…';
+      // Non-chess: simple search, no rating range expansion
+      if (_searchSeconds < 30) return 'mm_searching'.tr();
+      return 'mm_matching'.tr();
     }
-    if (_searchSeconds < 5)  return 'Searching ±200 ELO…';
-    if (_searchSeconds < 10) return 'Expanding to ±400 ELO…';
-    if (_searchSeconds < 20) return 'Expanding to ±800 ELO…';
-    if (_searchSeconds < 30) return 'Searching any rating…';
-    return 'Matching…';
+    if (_searchSeconds < 5) return 'mm_range'.tr(namedArgs: {'range': '200'});
+    if (_searchSeconds < 10) return 'mm_range'.tr(namedArgs: {'range': '400'});
+    if (_searchSeconds < 20) return 'mm_range'.tr(namedArgs: {'range': '800'});
+    if (_searchSeconds < 30) return 'mm_any_rating'.tr();
+    return 'mm_matching'.tr();
   }
 
   // ── Build ─────────────────────────────────────────────────────────────────
 
   @override
   Widget build(BuildContext context) {
+    final me = ref.watch(currentUserProvider).valueOrNull;
     return Scaffold(
       backgroundColor: _kBg,
       body: Stack(
@@ -498,7 +526,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
                           seconds: _searchSeconds,
                           label: _waitLabel,
                           myRating: _myRating,
-                          queueLabel: _queueLabel,
+                          queueLabel: _queueDisplayLabel,
                           eloRange: _currentEloRange,
                           queueCount: _lastQueueSnapshot?.length ?? 0,
                           onCancel: _cancelSearch,
@@ -514,7 +542,9 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
                           dominoVariant: _dominoVariant,
                           onDominoVariantSelect: (v) => setState(() => _dominoVariant = v),
                           onSearch: _startSearch,
-                          myRating: _myRating,
+                          // Before a search starts: the signed-in player's
+                          // rating for this game, not a placeholder 1200.
+                          myRating: me == null ? _myRating : _ratingOf(me),
                           gameType: _gameType,
                         ),
                 ),
@@ -564,7 +594,6 @@ class _SetupView extends StatelessWidget {
   Widget build(BuildContext context) {
     final accent = gameType.accent;
     final accentDeep = Color.lerp(accent, Colors.black, 0.25)!;
-    final scoreLabel = gameType.scoreLabel.toUpperCase();
 
     return Column(
       children: [
@@ -582,7 +611,7 @@ class _SetupView extends StatelessWidget {
                 // ── Per-game option selection ──────────────────────────────
                 if (gameType == GameType.chess) ...[
                   Text(
-                    'TIME CONTROL',
+                    'time_control'.tr().toUpperCaseFor(context),
                     style: GoogleFonts.inter(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -619,7 +648,7 @@ class _SetupView extends StatelessWidget {
                   ),
                 ] else if (gameType == GameType.checkers) ...[
                   Text(
-                    'GAME VARIANT',
+                    'arena_variant'.tr().toUpperCaseFor(context),
                     style: GoogleFonts.inter(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -636,7 +665,7 @@ class _SetupView extends StatelessWidget {
                   ),
                 ] else if (gameType == GameType.domino) ...[
                   Text(
-                    'PLAYER COUNT',
+                    'mm_player_count'.tr().toUpperCaseFor(context),
                     style: GoogleFonts.inter(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -653,7 +682,7 @@ class _SetupView extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'RULESET',
+                    'arena_rules'.tr().toUpperCaseFor(context),
                     style: GoogleFonts.inter(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
@@ -729,9 +758,8 @@ class _SetupView extends StatelessWidget {
               ),
               const SizedBox(height: 8),
               Text(
-                gameType.isPointBased
-                    ? '$scoreLabel will change after the game'
-                    : 'Rating will change after the game',
+                'mm_rated_note'.tr(),
+                textAlign: TextAlign.center,
                 style: GoogleFonts.inter(fontSize: 12, color: _kInkMute),
               ),
             ],
@@ -805,7 +833,6 @@ class _HeroCard extends StatelessWidget {
     final accent = gameType.accent;
     final isPoints = gameType.isPointBased;
     final glowColor = accent.withOpacity(0.08);
-    final scoreName = gameType.scoreLabel;
 
     return Container(
       decoration: BoxDecoration(
@@ -847,7 +874,7 @@ class _HeroCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      'RATED · ONLINE',
+                      'mm_badge'.tr().toUpperCaseFor(context),
                       style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: _kInkMute,
@@ -859,7 +886,7 @@ class _HeroCard extends StatelessWidget {
 
                   // Heading
                   Text(
-                    'Find a match',
+                    'mm_title'.tr(),
                     style: GoogleFonts.inter(
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
@@ -871,9 +898,7 @@ class _HeroCard extends StatelessWidget {
 
                   // Subtitle — per game
                   Text(
-                    isPoints
-                        ? "We'll pair you with an available opponent.\n$scoreName change after the game."
-                        : "We'll pair you with an opponent near your ELO.\nRating changes after the game.",
+                    (isPoints ? 'mm_subtitle_points' : 'mm_subtitle_rating').tr(),
                     style: GoogleFonts.inter(
                       fontSize: 13,
                       color: _kInkMute,
@@ -889,7 +914,9 @@ class _HeroCard extends StatelessWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            isPoints ? 'YOUR POINTS' : 'YOUR ELO',
+                            (isPoints ? 'mm_your_points' : 'mm_your_rating')
+                                .tr()
+                                .toUpperCaseFor(context),
                             style: GoogleFonts.inter(
                               fontSize: 10,
                               fontWeight: FontWeight.w600,
@@ -1058,11 +1085,12 @@ class _SearchingView extends StatelessWidget {
   }
 
   String get _statusPillLabel {
-    if (gameType.isPointBased) {
-      return '${queueLabel.toUpperCase()} · RATED';
-    }
-    final rangeStr = eloRange >= 9999 ? 'ELO ANY' : 'ELO ${myRating - eloRange} – ${myRating + eloRange}';
-    return '$rangeStr · ${queueLabel.toUpperCase()} · RATED';
+    final rated = 'rated_game'.tr();
+    if (gameType.isPointBased) return '$queueLabel · $rated';
+    final range = eloRange >= 9999
+        ? 'mm_any_rating_short'.tr()
+        : '${myRating - eloRange} – ${myRating + eloRange}';
+    return '$range · $queueLabel · $rated';
   }
 
   @override
@@ -1136,14 +1164,14 @@ class _SearchingView extends StatelessWidget {
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
               _StatItem(
-                label: isPoints ? 'Your Points' : 'Your ELO',
+                label: (isPoints ? 'mm_your_points' : 'mm_your_rating').tr(),
                 value: '$myRating',
                 valueColor: accent,
               ),
               _StatDivider(),
-              _StatItem(label: 'In queue',  value: queueCount > 0 ? '$queueCount' : '—', valueColor: _kInk),
+              _StatItem(label: 'mm_in_queue'.tr(), value: queueCount > 0 ? '$queueCount' : '—', valueColor: _kInk),
               _StatDivider(),
-              _StatItem(label: 'Avg wait',  value: queueCount > 0 ? _avgWait : '—',     valueColor: _kInk),
+              _StatItem(label: 'mm_avg_wait'.tr(), value: queueCount > 0 ? _avgWait : '—', valueColor: _kInk),
             ],
           ),
 
@@ -1228,8 +1256,8 @@ class _StatDivider extends StatelessWidget {
   }
 }
 
-// ── Match-found overlay ───────────────────────────────────────────────────────
-// Shown for ~1.8 s after the bot fallback kicks in to simulate a real match.
+// ── Bot-found overlay ─────────────────────────────────────────────────────────
+// Shown for ~1.8 s when nobody was free and a bot takes the game.
 
 class _MatchFoundOverlay extends StatelessWidget {
   final String opponentName;
@@ -1280,7 +1308,7 @@ class _MatchFoundOverlay extends StatelessWidget {
             const SizedBox(height: 28),
 
             Text(
-              'Opponent found!',
+              'mm_bot_found'.tr(),
               style: GoogleFonts.inter(
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
@@ -1294,24 +1322,40 @@ class _MatchFoundOverlay extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            Text(
-              opponentName,
-              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 16,
-                fontWeight: FontWeight.w600,
-                color: accent,
-                letterSpacing: 0.5,
-              ),
+            Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Flexible(
+                  child: Text(
+                    opponentName,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: GoogleFonts.inter(
+                      fontSize: 16,
+                      fontWeight: FontWeight.w600,
+                      color: accent,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                const BotBadge(fontSize: 10),
+              ],
             )
                 .animate(delay: 150.ms)
                 .fadeIn(duration: 250.ms),
 
             const SizedBox(height: 8),
 
-            Text(
-              'Get ready…',
-              style: GoogleFonts.inter(
-                fontSize: 13,
-                color: _kInkMute,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Text(
+                'mm_bot_found_note'.tr(),
+                textAlign: TextAlign.center,
+                style: GoogleFonts.inter(
+                  fontSize: 13,
+                  color: _kInkMute,
+                  height: 1.4,
+                ),
               ),
             )
                 .animate(delay: 300.ms)

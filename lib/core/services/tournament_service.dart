@@ -18,9 +18,9 @@ class TournamentService {
 
   // ── Create / Join / Leave ──────────────────────────────────────────────────
 
-  /// Creates a player-hosted arena. The `onArenaCreated` Cloud Function then
-  /// fills it with bots and starts it within about half a minute, so nobody
-  /// waits in an empty lobby for players who are not coming.
+  /// Creates a player-hosted arena. The `onArenaCreated` Cloud Function gives
+  /// people two minutes to join, then fills the empty seats with bots and
+  /// starts it, so nobody waits in an empty lobby for players who never come.
   Future<String> createTournament(TournamentModel tournament) async {
     final ref = _tournaments.doc();
     await ref.set(tournament.toMap());
@@ -32,12 +32,15 @@ class TournamentService {
     required String uid,
     required String username,
     required int rating,
+    String? countryCode,
   }) async {
     final batch = _db.batch();
     batch.set(_participants(tournamentId).doc(uid), {
       'uid': uid,
       'username': username,
       'rating': rating,
+      if (countryCode != null && countryCode.isNotEmpty)
+        'countryCode': countryCode,
       'score': 0.0,
       'wins': 0,
       'draws': 0,
@@ -46,8 +49,6 @@ class TournamentService {
       'joinedAt': FieldValue.serverTimestamp(),
     });
     // Allowed for every participant by the rules (participantCount ±1 only).
-    // It used to be creator-only, so for everyone else the whole batch was
-    // rejected and joining someone else's arena always failed.
     batch.update(_tournaments.doc(tournamentId), {
       'participantCount': FieldValue.increment(1),
     });
@@ -63,34 +64,25 @@ class TournamentService {
     await batch.commit();
   }
 
-  Future<bool> isParticipant(String tournamentId, String uid) async {
-    final doc = await _participants(tournamentId).doc(uid).get();
-    return doc.exists;
-  }
-
   // ── Arena lifecycle ────────────────────────────────────────────────────────
 
-  /// Creator's "Start now": status → active, records endsAt. (Arenas also
-  /// start on their own — see `onArenaCreated` / `arenaTick` on the server —
-  /// and the server closes them when endsAt passes.)
-  Future<void> startArena(String tournamentId, int durationMinutes) async {
-    final endsAt = DateTime.now().add(Duration(minutes: durationMinutes));
-    await _tournaments.doc(tournamentId).update({
-      'status': TournamentStatus.active.name,
-      'endsAt': Timestamp.fromDate(endsAt),
-    });
+  /// The creator's "Start now": the `startArenaNow` Cloud Function fills the
+  /// empty seats with bots and starts the arena at once. (It also starts by
+  /// itself two minutes after it was created, and the server closes it when
+  /// its time is up.)
+  Future<void> startArenaNow(String tournamentId) async {
+    await FirebaseFunctions.instance
+        .httpsCallable('startArenaNow')
+        .call<void>({'tournamentId': tournamentId});
   }
 
   // ── Arena result recording ─────────────────────────────────────────────────
 
   /// Reports a finished arena game to the `reportArenaResult` Cloud Function,
-  /// which scores it (win 2, draw 1, loss 0) for both sides.
-  ///
-  /// Scores used to be written straight from the client, but the security
-  /// rules have never allowed updating participant documents — every result
-  /// was silently rejected and standings stayed at zero. The server also
-  /// de-duplicates by [gameId], so both players can safely report the same
-  /// game, and it credits the bot when the opponent was one.
+  /// which scores it for both sides: win 2, draw 1, loss 0, and double after
+  /// two wins in a row. Clients may not write participant documents, and the
+  /// server de-duplicates by [gameId], so both players can report the same
+  /// game safely; it credits the bot too when the opponent was one.
   ///
   /// [opponentUid] is the other player's uid, or the arena bot's `bot_…` id.
   Future<void> reportArenaResult({
@@ -125,10 +117,27 @@ class TournamentService {
 
   // ── Streams ────────────────────────────────────────────────────────────────
 
-  Stream<List<TournamentModel>> watchTournaments() {
+  /// Every arena that is open (waiting or live), for all three games: a
+  /// handful of documents, so one listener serves the Arena tab and home.
+  Stream<List<TournamentModel>> watchOpenTournaments() {
     return _tournaments
-        .orderBy('createdAt', descending: true)
-        .limit(50)
+        .where('status', whereIn: [
+          TournamentStatus.waiting.name,
+          TournamentStatus.active.name,
+        ])
+        .snapshots()
+        .map((s) =>
+            s.docs.map((d) => TournamentModel.fromMap(d.id, d.data())).toList());
+  }
+
+  /// The most recently finished arenas of one game.
+  Stream<List<TournamentModel>> watchFinishedTournaments(String gameType,
+      {int limit = 10}) {
+    return _tournaments
+        .where('gameType', isEqualTo: gameType)
+        .where('status', isEqualTo: TournamentStatus.finished.name)
+        .orderBy('finishedAt', descending: true)
+        .limit(limit)
         .snapshots()
         .map((s) =>
             s.docs.map((d) => TournamentModel.fromMap(d.id, d.data())).toList());
@@ -141,27 +150,32 @@ class TournamentService {
     });
   }
 
+  /// Standings, best first (see [ArenaParticipant.compare]).
   Stream<List<ArenaParticipant>> watchParticipants(String tournamentId) {
     return _participants(tournamentId)
         .orderBy('score', descending: true)
+        .limit(300)
         .snapshots()
-        .map((s) =>
-            s.docs.map((d) => ArenaParticipant.fromMap(d.data())).toList());
-  }
-
-  Future<TournamentModel?> getTournament(String tournamentId) async {
-    final doc = await _tournaments.doc(tournamentId).get();
-    if (!doc.exists) return null;
-    return TournamentModel.fromMap(doc.id, doc.data()!);
+        .map((s) => s.docs
+            .map((d) => ArenaParticipant.fromMap(d.data()))
+            .toList()
+          ..sort(ArenaParticipant.compare));
   }
 }
 
 final tournamentServiceProvider =
     Provider<TournamentService>((ref) => TournamentService());
 
-/// Live list of arenas, shared by the Arena tab and the home teaser so the
-/// query runs once.
-final tournamentsStreamProvider =
-    StreamProvider<List<TournamentModel>>((ref) {
-  return ref.read(tournamentServiceProvider).watchTournaments();
+/// Open (waiting or live) arenas of every game, shared by the Arena tab and
+/// the home teaser so the query runs once.
+final openArenasProvider = StreamProvider<List<TournamentModel>>((ref) {
+  return ref.read(tournamentServiceProvider).watchOpenTournaments();
+});
+
+/// Recently finished arenas of one game (the Arena tab's last section).
+final finishedArenasProvider = StreamProvider.autoDispose
+    .family<List<TournamentModel>, String>((ref, gameType) {
+  return ref
+      .read(tournamentServiceProvider)
+      .watchFinishedTournaments(gameType);
 });

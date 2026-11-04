@@ -1,97 +1,109 @@
 'use strict';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// Arena automation
+// Arenas, run the way chess.com and lichess run theirs
 //
-//  • arenaTick          — every minute: creates the hourly arenas, trickles
-//                         bots into waiting arenas, starts arenas at startsAt,
-//                         plays bot-vs-bot games in live arenas, closes arenas
-//                         whose time is up, and cleans up old hourly arenas.
-//  • onArenaCreated     — a player created an arena: bots join within seconds
-//                         and the arena goes live ~30 s later, so nobody sits
-//                         in an empty lobby waiting for players who never come.
-//  • reportArenaResult  — the only way scores change. Clients may not write
-//                         participant documents (the rules never allowed it,
-//                         which is why standings used to stay at zero).
+//  • Two live arenas per game at all times. A new one starts every 30 minutes
+//    and runs for an hour, so two always overlap; each is listed (and can be
+//    joined) 10 minutes before it starts. Every slot has a different name and
+//    time control / ruleset, and a different crowd of bots.
+//  • Join whenever you like and play as many games as you can: a win is worth
+//    2 points, a draw 1, a loss 0. Two wins in a row put you "on fire": every
+//    game then scores double (4 / 2) until you fail to win one.
+//  • Bots from bots.js — always shown with a BOT badge, never in the world
+//    ranking — fill every arena and play each other, so there is always an
+//    opponent and the standings keep moving.
+//  • A player's own arena waits two minutes for people to join, then fills
+//    the empty seats with bots and starts by itself.
 //
-// Everything here runs with the Admin SDK and therefore bypasses the
-// Firestore security rules.
+//  arenaTick          — every minute: creates the live arenas, starts and
+//                       closes arenas on time, adds bots, plays bot games and
+//                       cleans up old arenas.
+//  onArenaCreated     — a player created an arena: it starts two minutes
+//                       later (the tick is the fallback if this fails).
+//  startArenaNow      — the creator's "Start now".
+//  reportArenaResult  — the only way a player's score changes; clients may
+//                       not write participant documents.
+//
+// Everything here runs with the Admin SDK and so bypasses the security rules.
 // ─────────────────────────────────────────────────────────────────────────────
 
 const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { onDocumentCreated } = require('firebase-functions/v2/firestore');
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { getFirestore, FieldValue, Timestamp } = require('firebase-admin/firestore');
+const { pickBots } = require('./bots');
 
 const db = () => getFirestore();
 
 const MINUTE = 60 * 1000;
 const HOUR = 60 * MINUTE;
 
-// ── Hourly arenas ────────────────────────────────────────────────────────────
+// ── Live (server-run) arenas ─────────────────────────────────────────────────
 
-/** Game types that get an arena every hour. Remove one to stop its arenas. */
-const HOURLY_GAME_TYPES = ['chess', 'checkers', 'domino'];
-/** Registration opens this long before the top of the hour. */
-const HOURLY_LEAD_MS = 15 * MINUTE;
-/** Hourly arenas run from :00 to :45. */
-const HOURLY_DURATION_MIN = 45;
-const HOURLY_MAX_PLAYERS = 64;
+const LIVE_GAME_TYPES = ['chess', 'checkers', 'domino'];
+/** A new live arena starts every 30 minutes … */
+const SLOT_MS = 30 * MINUTE;
+/** … and runs for an hour, so two are always live. */
+const LIVE_DURATION_MIN = 60;
+/** Listed and joinable this long before it starts. */
+const LIVE_LEAD_MS = 10 * MINUTE;
+/** Effectively unlimited, like chess.com arenas. */
+const LIVE_MAX_PLAYERS = 500;
 const SYSTEM_CREATOR = { uid: 'system', username: 'CheckMate' };
 
-// Chess rotates through time controls so every hour feels different.
-const CHESS_ROTATION = ['3+0', '5+0', '3+2', '1+0', '5+3', '10+0'];
-const CHECKERS_ROTATION = [
+/** [translation key, English fallback]. Rotated so names keep changing. */
+const THEMES = [
+  ['arena_theme_grand', 'Grand Arena'],
+  ['arena_theme_open', 'Open Arena'],
+  ['arena_theme_rising', 'Rising Stars Arena'],
+  ['arena_theme_champions', 'Champions Arena'],
+  ['arena_theme_classic', 'Classic Arena'],
+  ['arena_theme_masters', 'Masters Arena'],
+  ['arena_theme_friendly', 'Friendly Arena'],
+  ['arena_theme_royal', 'Royal Arena'],
+  ['arena_theme_golden', 'Golden Arena'],
+  ['arena_theme_crown', 'Crown Arena'],
+];
+const THEME_OFFSET = { chess: 0, checkers: 3, domino: 6 };
+
+// Chess alternates between a fast and a slower rotation, so the two arenas
+// that run at the same time are never the same speed.
+const CHESS_FAST = ['3+0', '1+0', '3+2', '2+1', '1+1'];
+const CHESS_SLOW = ['5+0', '10+0', '5+3', '10+5', '5+2'];
+// Labels mirror GameTypeX.checkersVariants in lib/core/models/game_type.dart.
+const CHECKERS_VARIANTS = [
   ['standard', 'Standard (8×8)'],
   ['russian', 'Russian (8×8)'],
   ['turkish', 'Turkish'],
   ['brazilian', 'Brazilian'],
   ['international', 'International (10×10)'],
 ];
-const DOMINO_ROTATION = [
+const DOMINO_VARIANTS = [
   ['draw', 'Draw · 100'],
   ['block', 'Block · 100'],
 ];
 
 // ── Player-created arenas ────────────────────────────────────────────────────
 
-/** Bots finish joining, and the arena goes live, this long after creation. */
-const USER_ARENA_START_DELAY_MS = 30 * 1000;
-/** A creator with this many open arenas gets no more bots (spam guard). */
+/** How long a player's arena waits for people before bots fill it. */
+const USER_ARENA_WAIT_MS = 2 * MINUTE;
+/** A player may have this many open arenas; further ones are closed. */
 const MAX_OPEN_ARENAS_PER_CREATOR = 3;
+/** A player's arena starts with about this many players in total … */
+const USER_ARENA_FIELD = [8, 12];
+/** … and never with fewer bots than this (opponents while people play). */
+const USER_ARENA_MIN_BOTS = 3;
 
 // ── Scoring ──────────────────────────────────────────────────────────────────
 
-const POINTS = { win: 2, draw: 1, loss: 0 };
-/** A game that was still being played when the clock ran out still counts. */
+/** A game still being played when the arena closed counts if reported soon. */
 const RESULT_GRACE_MS = 10 * MINUTE;
 /** Two reports from one player closer than this are rejected. */
 const MIN_RESULT_GAP_MS = 15 * 1000;
-
-// Mirrors GameTypeX.fakeBotNames in lib/core/models/game_type.dart.
-const BOT_NAMES = {
-  chess: [
-    'NightRider88', 'CastleKing', 'BlitzMaster42', 'QueenSlayer',
-    'PawnStorm', 'KnightErrant', 'TacticalGuru', 'OpeningTheory',
-    'EndgamePro', 'SilentBishop', 'CheckmateAce', 'ForkMaster99',
-    'PinAndWin', 'Grandmaster_X', 'RookLifter', 'MiddleGame77',
-    'SicilianKing', 'CatoTheFish', 'IronDefense', 'TacticsWizard',
-  ],
-  checkers: [
-    'JumpKing', 'DoubleJump', 'KingMeNow', 'DiagonalDash',
-    'CrownSeeker', 'MultiCapture', 'BackRowHero', 'CornerKing',
-    'CheckerChamp', 'DiscMaster', 'KingHunter', 'JumpStreak',
-    'CaptureQueen', 'BoardSweeper', 'RedDisc99', 'DiscSlider',
-    'CornerTrap', 'DoubleKing', 'RowRunner', 'JumpForce',
-  ],
-  domino: [
-    'BoneyardKing', 'TileShark', 'DoubleSixer', 'PipCounter',
-    'DominoWiz', 'TileChain', 'BlockMaster', 'SpinnerKing',
-    'DrawPile', 'TableRunner', 'DotMatrix', 'BoneYard88',
-    'TileSnap', 'EndGame99', 'ChainLink', 'PipTracker',
-    'BlockDrop', 'TileMaster', 'DominoAce', 'SnapPlay',
-  ],
-};
+/** Per-game point codes kept for the standings ("w2", "w4", "d1", "l0"…). */
+const RESULTS_KEPT = 40;
+const OUTCOMES = ['win', 'draw', 'loss'];
 
 // ── Small helpers ────────────────────────────────────────────────────────────
 
@@ -99,15 +111,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const randInt = (lo, hi) => lo + Math.floor(Math.random() * (hi - lo + 1));
 const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 const millis = (ts) => (ts && typeof ts.toMillis === 'function' ? ts.toMillis() : 0);
-
-function gaussian() {
-  // Box–Muller; good enough for spreading bot ratings.
-  let u = 0;
-  let v = 0;
-  while (u === 0) u = Math.random();
-  while (v === 0) v = Math.random();
-  return Math.sqrt(-2.0 * Math.log(u)) * Math.cos(2.0 * Math.PI * v);
-}
+const opposite = (o) => (o === 'win' ? 'loss' : o === 'loss' ? 'win' : 'draw');
+const roster = (t) => (Array.isArray(t.bots) ? t.bots : []);
 
 function parseTc(label) {
   const [m, i] = String(label || '5+0').split('+');
@@ -119,97 +124,82 @@ function parseTc(label) {
   };
 }
 
-/** Normal around [mean], redrawn (not clamped) until inside [lo, hi]. */
-function boundedNormal(mean, sd, lo, hi) {
-  for (let i = 0; i < 20; i++) {
-    const v = Math.round(mean + gaussian() * sd);
-    if (v >= lo && v <= hi) return v;
-  }
-  return Math.round(mean);
+/**
+ * The participant fields after one more game, with chess.com / lichess arena
+ * scoring: 2 for a win, 1 for a draw; once the previous two games were both
+ * wins ("on fire") a win scores 4 and a draw 2. Anything but a win ends the
+ * streak. [p] is the participant document as it is now.
+ */
+function applyOutcome(p, outcome) {
+  const streak = Number(p.streak) || 0;
+  const onFire = streak >= 2;
+  const points = outcome === 'win' ? (onFire ? 4 : 2) : outcome === 'draw' ? (onFire ? 2 : 1) : 0;
+  const nextStreak = outcome === 'win' ? streak + 1 : 0;
+  const results = (Array.isArray(p.results) ? p.results : [])
+    .concat(`${outcome[0]}${points}`)
+    .slice(-RESULTS_KEPT);
+  return {
+    score: (Number(p.score) || 0) + points,
+    wins: (Number(p.wins) || 0) + (outcome === 'win' ? 1 : 0),
+    draws: (Number(p.draws) || 0) + (outcome === 'draw' ? 1 : 0),
+    losses: (Number(p.losses) || 0) + (outcome === 'loss' ? 1 : 0),
+    gamesPlayed: (Number(p.gamesPlayed) || 0) + 1,
+    streak: nextStreak,
+    onFire: nextStreak >= 2,
+    results,
+  };
 }
 
-function botRating(gameType) {
-  if (gameType === 'chess') return boundedNormal(1180, 230, 750, 2050);
-  // Checkers and domino use points that start at 300.
-  return boundedNormal(310, 90, 160, 650);
-}
-
-/** Picks [count] bots whose names are not already in [taken]. */
-function pickBots(gameType, count, taken = new Set()) {
-  const pool = (BOT_NAMES[gameType] || BOT_NAMES.chess).filter((n) => !taken.has(n));
-  for (let i = pool.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [pool[i], pool[j]] = [pool[j], pool[i]];
-  }
-  return pool.slice(0, Math.max(0, count)).map((username) => ({
-    uid: `bot_${username.toLowerCase()}`,
-    username,
-    rating: botRating(gameType),
-  }));
-}
-
-/** Rough length of one game, used to pace bot-vs-bot results. */
-function gameMinutes(t) {
-  if ((t.gameType || 'chess') !== 'chess') return 6;
-  const base = t.timeSeconds || 300;
-  const inc = t.incrementSeconds || 0;
-  return (2 * (base + 40 * inc) * 0.75) / 60 + 0.5;
-}
-
-/** Adds one bot participant (doc + count + roster) in a single batch. */
-function addBotToBatch(batch, tRef, bot) {
-  batch.set(tRef.collection('participants').doc(bot.uid), {
+function botParticipant(bot) {
+  return {
     uid: bot.uid,
     username: bot.username,
     rating: bot.rating,
+    countryCode: bot.countryCode || null,
     isBot: true,
     score: 0,
     wins: 0,
     draws: 0,
     losses: 0,
     gamesPlayed: 0,
+    streak: 0,
+    onFire: false,
+    results: [],
     joinedAt: FieldValue.serverTimestamp(),
-  });
-  batch.update(tRef, {
-    participantCount: FieldValue.increment(1),
-    bots: FieldValue.arrayUnion(bot),
-  });
+  };
 }
 
-async function addBots(tRef, bots) {
-  if (!bots.length) return;
+/** Adds [count] new bots (participant docs, counter, roster) in one batch. */
+async function addBots(tRef, t, count) {
+  const bots = pickBots(t.gameType || 'chess', count, new Set(roster(t).map((b) => b.uid)));
+  if (!bots.length) return [];
   const batch = db().batch();
-  for (const bot of bots) addBotToBatch(batch, tRef, bot);
-  await batch.commit();
-}
-
-/** waiting → active, once. [endsAtMs] defaults to now + duration. */
-async function activate(tRef, endsAtMs) {
-  await db().runTransaction(async (tx) => {
-    const snap = await tx.get(tRef);
-    if (!snap.exists) return;
-    const t = snap.data();
-    if (t.status !== 'waiting') return;
-    const end = endsAtMs || Date.now() + (t.durationMinutes || 30) * MINUTE;
-    tx.update(tRef, {
-      status: 'active',
-      startedAt: FieldValue.serverTimestamp(),
-      endsAt: Timestamp.fromMillis(end),
-    });
+  for (const bot of bots) {
+    batch.set(tRef.collection('participants').doc(bot.uid), botParticipant(bot));
+  }
+  batch.update(tRef, {
+    participantCount: FieldValue.increment(bots.length),
+    bots: FieldValue.arrayUnion(...bots),
   });
+  await batch.commit();
+  return bots;
 }
 
-/** Writes the current leader onto the tournament document. */
+/** Leader first; ties go to more wins, then to fewer games. */
 async function computeWinner(tRef) {
   const top = await tRef
     .collection('participants')
     .orderBy('score', 'desc')
-    .limit(1)
+    .limit(10)
     .get();
-  if (top.empty) return { winnerUid: null, winnerUsername: null };
-  const w = top.docs[0].data();
-  if (!w.score) return { winnerUid: null, winnerUsername: null };
-  return { winnerUid: w.uid || top.docs[0].id, winnerUsername: w.username || '' };
+  const rows = top.docs.map((d) => ({ id: d.id, ...d.data() }));
+  rows.sort((a, b) =>
+    (b.score || 0) - (a.score || 0) ||
+    (b.wins || 0) - (a.wins || 0) ||
+    (a.gamesPlayed || 0) - (b.gamesPlayed || 0));
+  const w = rows[0];
+  if (!w || !w.score) return { winnerUid: null, winnerUsername: null };
+  return { winnerUid: w.uid || w.id, winnerUsername: w.username || '' };
 }
 
 async function finish(tRef) {
@@ -220,158 +210,289 @@ async function finish(tRef) {
     tx.update(tRef, {
       status: 'finished',
       finishedAt: FieldValue.serverTimestamp(),
+      botGames: [],
       ...winner,
     });
   });
 }
 
-// ── Hourly creation ──────────────────────────────────────────────────────────
+// ── Live arena schedule ──────────────────────────────────────────────────────
 
-function hourlyId(gameType, slotStartMs) {
+function slotId(gameType, slotStartMs) {
   const d = new Date(slotStartMs);
   const pad = (n) => String(n).padStart(2, '0');
-  return `hourly_${gameType}_${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}` +
-    `${pad(d.getUTCDate())}${pad(d.getUTCHours())}`;
+  return `live_${gameType}_${d.getUTCFullYear()}${pad(d.getUTCMonth() + 1)}` +
+    `${pad(d.getUTCDate())}${pad(d.getUTCHours())}${pad(d.getUTCMinutes())}`;
 }
 
-function hourlySpec(gameType, slotStartMs) {
-  const hourIndex = Math.floor(slotStartMs / HOUR);
+/** Name, rules and clock of the live arena that starts at [slotStartMs]. */
+function slotSpec(gameType, slotStartMs) {
+  const n = Math.floor(slotStartMs / SLOT_MS);
+  // 7 and 10 share no factor: consecutive slots never get the same name.
+  const [nameKey, name] = THEMES[(n * 7 + (THEME_OFFSET[gameType] || 0)) % THEMES.length];
   if (gameType === 'checkers') {
-    const [key, label] = CHECKERS_ROTATION[hourIndex % CHECKERS_ROTATION.length];
-    return { nameKey: 'hourly_arena_checkers', name: 'Hourly Checkers Arena',
-      rulesKey: key, timeControlLabel: label, ...parseTc('5+0') };
+    const [rulesKey, label] = CHECKERS_VARIANTS[n % CHECKERS_VARIANTS.length];
+    return { nameKey, name, rulesKey, timeControlLabel: label, ...parseTc('5+0') };
   }
   if (gameType === 'domino') {
-    const [key, label] = DOMINO_ROTATION[hourIndex % DOMINO_ROTATION.length];
-    return { nameKey: 'hourly_arena_domino', name: 'Hourly Domino Arena',
-      rulesKey: key, timeControlLabel: label, ...parseTc('5+0') };
+    const [rulesKey, label] = DOMINO_VARIANTS[n % DOMINO_VARIANTS.length];
+    return { nameKey, name, rulesKey, timeControlLabel: label, ...parseTc('5+0') };
   }
-  const tc = CHESS_ROTATION[hourIndex % CHESS_ROTATION.length];
-  const { timeSeconds, incrementSeconds } = parseTc(tc);
-  const kind = timeSeconds < 180 ? 'bullet' : timeSeconds >= 600 ? 'rapid' : 'blitz';
-  return {
-    nameKey: `hourly_arena_${kind}`,
-    name: `Hourly ${kind[0].toUpperCase()}${kind.slice(1)} Arena`,
-    rulesKey: null,
-    timeControlLabel: tc,
-    timeSeconds,
-    incrementSeconds,
-  };
+  const list = n % 2 === 0 ? CHESS_FAST : CHESS_SLOW;
+  const tc = list[Math.floor(n / 2) % list.length];
+  return { nameKey, name, rulesKey: null, timeControlLabel: tc, ...parseTc(tc) };
 }
 
-async function createHourlyArena(gameType, slotStartMs, nowMs) {
-  const spec = hourlySpec(gameType, slotStartMs);
-  const tRef = db().collection('tournaments').doc(hourlyId(gameType, slotStartMs));
-  const target = randInt(8, 12);
+/**
+ * Start times of the live arenas that should exist at [nowMs]: the two that
+ * are running and, in the last 10 minutes of a slot, the next one.
+ */
+function liveSlots(nowMs) {
+  const current = Math.floor(nowMs / SLOT_MS) * SLOT_MS;
+  const slots = [current - SLOT_MS, current];
+  if (nowMs >= current + SLOT_MS - LIVE_LEAD_MS) slots.push(current + SLOT_MS);
+  return slots.filter((s) => s + LIVE_DURATION_MIN * MINUTE > nowMs);
+}
+
+/** Bots that should have joined by now, out of [target]. */
+function desiredBots(t, nowMs) {
+  const target = t.botTarget || 0;
+  const startsAt = millis(t.startsAt);
+  if (!target || !startsAt) return 0;
+  if (nowMs < startsAt) {
+    // 30 % when registration opens, 70 % by the start …
+    const progress = clamp(1 - (startsAt - nowMs) / LIVE_LEAD_MS, 0, 1);
+    return Math.round(target * (0.3 + 0.4 * progress));
+  }
+  // … and the rest join during the first 20 minutes, like late joiners.
+  const progress = clamp((nowMs - startsAt) / (20 * MINUTE), 0, 1);
+  return Math.round(target * (0.7 + 0.3 * progress));
+}
+
+async function createLiveArena(gameType, slotStartMs, nowMs) {
+  const spec = slotSpec(gameType, slotStartMs);
+  const tRef = db().collection('tournaments').doc(slotId(gameType, slotStartMs));
   const live = nowMs >= slotStartMs;
-  // A third of the bots are there when registration opens and the rest
-  // trickle in until the start (see tickWaiting). An arena created after its
-  // start (first deploy mid-hour, or a missed tick) gets them all at once.
-  const first = pickBots(gameType, live ? target : Math.ceil(target / 3));
+  const doc = {
+    name: spec.name,
+    nameKey: spec.nameKey,
+    description: null,
+    gameType,
+    ...(spec.rulesKey ? { rulesKey: spec.rulesKey } : {}),
+    format: 'arena',
+    status: live ? 'active' : 'waiting',
+    isSystem: true,
+    creatorUid: SYSTEM_CREATOR.uid,
+    creatorUsername: SYSTEM_CREATOR.username,
+    maxPlayers: LIVE_MAX_PLAYERS,
+    timeControlLabel: spec.timeControlLabel,
+    timeSeconds: spec.timeSeconds,
+    incrementSeconds: spec.incrementSeconds,
+    durationMinutes: LIVE_DURATION_MIN,
+    startsAt: Timestamp.fromMillis(slotStartMs),
+    endsAt: Timestamp.fromMillis(slotStartMs + LIVE_DURATION_MIN * MINUTE),
+    ...(live ? { startedAt: FieldValue.serverTimestamp() } : {}),
+    createdAt: FieldValue.serverTimestamp(),
+    participantCount: 0,
+    bots: [],
+    botTarget: gameType === 'chess' ? randInt(18, 36) : randInt(12, 26),
+    botsSeeded: true,
+    botGames: [],
+  };
   try {
-    await tRef.create({
-      name: spec.name,
-      nameKey: spec.nameKey,
-      description: null,
-      gameType,
-      ...(spec.rulesKey ? { rulesKey: spec.rulesKey } : {}),
-      format: 'arena',
-      status: live ? 'active' : 'waiting',
-      isSystem: true,
-      creatorUid: SYSTEM_CREATOR.uid,
-      creatorUsername: SYSTEM_CREATOR.username,
-      maxPlayers: HOURLY_MAX_PLAYERS,
-      timeControlLabel: spec.timeControlLabel,
-      timeSeconds: spec.timeSeconds,
-      incrementSeconds: spec.incrementSeconds,
-      durationMinutes: HOURLY_DURATION_MIN,
-      startsAt: Timestamp.fromMillis(slotStartMs),
-      ...(live
-        ? { endsAt: Timestamp.fromMillis(slotStartMs + HOURLY_DURATION_MIN * MINUTE) }
-        : {}),
-      createdAt: FieldValue.serverTimestamp(),
-      participantCount: 0,
-      bots: [],
-      botTarget: target,
-      botsSeeded: true,
-    });
+    await tRef.create(doc);
   } catch (e) {
     // ALREADY_EXISTS: another tick (or a retry) created it first.
     if (e.code === 6 || /already exists/i.test(String(e.message))) return false;
     throw e;
   }
-  await addBots(tRef, first);
-  console.log(`[Arena] created ${tRef.id} (${spec.timeControlLabel}, ${target} bots planned)`);
+  const first = desiredBots({ ...doc, startsAt: doc.startsAt }, nowMs);
+  await addBots(tRef, doc, first);
+  console.log(`[Arena] created ${tRef.id} (${spec.timeControlLabel}, ${doc.botTarget} bots planned)`);
   return true;
 }
 
-/**
- * Makes sure the arena for the current hour (until it ends) and for the next
- * hour (from 15 minutes before it starts) exist. [openIds] holds the ids of
- * waiting/active arenas, so existing ones cost no extra read.
- */
-async function ensureHourlyArenas(nowMs, openIds) {
-  const current = Math.floor(nowMs / HOUR) * HOUR;
-  const slots = [];
-  if (nowMs < current + HOURLY_DURATION_MIN * MINUTE) slots.push(current);
-  if (nowMs >= current + HOUR - HOURLY_LEAD_MS) slots.push(current + HOUR);
-  for (const gameType of HOURLY_GAME_TYPES) {
-    for (const slot of slots) {
-      if (openIds.has(hourlyId(gameType, slot))) continue;
+/** [openIds]: ids of waiting/active arenas, so existing ones cost no read. */
+async function ensureLiveArenas(nowMs, openIds) {
+  for (const gameType of LIVE_GAME_TYPES) {
+    for (const slot of liveSlots(nowMs)) {
+      if (openIds.has(slotId(gameType, slot))) continue;
       try {
-        await createHourlyArena(gameType, slot, nowMs);
+        await createLiveArena(gameType, slot, nowMs);
       } catch (e) {
-        console.error(`[Arena] creating hourly ${gameType} failed:`, e.message);
+        console.error(`[Arena] creating live ${gameType} arena failed:`, e.message);
       }
     }
+  }
+}
+
+// ── Bot games ────────────────────────────────────────────────────────────────
+
+/** Share of minutes a bot is ready for a new game (some bots play more). */
+function activity(uid) {
+  const n = parseInt(String(uid).replace(/\D/g, ''), 10) || 0;
+  return 0.55 + ((n * 7919) % 41) / 100; // 0.55 … 0.95
+}
+
+/** How long a bot game takes, in milliseconds. */
+function gameMs(t) {
+  if (t.gameType === 'checkers') return (150 + Math.random() * 330) * 1000;
+  if (t.gameType === 'domino') return (240 + Math.random() * 360) * 1000;
+  const base = t.timeSeconds || 300;
+  const inc = t.incrementSeconds || 0;
+  return (2 * (base + 40 * inc) * (0.35 + Math.random() * 0.6) + 10 + Math.random() * 30) * 1000;
+}
+
+/** The result for [a] against [b], from their ratings. */
+function simulate(t, a, b) {
+  const scale = t.gameType === 'chess' ? 400 : 250;
+  const expected = 1 / (1 + Math.pow(10, ((b.rating || 0) - (a.rating || 0)) / scale));
+  const drawRate = t.gameType === 'domino' ? 0.03 : t.gameType === 'checkers' ? 0.15 : 0.1;
+  const pWin = Math.max(0, expected - drawRate / 2);
+  const r = Math.random();
+  return r < pWin ? 'win' : r < pWin + drawRate ? 'draw' : 'loss';
+}
+
+/** Scores a finished bot-vs-bot game for both bots. */
+async function settleBotGame(tRef, g) {
+  const aRef = tRef.collection('participants').doc(g.a);
+  const bRef = tRef.collection('participants').doc(g.b);
+  await db().runTransaction(async (tx) => {
+    const [aSnap, bSnap] = await Promise.all([tx.get(aRef), tx.get(bRef)]);
+    if (!aSnap.exists || !bSnap.exists) return;
+    tx.update(aRef, applyOutcome(aSnap.data(), g.oa));
+    tx.update(bRef, applyOutcome(bSnap.data(), opposite(g.oa)));
+  });
+}
+
+/**
+ * Scores the bot games that have finished and pairs the free bots for new
+ * ones. Like arena pairing, bots meet opponents of similar rating. A game is
+ * only started if it can end before the arena does.
+ */
+async function playBotGames(tRef, t, bots, nowMs, endsAtMs) {
+  const pending = Array.isArray(t.botGames) ? t.botGames : [];
+  const due = pending.filter((g) => g.at <= nowMs);
+  const running = pending.filter((g) => g.at > nowMs);
+
+  const settled = await Promise.allSettled(due.map((g) => settleBotGame(tRef, g)));
+  settled.forEach((s) => {
+    if (s.status === 'rejected') console.warn(`[Arena] bot game in ${tRef.id}:`, s.reason?.message);
+  });
+
+  const busy = new Set(running.flatMap((g) => [g.a, g.b]));
+  const spread = t.gameType === 'chess' ? 300 : 120;
+  const ready = bots
+    .filter((b) => !busy.has(b.uid) && Math.random() < activity(b.uid))
+    .map((b) => ({ bot: b, key: (b.rating || 0) + (Math.random() - 0.5) * spread }))
+    .sort((x, y) => x.key - y.key)
+    .map((x) => x.bot);
+
+  const fresh = [];
+  for (let i = 0; i + 1 < ready.length; i += 2) {
+    const at = nowMs + gameMs(t);
+    if (at > endsAtMs) continue;
+    const [a, b] = Math.random() < 0.5 ? [ready[i], ready[i + 1]] : [ready[i + 1], ready[i]];
+    fresh.push({ a: a.uid, b: b.uid, oa: simulate(t, a, b), at: Math.round(at) });
+  }
+  if (due.length || fresh.length) {
+    await tRef.update({ botGames: running.concat(fresh) });
   }
 }
 
 // ── Per-arena tick ───────────────────────────────────────────────────────────
 
+/** A live arena whose start time has come: waiting → active, once. */
+async function activateLive(tRef) {
+  await db().runTransaction(async (tx) => {
+    const snap = await tx.get(tRef);
+    if (!snap.exists) return;
+    const t = snap.data();
+    if (t.status !== 'waiting') return;
+    const startsAt = millis(t.startsAt) || Date.now();
+    tx.update(tRef, {
+      status: 'active',
+      startedAt: FieldValue.serverTimestamp(),
+      // Keep the published schedule even if this tick ran late.
+      endsAt: t.endsAt || Timestamp.fromMillis(startsAt + (t.durationMinutes || LIVE_DURATION_MIN) * MINUTE),
+    });
+  });
+}
+
+/**
+ * Starts a player's arena: fills the empty seats with bots and goes live.
+ * An arena nobody stayed in is closed instead. Returns null when it was not
+ * waiting any more (someone else started it).
+ */
+async function startUserArena(tRef) {
+  return db().runTransaction(async (tx) => {
+    const snap = await tx.get(tRef);
+    if (!snap.exists) return null;
+    const t = snap.data();
+    if (t.status !== 'waiting') return null;
+
+    const count = t.participantCount || 0;
+    const humans = Math.max(0, count - roster(t).length);
+    if (humans === 0) {
+      tx.update(tRef, {
+        status: 'finished',
+        cancelled: true,
+        finishedAt: FieldValue.serverTimestamp(),
+        winnerUid: null,
+        winnerUsername: null,
+      });
+      return { started: false, cancelled: true };
+    }
+
+    const room = Math.max(0, (t.maxPlayers || 16) - count);
+    const want = Math.max(USER_ARENA_MIN_BOTS, randInt(...USER_ARENA_FIELD) - humans);
+    const bots = pickBots(t.gameType || 'chess', Math.min(room, want),
+      new Set(roster(t).map((b) => b.uid)));
+    for (const bot of bots) {
+      tx.set(tRef.collection('participants').doc(bot.uid), botParticipant(bot));
+    }
+    tx.update(tRef, {
+      status: 'active',
+      startedAt: FieldValue.serverTimestamp(),
+      endsAt: Timestamp.fromMillis(Date.now() + (t.durationMinutes || 30) * MINUTE),
+      botsSeeded: true,
+      botGames: [],
+      ...(bots.length
+        ? { participantCount: FieldValue.increment(bots.length), bots: FieldValue.arrayUnion(...bots) }
+        : {}),
+    });
+    return { started: true, humans, bots: bots.length };
+  });
+}
+
 async function tickWaiting(doc, nowMs) {
   const t = doc.data();
   const tRef = doc.ref;
   const startsAt = millis(t.startsAt);
-  const createdAt = millis(t.createdAt);
-  const bots = Array.isArray(t.bots) ? t.bots : [];
 
   if (t.isSystem) {
     if (startsAt && startsAt <= nowMs) {
-      // Keep the published schedule: end at :45 even if this tick ran late.
-      await activate(tRef, startsAt + (t.durationMinutes || HOURLY_DURATION_MIN) * MINUTE);
+      await activateLive(tRef);
       return;
     }
-    const missing = (t.botTarget || 10) - bots.length;
-    if (missing > 0 && startsAt) {
-      // Spread the remaining joins over the minutes left before the start.
-      const minutesLeft = Math.max(1, Math.ceil((startsAt - nowMs) / MINUTE));
-      const perTick = missing / minutesLeft;
-      const n = Math.floor(perTick) + (Math.random() < perTick % 1 ? 1 : 0);
-      if (n > 0) {
-        await addBots(tRef, pickBots(t.gameType, Math.min(n, missing),
-          new Set(bots.map((b) => b.username))));
-      }
-    }
+    const missing = desiredBots(t, nowMs) - roster(t).length;
+    if (missing > 0) await addBots(tRef, t, missing);
     return;
   }
 
-  // Player-created arena.
-  if (startsAt && startsAt <= nowMs) {
-    await activate(tRef);
-    return;
-  }
-  // Abandoned long ago (e.g. created before arenas started themselves, and
-  // nobody ever pressed Start): close it rather than revive it with bots.
+  // A player's arena. onArenaCreated normally starts it on time; this is the
+  // fallback for a failed or never-delivered trigger.
+  const createdAt = millis(t.createdAt);
   if (createdAt && nowMs - createdAt > 2 * HOUR) {
-    await tRef.update({ status: 'finished', finishedAt: FieldValue.serverTimestamp() });
+    await tRef.update({
+      status: 'finished',
+      cancelled: true,
+      finishedAt: FieldValue.serverTimestamp(),
+    });
     return;
   }
-  // onArenaCreated normally does this within seconds; this is the fallback
-  // for a failed or never-delivered trigger.
-  if (!t.botsSeeded && createdAt && nowMs - createdAt > 90 * 1000) {
-    await seedUserArena(tRef, t, { paced: false });
-  }
+  const due = startsAt || (createdAt ? createdAt + USER_ARENA_WAIT_MS : 0);
+  if (due && due + 30 * 1000 <= nowMs) await startUserArena(tRef);
 }
 
 async function tickActive(doc, nowMs) {
@@ -380,133 +501,53 @@ async function tickActive(doc, nowMs) {
   const endsAt = millis(t.endsAt);
 
   if (!endsAt || endsAt <= nowMs) {
+    // Score the bot games that ended in time, then close the arena.
+    const pending = Array.isArray(t.botGames) ? t.botGames : [];
+    await Promise.allSettled(pending.filter((g) => g.at <= (endsAt || nowMs))
+      .map((g) => settleBotGame(tRef, g)));
     await finish(tRef);
     console.log(`[Arena] finished ${doc.id}`);
     return;
   }
 
-  let bots = Array.isArray(t.bots) ? t.bots : [];
-
-  // An hourly arena that went live short of its bots (e.g. a tick was missed
-  // during registration) gets the rest now.
-  if (t.isSystem && bots.length < (t.botTarget || 0)) {
-    const extra = pickBots(t.gameType, t.botTarget - bots.length,
-      new Set(bots.map((b) => b.username)));
-    await addBots(tRef, extra);
-    bots = bots.concat(extra);
+  let bots = roster(t);
+  if (t.isSystem) {
+    const missing = desiredBots(t, nowMs) - bots.length;
+    if (missing > 0) bots = bots.concat(await addBots(tRef, t, missing));
   }
-
-  // Bot-vs-bot games, paced so each bot plays about one game per game-length.
-  if (bots.length < 2) return;
-  const expected = bots.length / 2 / gameMinutes(t);
-  let games = Math.floor(expected) + (Math.random() < expected % 1 ? 1 : 0);
-  games = Math.min(games, Math.floor(bots.length / 2));
-  if (games <= 0) return;
-
-  const shuffled = [...bots].sort(() => Math.random() - 0.5);
-  const drawRate = t.gameType === 'domino' ? 0.02 : t.gameType === 'checkers' ? 0.1 : 0.12;
-  const batch = db().batch();
-  for (let g = 0; g < games; g++) {
-    const a = shuffled[2 * g];
-    const b = shuffled[2 * g + 1];
-    const expectedA = 1 / (1 + Math.pow(10, ((b.rating || 1200) - (a.rating || 1200)) / 400));
-    const r = Math.random();
-    const pWinA = Math.max(0, expectedA - drawRate / 2);
-    const outcomeA = r < pWinA ? 'win' : r < pWinA + drawRate ? 'draw' : 'loss';
-    const outcomeB = outcomeA === 'win' ? 'loss' : outcomeA === 'loss' ? 'win' : 'draw';
-    batch.update(tRef.collection('participants').doc(a.uid), scoreUpdate(outcomeA));
-    batch.update(tRef.collection('participants').doc(b.uid), scoreUpdate(outcomeB));
-  }
-  try {
-    await batch.commit();
-  } catch (e) {
-    // A bot document is missing (e.g. deleted by hand) — skip this round.
-    console.warn(`[Arena] bot round in ${doc.id} skipped:`, e.message);
-  }
+  if (bots.length >= 2) await playBotGames(tRef, t, bots, nowMs, endsAt);
 }
 
-function scoreUpdate(outcome) {
-  return {
-    score: FieldValue.increment(POINTS[outcome]),
-    wins: FieldValue.increment(outcome === 'win' ? 1 : 0),
-    draws: FieldValue.increment(outcome === 'draw' ? 1 : 0),
-    losses: FieldValue.increment(outcome === 'loss' ? 1 : 0),
-    gamesPlayed: FieldValue.increment(1),
-  };
-}
-
-/** Deletes hourly arenas that finished more than two days ago. */
-async function cleanupOldSystemArenas(nowMs) {
-  const cutoff = nowMs - 48 * HOUR;
+/**
+ * Deletes live arenas a day after they finished and players' arenas a week
+ * after, so the finished list (and the database) stays small.
+ */
+async function cleanupFinishedArenas(nowMs) {
   const snap = await db()
     .collection('tournaments')
-    .where('isSystem', '==', true)
     .where('status', '==', 'finished')
+    .where('finishedAt', '<', Timestamp.fromMillis(nowMs - 24 * HOUR))
+    .orderBy('finishedAt')
+    .limit(60)
     .get();
-  const old = snap.docs.filter((d) => millis(d.data().endsAt) < cutoff).slice(0, 15);
-  for (const d of old) {
+  let removed = 0;
+  for (const d of snap.docs) {
+    const t = d.data();
+    if (!t.isSystem && nowMs - millis(t.finishedAt) < 7 * 24 * HOUR) continue;
     try {
       await db().recursiveDelete(d.ref);
+      removed++;
     } catch (e) {
       console.warn(`[Arena] cleanup of ${d.id} failed:`, e.message);
     }
   }
-  if (old.length) console.log(`[Arena] cleaned up ${old.length} old hourly arenas`);
-}
-
-// ── Player-created arenas: bots + quick start ────────────────────────────────
-
-/**
- * Fills a player's arena with a handful of bots (leaving at least half the
- * seats for people) and schedules the start. With [paced] the bots arrive a
- * few seconds apart, so the creator watches the lobby fill up.
- */
-async function seedUserArena(tRef, t, { paced }) {
-  const claimed = await db().runTransaction(async (tx) => {
-    const snap = await tx.get(tRef);
-    if (!snap.exists) return false;
-    const cur = snap.data();
-    if (cur.botsSeeded || cur.status !== 'waiting') return false;
-    tx.update(tRef, {
-      botsSeeded: true,
-      startsAt: Timestamp.fromMillis(Date.now() + (paced ? USER_ARENA_START_DELAY_MS : 20 * 1000)),
-    });
-    return true;
-  });
-  if (!claimed) return null;
-
-  // Spam guard: a creator hosting several open arenas gets no extra bots.
-  if (t.creatorUid) {
-    const open = await db()
-      .collection('tournaments')
-      .where('creatorUid', '==', t.creatorUid)
-      .get();
-    const openCount = open.docs.filter((d) =>
-      ['waiting', 'active'].includes(d.data().status)).length;
-    if (openCount > MAX_OPEN_ARENAS_PER_CREATOR) {
-      console.log(`[Arena] ${tRef.id}: creator has ${openCount} open arenas, no bots`);
-      return [];
-    }
-  }
-
-  const maxPlayers = t.maxPlayers || 16;
-  const count = Math.min(Math.floor(maxPlayers / 2), randInt(4, 7));
-  const bots = pickBots(t.gameType || 'chess', count);
-  if (!paced) {
-    await addBots(tRef, bots);
-    return bots;
-  }
-  for (const bot of bots) {
-    await addBots(tRef, [bot]);
-    await sleep(randInt(1800, 3800));
-  }
-  return bots;
+  if (removed) console.log(`[Arena] cleaned up ${removed} finished arenas`);
 }
 
 // ── Exports ──────────────────────────────────────────────────────────────────
 
 exports.arenaTick = onSchedule(
-  { schedule: 'every 1 minutes', timeoutSeconds: 120, memory: '256MiB', maxInstances: 1 },
+  { schedule: 'every 1 minutes', timeoutSeconds: 240, memory: '256MiB', maxInstances: 1 },
   async () => {
     const nowMs = Date.now();
     const open = await db()
@@ -514,7 +555,7 @@ exports.arenaTick = onSchedule(
       .where('status', 'in', ['waiting', 'active'])
       .get();
 
-    await ensureHourlyArenas(nowMs, new Set(open.docs.map((d) => d.id)));
+    await ensureLiveArenas(nowMs, new Set(open.docs.map((d) => d.id)));
 
     for (const doc of open.docs) {
       try {
@@ -528,7 +569,7 @@ exports.arenaTick = onSchedule(
     // Once an hour is plenty for housekeeping.
     if (new Date(nowMs).getUTCMinutes() === 50) {
       try {
-        await cleanupOldSystemArenas(nowMs);
+        await cleanupFinishedArenas(nowMs);
       } catch (e) {
         console.error('[Arena] cleanup failed:', e.message);
       }
@@ -537,47 +578,87 @@ exports.arenaTick = onSchedule(
 );
 
 exports.onArenaCreated = onDocumentCreated(
-  { document: 'tournaments/{tournamentId}', timeoutSeconds: 120 },
+  { document: 'tournaments/{tournamentId}', timeoutSeconds: 300 },
   async (event) => {
     const snap = event.data;
     const t = snap?.data();
     if (!t || t.isSystem || t.status !== 'waiting') return;
 
-    const bots = await seedUserArena(snap.ref, t, { paced: true });
-    if (bots === null) return; // someone else already handled it
+    // Spam guard: every player arena gets bots, so cap how many one player
+    // can have open at a time.
+    if (t.creatorUid) {
+      const mine = await db()
+        .collection('tournaments')
+        .where('creatorUid', '==', t.creatorUid)
+        .get();
+      const open = mine.docs.filter((d) => ['waiting', 'active'].includes(d.data().status));
+      if (open.length > MAX_OPEN_ARENAS_PER_CREATOR) {
+        await snap.ref.update({
+          status: 'finished',
+          cancelled: true,
+          finishedAt: FieldValue.serverTimestamp(),
+        }).catch(() => {});
+        console.log(`[Arena] ${event.params.tournamentId}: creator has ${open.length} open arenas, closed`);
+        return;
+      }
+    }
 
-    const fresh = (await snap.ref.get()).data() || {};
-    const wait = millis(fresh.startsAt) - Date.now();
+    const startsAt = (millis(t.createdAt) || Date.now()) + USER_ARENA_WAIT_MS;
+    try {
+      await snap.ref.update({ startsAt: Timestamp.fromMillis(startsAt) });
+    } catch (e) {
+      return; // deleted already
+    }
+    const wait = startsAt - Date.now();
     if (wait > 0) await sleep(wait);
-    await activate(snap.ref);
-    console.log(`[Arena] ${event.params.tournamentId}: ${bots.length} bots joined, arena live`);
+    const res = await startUserArena(snap.ref);
+    console.log(`[Arena] ${event.params.tournamentId}:`, JSON.stringify(res));
   },
 );
+
+exports.startArenaNow = onCall(async (request) => {
+  const uid = request.auth?.uid;
+  if (!uid) throw new HttpsError('unauthenticated', 'Login required');
+  const { tournamentId } = request.data ?? {};
+  if (typeof tournamentId !== 'string' || !tournamentId || tournamentId.includes('/')) {
+    throw new HttpsError('invalid-argument', 'tournamentId required');
+  }
+  const tRef = db().collection('tournaments').doc(tournamentId);
+  const snap = await tRef.get();
+  if (!snap.exists) throw new HttpsError('not-found', 'Arena not found');
+  const t = snap.data();
+  if (t.isSystem || t.creatorUid !== uid) {
+    throw new HttpsError('permission-denied', 'Only the creator can start it');
+  }
+  return (await startUserArena(tRef)) ?? { started: false };
+});
 
 exports.reportArenaResult = onCall(async (request) => {
   const uid = request.auth?.uid;
   if (!uid) throw new HttpsError('unauthenticated', 'Login required');
 
   const { tournamentId, gameId, outcome, opponentUid } = request.data ?? {};
-  if (typeof tournamentId !== 'string' || !tournamentId ||
+  if (typeof tournamentId !== 'string' || !tournamentId || tournamentId.includes('/') ||
       typeof gameId !== 'string' || !gameId || gameId.includes('/')) {
     throw new HttpsError('invalid-argument', 'tournamentId and gameId required');
   }
-  if (!Object.prototype.hasOwnProperty.call(POINTS, outcome)) {
+  if (!OUTCOMES.includes(outcome)) {
     throw new HttpsError('invalid-argument', 'outcome must be win, draw or loss');
   }
   if (opponentUid !== undefined && opponentUid !== null &&
-      (typeof opponentUid !== 'string' || opponentUid.includes('/') || opponentUid === uid)) {
+      (typeof opponentUid !== 'string' || !opponentUid ||
+       opponentUid.includes('/') || opponentUid === uid)) {
     throw new HttpsError('invalid-argument', 'bad opponentUid');
   }
 
   const tRef = db().collection('tournaments').doc(tournamentId);
   const meRef = tRef.collection('participants').doc(uid);
   const resultRef = tRef.collection('results').doc(gameId);
+  const oppRef = opponentUid ? tRef.collection('participants').doc(opponentUid) : null;
 
   const res = await db().runTransaction(async (tx) => {
-    const [tSnap, resultSnap, meSnap] = await Promise.all([
-      tx.get(tRef), tx.get(resultRef), tx.get(meRef),
+    const [tSnap, resultSnap, meSnap, oppSnapRaw] = await Promise.all([
+      tx.get(tRef), tx.get(resultRef), tx.get(meRef), oppRef ? tx.get(oppRef) : null,
     ]);
     if (!tSnap.exists) throw new HttpsError('not-found', 'Arena not found');
     if (resultSnap.exists) return { counted: false, reason: 'duplicate' };
@@ -598,35 +679,36 @@ exports.reportArenaResult = onCall(async (request) => {
     }
 
     let myOutcome = outcome;
-    let oppSnap = null;
-    if (opponentUid) {
-      oppSnap = await tx.get(tRef.collection('participants').doc(opponentUid));
-      if (!oppSnap.exists) {
-        oppSnap = null;
-      } else if (oppSnap.data().isBot !== true) {
-        // Two people: trust the saved game, not the caller's claim.
-        const gameSnap = await tx.get(db().collection('games').doc(gameId));
-        const g = gameSnap.exists ? gameSnap.data() : null;
-        const players = g ? [g.whiteUid, g.blackUid] : [];
-        if (!g || !players.includes(uid) || !players.includes(opponentUid) ||
-            !['white', 'black', 'draw'].includes(g.result)) {
-          throw new HttpsError('failed-precondition', 'Game result not found');
-        }
-        myOutcome = g.result === 'draw' ? 'draw'
-          : (g.result === 'white') === (g.whiteUid === uid) ? 'win' : 'loss';
+    const oppSnap = oppSnapRaw && oppSnapRaw.exists ? oppSnapRaw : null;
+    if (oppSnap && oppSnap.data().isBot !== true) {
+      // Two people: trust the saved game, not the caller's claim.
+      const gameSnap = await tx.get(db().collection('games').doc(gameId));
+      const g = gameSnap.exists ? gameSnap.data() : null;
+      const players = g ? [g.whiteUid, g.blackUid] : [];
+      if (!g || !players.includes(uid) || !players.includes(opponentUid) ||
+          !['white', 'black', 'draw'].includes(g.result)) {
+        throw new HttpsError('failed-precondition', 'Game result not found');
       }
+      myOutcome = g.result === 'draw' ? 'draw'
+        : (g.result === 'white') === (g.whiteUid === uid) ? 'win' : 'loss';
     }
 
-    const oppOutcome = myOutcome === 'win' ? 'loss' : myOutcome === 'loss' ? 'win' : 'draw';
+    const mine = applyOutcome(meSnap.data(), myOutcome);
     tx.create(resultRef, {
       reporterUid: uid,
       opponentUid: oppSnap ? opponentUid : null,
       outcome: myOutcome,
       createdAt: FieldValue.serverTimestamp(),
     });
-    tx.update(meRef, { ...scoreUpdate(myOutcome), lastResultAt: Timestamp.fromMillis(nowMs) });
-    if (oppSnap) tx.update(oppSnap.ref, scoreUpdate(oppOutcome));
-    return { counted: true, outcome: myOutcome, finished: t.status === 'finished' };
+    tx.update(meRef, { ...mine, lastResultAt: Timestamp.fromMillis(nowMs) });
+    if (oppSnap) tx.update(oppRef, applyOutcome(oppSnap.data(), opposite(myOutcome)));
+    return {
+      counted: true,
+      outcome: myOutcome,
+      points: mine.score - (Number(meSnap.data().score) || 0),
+      onFire: mine.onFire,
+      finished: t.status === 'finished',
+    };
   });
 
   // A late result can change who won an arena that has already closed.
@@ -642,6 +724,6 @@ exports.reportArenaResult = onCall(async (request) => {
 
 // Exposed for unit tests.
 exports._internal = {
-  hourlyId, hourlySpec, pickBots, gameMinutes, parseTc, ensureHourlyArenas,
-  tickWaiting, tickActive, seedUserArena, activate, finish, computeWinner,
+  applyOutcome, slotId, slotSpec, liveSlots, desiredBots, gameMs, simulate,
+  activity, parseTc, SLOT_MS, LIVE_LEAD_MS, LIVE_DURATION_MIN, THEMES,
 };

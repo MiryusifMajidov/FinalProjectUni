@@ -15,7 +15,7 @@ import '../../../core/utils/text_case.dart';
 import 'arena_lobby_screen.dart' show ArenaStatusBadge;
 
 /// The arena's name in the player's language when the server supplied a
-/// translation key (hourly arenas), otherwise the name its creator typed.
+/// translation key (live arenas), otherwise the name its creator typed.
 String tournamentDisplayName(TournamentModel t) {
   final key = t.nameKey;
   if (key != null && key.isNotEmpty) {
@@ -23,6 +23,19 @@ String tournamentDisplayName(TournamentModel t) {
     if (translated != key) return translated;
   }
   return t.name;
+}
+
+/// "Blitz · 3+0" for chess (the speed the way chess.com groups it), the
+/// ruleset for checkers and domino.
+String arenaClockLabel(TournamentModel t) {
+  if (t.gameType != 'chess') return t.timeControlLabel;
+  final estimate = t.timeSeconds + 40 * t.incrementSeconds;
+  final kind = estimate < 180
+      ? 'bullet'
+      : estimate < 600
+          ? 'blitz'
+          : 'rapid';
+  return '${kind.tr()} · ${t.timeControlLabel}';
 }
 
 /// mm:ss under an hour, h:mm:ss above.
@@ -34,12 +47,8 @@ String formatCountdown(Duration d) {
   return h > 0 ? '$h:$m:$s' : '$m:$s';
 }
 
-// Filter tabs
-enum _ArenaFilter { all, waiting, live, finished }
-
-final _arenaFilterProvider = StateProvider((_) => _ArenaFilter.all);
-
-/// Live first, then upcoming (soonest first), then finished (newest first).
+/// Live first (the server's arenas before players' ones, then the one that
+/// started first), then upcoming (soonest first), then finished (newest).
 List<TournamentModel> sortArenas(Iterable<TournamentModel> list) {
   int rank(TournamentModel t) => switch (t.effectiveStatus) {
         TournamentStatus.active => 0,
@@ -50,14 +59,16 @@ List<TournamentModel> sortArenas(Iterable<TournamentModel> list) {
   sorted.sort((a, b) {
     final r = rank(a).compareTo(rank(b));
     if (r != 0) return r;
-    if (a.effectiveStatus == TournamentStatus.waiting) {
-      final sa = a.startsAt ?? a.createdAt;
-      final sb = b.startsAt ?? b.createdAt;
-      return sa.compareTo(sb);
+    switch (a.effectiveStatus) {
+      case TournamentStatus.waiting:
+        return (a.startsAt ?? a.createdAt).compareTo(b.startsAt ?? b.createdAt);
+      case TournamentStatus.active:
+        if (a.isSystem != b.isSystem) return a.isSystem ? -1 : 1;
+        return (a.startsAt ?? a.createdAt).compareTo(b.startsAt ?? b.createdAt);
+      case TournamentStatus.finished:
+        return (b.finishedAt ?? b.createdAt)
+            .compareTo(a.finishedAt ?? a.createdAt);
     }
-    // Hourly arenas before player arenas when both are live.
-    if (a.isSystem != b.isSystem) return a.isSystem ? -1 : 1;
-    return b.createdAt.compareTo(a.createdAt);
   });
   return sorted;
 }
@@ -67,25 +78,29 @@ class TournamentListScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final filter = ref.watch(_arenaFilterProvider);
     final activeGame = ref.watch(activeGameProvider);
     final hp = context.hPadding;
-    final async = ref.watch(tournamentsStreamProvider);
+    final openAsync = ref.watch(openArenasProvider);
+    final finishedAsync = ref.watch(finishedArenasProvider(activeGame.name));
 
-    final all = sortArenas(
-        (async.valueOrNull ?? const <TournamentModel>[])
-            .where((t) => t.gameType == activeGame.name));
-    final live = all.where((t) => t.isActive).length;
+    final open = sortArenas((openAsync.valueOrNull ?? const <TournamentModel>[])
+        .where((t) => t.gameType == activeGame.name));
+    final live = open.where((t) => t.isActive).toList();
+    final upcoming = open.where((t) => t.isWaiting).toList();
+    // Arenas past their end that the server has not closed yet (it sweeps
+    // once a minute) count as finished already.
+    final finished = sortArenas([
+      ...open.where((t) => t.isFinished),
+      ...(finishedAsync.valueOrNull ?? const <TournamentModel>[])
+          .where((t) => !t.cancelled),
+    ]).take(10).toList();
 
-    final tournaments = switch (filter) {
-      _ArenaFilter.all => all,
-      _ArenaFilter.waiting =>
-        all.where((t) => t.effectiveStatus == TournamentStatus.waiting).toList(),
-      _ArenaFilter.live =>
-        all.where((t) => t.effectiveStatus == TournamentStatus.active).toList(),
-      _ArenaFilter.finished =>
-        all.where((t) => t.effectiveStatus == TournamentStatus.finished).toList(),
-    };
+    final loading = openAsync.isLoading && !openAsync.hasValue;
+    final sections = <(String, List<TournamentModel>)>[
+      if (live.isNotEmpty) ('arena_section_live'.tr(), live),
+      if (upcoming.isNotEmpty) ('arena_section_upcoming'.tr(), upcoming),
+      if (finished.isNotEmpty) ('arena_section_finished'.tr(), finished),
+    ];
 
     return Scaffold(
       backgroundColor: AppColors.background,
@@ -113,13 +128,13 @@ class TournamentListScreen extends ConsumerWidget {
                           ),
                         ),
                         Text(
-                          live > 0
+                          live.isNotEmpty
                               ? 'arena_count_live'.tr(namedArgs: {
-                                  'count': '${all.length}',
-                                  'live': '$live',
+                                  'count': '${open.length}',
+                                  'live': '${live.length}',
                                 })
-                              : 'arena_count'.tr(
-                                  namedArgs: {'count': '${all.length}'}),
+                              : 'arena_count'
+                                  .tr(namedArgs: {'count': '${open.length}'}),
                           style: GoogleFonts.inter(
                             fontSize: 12,
                             color: AppColors.inkMute,
@@ -128,10 +143,10 @@ class TournamentListScreen extends ConsumerWidget {
                       ],
                     ),
                   ),
-                  // Game-accent + button
                   Semantics(
                     button: true,
                     label: 'create_arena'.tr(),
+                    excludeSemantics: true,
                     child: GestureDetector(
                       onTap: () => context.push('/home/tournaments/create'),
                       child: Container(
@@ -164,91 +179,82 @@ class TournamentListScreen extends ConsumerWidget {
 
             // ── Game switcher ──────────────────────────────────────────────
             Padding(
-              padding: EdgeInsets.fromLTRB(hp, 0, hp, 10),
+              padding: EdgeInsets.fromLTRB(hp, 0, hp, 6),
               child: const GameSwitch(),
-            ),
-
-            // ── Filter chips ────────────────────────────────────────────────
-            SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              padding: EdgeInsets.fromLTRB(hp, 0, hp, 12),
-              child: Row(
-                children: _ArenaFilter.values.map((f) {
-                  final selected = filter == f;
-                  final label = switch (f) {
-                    _ArenaFilter.all      => 'filter_all'.tr(),
-                    _ArenaFilter.waiting  => 'arena_status_waiting'.tr(),
-                    _ArenaFilter.live     => 'arena_status_live'.tr(),
-                    _ArenaFilter.finished => 'arena_status_finished'.tr(),
-                  };
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 6),
-                    child: GestureDetector(
-                      onTap: () =>
-                          ref.read(_arenaFilterProvider.notifier).state = f,
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                            horizontal: 14, vertical: 8),
-                        decoration: BoxDecoration(
-                          color: selected
-                              ? AppColors.cardElevated
-                              : Colors.transparent,
-                          borderRadius: BorderRadius.circular(100),
-                          border: Border.all(
-                            color: selected
-                                ? AppColors.borderStrong
-                                : AppColors.border,
-                            width: 1,
-                          ),
-                        ),
-                        child: Text(
-                          label,
-                          style: GoogleFonts.inter(
-                            fontSize: 12.5,
-                            fontWeight: FontWeight.w600,
-                            color: selected
-                                ? AppColors.ink
-                                : AppColors.inkMute,
-                          ),
-                        ),
-                      ),
-                    ),
-                  );
-                }).toList(),
-              ),
             ),
 
             // ── List ────────────────────────────────────────────────────────
             Expanded(
-              child: async.isLoading && !async.hasValue
+              child: loading
                   ? Center(
                       child:
                           CircularProgressIndicator(color: activeGame.accent),
                     )
-                  : tournaments.isEmpty
+                  : sections.isEmpty
                       ? _EmptyState(accent: activeGame.accent)
-                      : context.isTablet
-                          ? GridView.builder(
-                              padding: EdgeInsets.fromLTRB(hp, 0, hp, 24),
-                              gridDelegate:
-                                  const SliverGridDelegateWithFixedCrossAxisCount(
-                                crossAxisCount: 2,
-                                crossAxisSpacing: 12,
-                                mainAxisSpacing: 12,
-                                childAspectRatio: 1.8,
-                              ),
-                              itemCount: tournaments.length,
-                              itemBuilder: (_, i) =>
-                                  TournamentCard(tournament: tournaments[i]),
-                            )
-                          : ListView.builder(
-                              padding: EdgeInsets.fromLTRB(hp, 0, hp, 24),
-                              itemCount: tournaments.length,
-                              itemBuilder: (_, i) =>
-                                  TournamentCard(tournament: tournaments[i]),
-                            ),
+                      : _EverySecond(
+                          // One clock for every countdown in the list.
+                          builder: (_) => CustomScrollView(
+                            slivers: [
+                              for (final (title, items) in sections) ...[
+                                SliverToBoxAdapter(
+                                  child: _SectionTitle(
+                                      title: title, padding: hp),
+                                ),
+                                SliverPadding(
+                                  padding: EdgeInsets.symmetric(horizontal: hp),
+                                  sliver: context.isTablet
+                                      ? SliverGrid(
+                                          gridDelegate:
+                                              const SliverGridDelegateWithFixedCrossAxisCount(
+                                            crossAxisCount: 2,
+                                            crossAxisSpacing: 12,
+                                            mainAxisExtent: 128,
+                                          ),
+                                          delegate: SliverChildBuilderDelegate(
+                                            (_, i) => TournamentCard(
+                                                tournament: items[i]),
+                                            childCount: items.length,
+                                          ),
+                                        )
+                                      : SliverList(
+                                          delegate: SliverChildBuilderDelegate(
+                                            (_, i) => TournamentCard(
+                                                tournament: items[i]),
+                                            childCount: items.length,
+                                          ),
+                                        ),
+                                ),
+                              ],
+                              const SliverToBoxAdapter(
+                                  child: SizedBox(height: 24)),
+                            ],
+                          ),
+                        ),
             ),
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _SectionTitle extends StatelessWidget {
+  final String title;
+  final double padding;
+  const _SectionTitle({required this.title, required this.padding});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: EdgeInsets.fromLTRB(padding, 14, padding, 8),
+      child: Text(
+        title.toUpperCaseFor(context),
+        style: GoogleFonts.inter(
+          fontSize: 11,
+          fontWeight: FontWeight.w700,
+          color: AppColors.inkMute,
+          letterSpacing: 1.2,
         ),
       ),
     );
@@ -275,7 +281,9 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'no_arenas_yet'.tr(),
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 18,
+              style: GoogleFonts.inter(
+                fontWeight: FontWeight.w600,
+                fontSize: 18,
                 color: AppColors.inkDim,
               ),
             ),
@@ -321,194 +329,149 @@ class TournamentCard extends StatelessWidget {
     final t = tournament;
     final status = t.effectiveStatus;
     final accent = GameTypeX.fromString(t.gameType).accent;
-    final hasTiming = timingFor(t) != null;
+    final timing = timingFor(t);
+    final finished = status == TournamentStatus.finished;
+    // Live arenas have no real seat limit (like chess.com): just the count.
+    final players = t.isSystem
+        ? 'arena_players_n'.tr(namedArgs: {'count': '${t.participantCount}'})
+        : '${t.participantCount}/${t.maxPlayers}';
+    final subtitle = (t.description ?? '').isNotEmpty
+        ? t.description!
+        : t.isSystem
+            ? null
+            : 'arena_by'.tr(namedArgs: {'name': t.creatorUsername});
 
-    final fillPct =
-        t.maxPlayers > 0 ? t.participantCount / t.maxPlayers : 0.0;
-
-    return GestureDetector(
-      onTap: () => context.push('/home/tournaments/${t.id}'),
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 10),
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(
-            color: status == TournamentStatus.active
-                ? accent.withValues(alpha: 0.35)
-                : AppColors.border,
-            width: 1,
+    return Semantics(
+      button: true,
+      label: tournamentDisplayName(t),
+      child: GestureDetector(
+        onTap: () => context.push('/home/tournaments/${t.id}'),
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 10),
+          padding: const EdgeInsets.fromLTRB(14, 12, 14, 12),
+          decoration: BoxDecoration(
+            color: AppColors.card,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(
+              color: status == TournamentStatus.active
+                  ? accent.withValues(alpha: 0.35)
+                  : AppColors.border,
+            ),
           ),
-        ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Row(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Row(
-                        children: [
-                          if (t.isSystem) ...[
-                            Container(
-                              padding: const EdgeInsets.symmetric(
-                                  horizontal: 6, vertical: 2),
-                              decoration: BoxDecoration(
-                                color: accent.withValues(alpha: 0.14),
-                                borderRadius: BorderRadius.circular(5),
-                              ),
-                              child: Text(
-                                'arena_hourly_badge'.tr().toUpperCaseFor(context),
-                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
-                                  fontWeight: FontWeight.w700,
-                                  color: accent,
-                                  letterSpacing: 0.5,
-                                ),
-                              ),
-                            ),
-                            const SizedBox(width: 8),
-                          ],
-                          Expanded(
-                            child: Text(
-                              tournamentDisplayName(t),
-                              style: GoogleFonts.inter(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: AppColors.ink,
-                                letterSpacing: -0.3,
-                              ),
-                              maxLines: 1,
-                              overflow: TextOverflow.ellipsis,
-                            ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          tournamentDisplayName(t),
+                          style: GoogleFonts.inter(
+                            fontSize: 17,
+                            fontWeight: FontWeight.w700,
+                            color: AppColors.ink,
+                            letterSpacing: -0.3,
                           ),
-                        ],
-                      ),
-                      if ((t.description ?? '').isNotEmpty) ...[
+                          maxLines: 1,
+                          overflow: TextOverflow.ellipsis,
+                        ),
                         const SizedBox(height: 2),
                         Text(
-                          t.description!,
+                          subtitle == null
+                              ? arenaClockLabel(t)
+                              : '${arenaClockLabel(t)} · $subtitle',
                           style: GoogleFonts.inter(
+                            fontFeatures: const [FontFeature.tabularFigures()],
                             fontSize: 12,
-                            color: AppColors.inkMute,
+                            fontWeight: FontWeight.w600,
+                            color: finished ? AppColors.inkMute : accent,
                           ),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
                         ),
                       ],
-                    ],
+                    ),
                   ),
-                ),
-                const SizedBox(width: 10),
-                ArenaStatusBadge(status),
-              ],
-            ),
-
-            const SizedBox(height: 12),
-
-            Row(
-              children: [
-                _MetaChip(
-                  icon: PhosphorIcons.lightning(PhosphorIconsStyle.fill),
-                  label: t.timeControlLabel,
-                  iconColor: accent,
-                ),
-                const SizedBox(width: 12),
-                _MetaChip(
-                  icon: PhosphorIcons.timer(PhosphorIconsStyle.regular),
-                  label: 'arena_minutes_short'
-                      .tr(namedArgs: {'minutes': '${t.durationMinutes}'}),
-                ),
-                const Spacer(),
-                if (hasTiming && status == TournamentStatus.finished) ...[
-                  Icon(PhosphorIcons.trophy(PhosphorIconsStyle.fill),
-                      size: 12, color: AppColors.amber),
-                  const SizedBox(width: 4),
+                  const SizedBox(width: 10),
+                  ArenaStatusBadge(status),
                 ],
-                if (hasTiming)
-                  Flexible(
-                    child: _EverySecond(
-                      builder: (_) => Text(
-                        timingFor(t) ?? '',
+              ),
+              const SizedBox(height: 12),
+              Row(
+                children: [
+                  Icon(PhosphorIcons.users(PhosphorIconsStyle.regular),
+                      size: 13, color: AppColors.inkMute),
+                  const SizedBox(width: 4),
+                  Text(
+                    players,
+                    style: GoogleFonts.inter(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.inkDim,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Icon(PhosphorIcons.timer(PhosphorIconsStyle.regular),
+                      size: 13, color: AppColors.inkMute),
+                  const SizedBox(width: 4),
+                  Text(
+                    'arena_minutes_short'
+                        .tr(namedArgs: {'minutes': '${t.durationMinutes}'}),
+                    style: GoogleFonts.inter(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      fontSize: 11.5,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.inkDim,
+                    ),
+                  ),
+                  const Spacer(),
+                  if (timing != null) ...[
+                    if (finished) ...[
+                      Icon(PhosphorIcons.trophy(PhosphorIconsStyle.fill),
+                          size: 12, color: AppColors.amber),
+                      const SizedBox(width: 4),
+                    ],
+                    Flexible(
+                      child: Text(
+                        timing,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11.5,
+                        style: GoogleFonts.inter(
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                          fontSize: 11.5,
                           fontWeight: FontWeight.w600,
-                          color: status == TournamentStatus.finished
-                              ? AppColors.inkDim
-                              : accent,
+                          color: finished ? AppColors.inkDim : accent,
                         ),
                       ),
                     ),
-                  ),
-              ],
-            ),
-
-            const SizedBox(height: 10),
-
-            Row(
-              children: [
-                Expanded(
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(2),
-                    child: SizedBox(
-                      height: 3,
-                      child: LinearProgressIndicator(
-                        value: fillPct.clamp(0.0, 1.0),
-                        backgroundColor: AppColors.surface,
-                        valueColor: AlwaysStoppedAnimation<Color>(
-                          status == TournamentStatus.finished
-                              ? AppColors.inkMute
-                              : accent,
-                        ),
-                      ),
+                  ],
+                ],
+              ),
+              if (!t.isSystem && !finished) ...[
+                const SizedBox(height: 10),
+                ClipRRect(
+                  borderRadius: BorderRadius.circular(2),
+                  child: SizedBox(
+                    height: 3,
+                    child: LinearProgressIndicator(
+                      value: t.maxPlayers > 0
+                          ? (t.participantCount / t.maxPlayers).clamp(0.0, 1.0)
+                          : 0,
+                      backgroundColor: AppColors.surface,
+                      valueColor: AlwaysStoppedAnimation<Color>(accent),
                     ),
                   ),
                 ),
-                const SizedBox(width: 10),
-                Icon(PhosphorIcons.users(PhosphorIconsStyle.regular),
-                    size: 12, color: AppColors.inkMute),
-                const SizedBox(width: 4),
-                Text(
-                  '${t.participantCount}/${t.maxPlayers}',
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-                    fontWeight: FontWeight.w600,
-                    color: AppColors.inkDim,
-                  ),
-                ),
               ],
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _MetaChip extends StatelessWidget {
-  final IconData icon;
-  final String label;
-  final Color? iconColor;
-
-  const _MetaChip({required this.icon, required this.label, this.iconColor});
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: [
-        Icon(icon, size: 12, color: iconColor ?? AppColors.inkDim),
-        const SizedBox(width: 4),
-        Text(
-          label,
-          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-            fontWeight: FontWeight.w600,
-            color: AppColors.inkDim,
+            ],
           ),
         ),
-      ],
+      ),
     );
   }
 }
@@ -523,18 +486,18 @@ class _EverySecond extends StatefulWidget {
 }
 
 class _EverySecondState extends State<_EverySecond> {
-  late final Timer _timer =
-      Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+  Timer? _timer;
 
   @override
   void initState() {
     super.initState();
-    _timer; // start
+    _timer = Timer.periodic(
+        const Duration(seconds: 1), (_) => mounted ? setState(() {}) : null);
   }
 
   @override
   void dispose() {
-    _timer.cancel();
+    _timer?.cancel();
     super.dispose();
   }
 

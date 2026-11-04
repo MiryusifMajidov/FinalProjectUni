@@ -1,0 +1,11 @@
+Third-party data
+================
+
+guest.js looks up a guest's country from their IP address with the
+"GeoFeed + Whois + ASN" country database from ip-location-db
+(https://github.com/sapics/ip-location-db), npm package
+@ip-location-db/geo-whois-asn-country-mmdb.
+
+That data is licensed under the Creative Commons Attribution 4.0
+International License (https://creativecommons.org/licenses/by/4.0/)
+by the Number Resource Organization (NRO, https://www.nro.net/).

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/bot_badge.dart';
 
 // Building blocks shared by the chess, checkers and domino game pages, so the
 // three games look and behave like one app: the same top bar, the same player
@@ -153,6 +154,9 @@ class GamePlayerStrip extends StatelessWidget {
   final List<Widget> details;
   final Widget? trailing;
 
+  /// A computer player: shows the BOT badge after the name.
+  final bool isBot;
+
   const GamePlayerStrip({
     super.key,
     required this.name,
@@ -162,6 +166,7 @@ class GamePlayerStrip extends StatelessWidget {
     this.lightAvatar = false,
     this.details = const [],
     this.trailing,
+    this.isBot = false,
   });
 
   /// Plain text for [details], in the strip's small style.
@@ -219,16 +224,26 @@ class GamePlayerStrip extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               mainAxisSize: MainAxisSize.min,
               children: [
-                Text(
-                  name,
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                    letterSpacing: -0.2,
-                  ),
+                Row(
+                  children: [
+                    Flexible(
+                      child: Text(
+                        name,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: GoogleFonts.inter(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.ink,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                    ),
+                    if (isBot) ...[
+                      const SizedBox(width: 6),
+                      const BotBadge(fontSize: 9.5),
+                    ],
+                  ],
                 ),
                 if (details.isNotEmpty)
                   Row(

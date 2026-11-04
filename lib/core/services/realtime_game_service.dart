@@ -216,17 +216,23 @@ class RealtimeGameService {
   // Matchmaking queue
   DatabaseReference get _matchmakingRef => _db.ref('matchmaking');
 
+  /// Joins the matchmaking queue. The entry removes itself if the app loses
+  /// its connection (killed, offline), so nobody is matched with a player
+  /// who left long ago.
   Future<void> joinQueue(String uid, int rating, String timeControlLabel,
-          {String? gameType, String? username}) =>
-      _matchmakingRef.child(uid).set({
-        'uid': uid,
-        'rating': rating,
-        'timeControl': timeControlLabel,
-        'gameType': gameType ?? 'chess',
-        if (username != null) 'username': username,
-        'joinedAt': ServerValue.timestamp,
-        'gameId': null,
-      });
+      {String? gameType, String? username}) async {
+    final ref = _matchmakingRef.child(uid);
+    await ref.onDisconnect().remove();
+    await ref.set({
+      'uid': uid,
+      'rating': rating,
+      'timeControl': timeControlLabel,
+      'gameType': gameType ?? 'chess',
+      if (username != null) 'username': username,
+      'joinedAt': ServerValue.timestamp,
+      'gameId': null,
+    });
+  }
 
   Future<void> leaveQueue(String uid) =>
       _matchmakingRef.child(uid).remove();
@@ -438,19 +444,23 @@ class RealtimeGameService {
   DatabaseReference _arenaPairingRef(String tournamentId, String uid) =>
       _db.ref('arena_pairings/$tournamentId/$uid');
 
-  /// Add the player to the arena ready queue.
+  /// Add the player to the arena ready queue (removed by the server if the
+  /// app loses its connection, so nobody is paired with a vanished player).
   Future<void> joinArenaQueue({
     required String tournamentId,
     required String uid,
     required String username,
     required int rating,
-  }) =>
-      _arenaQueueRef(tournamentId).child(uid).set({
-        'uid': uid,
-        'username': username,
-        'rating': rating,
-        'joinedAt': ServerValue.timestamp,
-      });
+  }) async {
+    final ref = _arenaQueueRef(tournamentId).child(uid);
+    await ref.onDisconnect().remove();
+    await ref.set({
+      'uid': uid,
+      'username': username,
+      'rating': rating,
+      'joinedAt': ServerValue.timestamp,
+    });
+  }
 
   /// Remove the player from the arena ready queue.
   Future<void> leaveArenaQueue(String tournamentId, String uid) =>

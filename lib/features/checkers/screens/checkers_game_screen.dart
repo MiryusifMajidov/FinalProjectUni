@@ -22,6 +22,7 @@ import '../../../core/utils/text_case.dart';
 import '../../../core/widgets/game_icon.dart';
 import '../../game/widgets/game_chat_panel.dart';
 import '../../game/widgets/game_chrome.dart';
+import '../../tournaments/screens/arena_lobby_screen.dart' show returnToArena;
 import '../engine/checkers_engine.dart';
 import '../widgets/checkers_board_widget.dart';
 
@@ -65,7 +66,8 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
   late final String _myUsername;
   late final String _opponentUsername;
   late final bool _isRated;
-  late final bool _isFakeBotFallback;
+  /// A named bot (arena or matchmaking), shown with a BOT badge.
+  late final bool _namedBot;
   late String _gameId;
   late final CheckersVariant _variant;
   late final String? _arenaId;
@@ -117,10 +119,6 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
 
   bool get _flipped => !_playerIsWhite != _manualFlip;
 
-  /// A stand-in bot game that is shown as an online one (matchmaking found
-  /// nobody): no hints or take-backs there, exactly like online.
-  bool get _looksOnline => _isOnline || _isFakeBotFallback;
-
   @override
   void initState() {
     super.initState();
@@ -133,7 +131,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
     _myUsername = e['myUsername'] as String? ?? 'You';
     _opponentUsername = e['opponentUsername'] as String? ?? (_vsBot ? 'Bot' : 'Opponent');
     _isRated = e['isRated'] as bool? ?? false;
-    _isFakeBotFallback = e['isFakeBotFallback'] as bool? ?? false;
+    _namedBot = _vsBot && e['opponentIsBot'] == true;
     _arenaId = e['arenaId'] as String?;
     _arenaBotUid = e['arenaBotUid'] as String?;
     _campaignChapter = e['campaignChapter'] as int?;
@@ -672,7 +670,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
       int? myBefore;
       int? myChange;
       Map<String, dynamic>? newStatsMap;
-      if (_isRated || _isFakeBotFallback) {
+      if (_isRated && _isOnline) {
         final stats = freshUser.checkersStats;
         final oppRating = widget.extra['opponentRating'] as int? ?? stats.rating;
         final pointChange = GameType.checkers.calculatePointChange(
@@ -695,7 +693,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
 
       final game = GameModel(
         id: _gameId,
-        mode: _isFakeBotFallback ? GameMode.online : GameMode.values.firstWhere(
+        mode: GameMode.values.firstWhere(
           (m) => m.name == _mode,
           orElse: () => GameMode.bot,
         ),
@@ -709,7 +707,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
         createdAt: DateTime.now(),
         endedAt: DateTime.now(),
         campaignChapter: _campaignChapter,
-        isRated: _isRated || _isFakeBotFallback,
+        isRated: _isRated && _isOnline,
         whiteRatingBefore: _playerIsWhite ? myBefore : null,
         blackRatingBefore: _playerIsWhite ? null : myBefore,
         whiteRatingChange: _playerIsWhite ? myChange : null,
@@ -782,7 +780,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
         (side == CheckersPlayer.white ? 'white' : 'black').tr();
     final confirmed = await confirmResign(
       context,
-      online: _looksOnline,
+      online: _isOnline,
       message: _isLocalGame
           ? 'side_resigns_confirm'.tr(args: [sideName])
           : null,
@@ -894,7 +892,10 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.pop(ctx);
-                      if (_isOnline) {
+                      if (_arenaId != null) {
+                        // Arena: back to the standings and the next pairing.
+                        returnToArena(context, _arenaId);
+                      } else if (_isOnline) {
                         // Online: go back to matchmaking to find a new opponent.
                         Navigator.pop(context);
                       } else {
@@ -909,7 +910,13 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: Text((_isOnline ? 'new_game' : 'rematch').tr(),
+                    child: Text(
+                        (_arenaId != null
+                                ? 'back_to_arena'
+                                : _isOnline
+                                    ? 'new_game'
+                                    : 'rematch')
+                            .tr(),
                         style: AppTextStyles.buttonMedium
                             .copyWith(color: const Color(0xFF0A0A0B))),
                   ),
@@ -1005,6 +1012,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
                       children: [
                         _strip(
                           label: topLabel,
+                          isBot: _namedBot,
                           count: topCount,
                           whitePieces: topIsWhite,
                           active: topTurn,
@@ -1074,9 +1082,8 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
   String _modeLabel(BuildContext context) {
     String up(String key) => key.tr().toUpperCaseFor(context);
     if (_arenaId != null) return up('arena');
-    if (_looksOnline) {
-      final rated = _isRated || _isFakeBotFallback;
-      return '${up('online')} · ${rated ? up('rated_game') : up('game_casual')}';
+    if (_isOnline) {
+      return '${up('online')} · ${_isRated ? up('rated_game') : up('game_casual')}';
     }
     return switch (_mode) {
       'campaign' => up('campaign'),
@@ -1106,10 +1113,12 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
     required bool active,
     required bool showClock,
     required bool thinking,
+    bool isBot = false,
   }) {
     final timer = showClock && active;
     return GamePlayerStrip(
       name: label,
+      isBot: isBot,
       lightAvatar: whitePieces,
       isActive: active,
       token: GameIcon(
@@ -1147,7 +1156,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
       label: 'undo'.tr(),
       onTap: canUndo ? _handleUndo : null,
     );
-    if (_looksOnline) {
+    if (_isOnline) {
       return [
         GameAction(
           icon: PhosphorIcons.chatCircle(PhosphorIconsStyle.regular),

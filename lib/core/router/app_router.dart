@@ -411,6 +411,8 @@ final routerProvider = Provider<GoRouter>((ref) {
                   state.pageKey,
                   ArenaLobbyScreen(
                     tournamentId: state.pathParameters['tournamentId']!,
+                    // ?play=1: back from an arena game, pair me again.
+                    autoPlay: state.uri.queryParameters['play'] == '1',
                   ),
                 ),
               ),

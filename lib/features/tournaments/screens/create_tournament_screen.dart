@@ -8,9 +8,11 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/tournament_service.dart';
 import '../../../core/models/tournament_model.dart';
+import '../../../core/models/game_model.dart' show TimeControl;
 import '../../../core/models/game_type.dart';
 
 import '../../../core/utils/text_case.dart';
+import 'arena_lobby_screen.dart' show arenaRatingFor;
 class CreateTournamentScreen extends ConsumerStatefulWidget {
   const CreateTournamentScreen({super.key});
 
@@ -104,17 +106,18 @@ class _CreateTournamentScreenState
       final id =
           await ref.read(tournamentServiceProvider).createTournament(tournament);
 
-      // Auto-join the creator (per-game rating)
-      final rating = switch (_gameType) {
-        GameType.checkers => me.checkersStats.rating,
-        GameType.domino   => me.dominoStats.rating,
-        GameType.chess    => me.overallRating,
-      };
+      // Auto-join the creator (their rating for this game and speed).
+      final rating = arenaRatingFor(
+        me,
+        _gameType,
+        TimeControl(minutes: tc ~/ 60, incrementSeconds: inc),
+      );
       await ref.read(tournamentServiceProvider).joinTournament(
             tournamentId: id,
             uid: me.uid,
             username: me.username,
             rating: rating,
+            countryCode: me.countryCode,
           );
 
       if (mounted) context.replace('/home/tournaments/$id');

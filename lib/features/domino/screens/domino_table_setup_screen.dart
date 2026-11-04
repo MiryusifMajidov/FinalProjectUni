@@ -12,6 +12,7 @@ import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/realtime_game_service.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../../core/services/bot_pool.dart';
 
 /// 2v2 domino table with friends: the host picks up to three friends
 /// (partner sits across — seats 0&2 vs 1&3), empty chairs are filled with
@@ -121,8 +122,9 @@ class _DominoTableSetupScreenState
       final rtdb = ref.read(realtimeGameServiceProvider);
       final gameId = const Uuid().v4();
 
-      // Empty chairs get AI stand-ins with believable names.
-      final botNames = ([...GameType.domino.fakeBotNames]..shuffle());
+      // Empty chairs get bots (shown with a BOT badge at the table).
+      final botNames =
+          (await BotPool.some(3)).map((b) => b.username).toList();
       int botIdx = 0;
       Map<String, dynamic> seatFor(UserModel? u) => u != null
           ? {'uid': u.uid, 'name': u.username, 'bot': false}

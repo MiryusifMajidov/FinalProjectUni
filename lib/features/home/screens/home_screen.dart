@@ -2376,8 +2376,8 @@ class _CompleteProfileScreenState
 // ── Arena teaser ──────────────────────────────────────────────────────────────
 
 /// The live (or next) arena for the selected game, one tap from home. The
-/// hourly arenas only help if people notice them; they used to live two
-/// taps deep in the Arena tab.
+/// live arenas only help if people notice them; they used to live two taps
+/// deep in the Arena tab.
 class _ArenaTeaser extends ConsumerStatefulWidget {
   final GameType gameType;
   const _ArenaTeaser({required this.gameType});
@@ -2404,11 +2404,15 @@ class _ArenaTeaserState extends ConsumerState<_ArenaTeaser> {
 
   @override
   Widget build(BuildContext context) {
-    final arenas = ref.watch(tournamentsStreamProvider).valueOrNull ?? const [];
+    final arenas = ref.watch(openArenasProvider).valueOrNull ?? const [];
     final open = sortArenas(arenas.where((t) =>
         t.gameType == widget.gameType.name && !t.isFinished));
     if (open.isEmpty) return const SizedBox.shrink();
-    final t = open.first;
+    // The live server arena with the most time left is the best one to join.
+    final liveServer = open.where((t) => t.isActive && t.isSystem).toList()
+      ..sort((a, b) =>
+          (b.endsAt ?? DateTime(0)).compareTo(a.endsAt ?? DateTime(0)));
+    final t = liveServer.isNotEmpty ? liveServer.first : open.first;
     final accent = widget.gameType.accent;
     final now = DateTime.now();
     final live = t.isActive;
@@ -2481,7 +2485,7 @@ class _ArenaTeaserState extends ConsumerState<_ArenaTeaser> {
                       ),
                       const SizedBox(height: 3),
                       Text(
-                        '${t.timeControlLabel} · $timing',
+                        '${arenaClockLabel(t)} · $timing',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
                         style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,

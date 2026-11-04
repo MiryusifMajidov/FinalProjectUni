@@ -19,8 +19,10 @@ import '../../../core/services/tournament_service.dart';
 import '../../../core/utils/text_case.dart';
 import '../../game/widgets/game_chat_panel.dart';
 import '../../game/widgets/game_chrome.dart';
+import '../../tournaments/screens/arena_lobby_screen.dart' show returnToArena;
 import '../engine/domino_engine.dart';
 import '../widgets/domino_tile_widget.dart';
+import '../../../core/services/bot_pool.dart';
 
 /// Domino game screen — supports bot, local, online (2P & 4P) and campaign
 /// modes. Match play: rounds are dealt automatically until one side reaches
@@ -70,7 +72,8 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
   late final String _myUsername;
   late final String _opponentUsername;
   late final bool _isRated;
-  late final bool _isFakeBotFallback;
+  /// The bots have names (matchmaking or arena) and carry a BOT badge.
+  late final bool _namedBots;
   late String _gameId;
   late int _playerCount;
   late DominoConfig _config;
@@ -125,9 +128,10 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
 
   bool get _isLocalGame => !_vsBot && !_isOnline;
 
-  /// A stand-in bot game that is shown as an online one (matchmaking found
-  /// nobody): no hints there, exactly like online.
-  bool get _looksOnline => _isOnline || _isFakeBotFallback;
+  /// Seats played by a named bot (matchmaking, arena or a 4-player room's
+  /// stand-in): shown with a BOT badge next to the name.
+  bool _showBotBadge(int seat) =>
+      _botSeats.contains(seat) && (_isOnline || _namedBots);
 
   int get _myEntity => _engine?.entityOf(_mySeat) ?? 0;
 
@@ -164,7 +168,8 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
     _opponentUsername = e['opponentUsername'] as String? ??
         (_vsBot ? 'bot'.tr() : 'player_n'.tr(args: ['2']));
     _isRated = e['isRated'] as bool? ?? false;
-    _isFakeBotFallback = e['isFakeBotFallback'] as bool? ?? false;
+    _namedBots = _vsBot &&
+        (e['opponentIsBot'] == true || e['botNames'] is List);
     _arenaId = e['arenaId'] as String?;
     _arenaBotUid = e['arenaBotUid'] as String?;
     _campaignChapter = e['campaignChapter'] as int?;
@@ -214,12 +219,15 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
           : {};
       // Seat names for offline play.
       if (_playerCount == 4) {
-        final pool = [...GameType.domino.fakeBotNames]..shuffle();
-        final botNames = pool.take(3).toList();
+        // Matchmaking hands over the names of the bots it seated.
+        final botNames = [
+          for (final n in (e['botNames'] as List?) ?? const [])
+            if (n is String) n,
+        ];
         _seatNames = [
           _myUsername,
           for (int i = 0; i < 3; i++)
-            _isFakeBotFallback
+            i < botNames.length
                 ? botNames[i]
                 : (_vsBot
                     ? 'bot_n'.tr(args: ['${i + 1}'])
@@ -352,7 +360,8 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
     if (_starting || !_isTableHost) return;
     setState(() => _starting = true);
 
-    final pool = [...GameType.domino.fakeBotNames]..shuffle();
+    final pool = (await BotPool.some(3)).map((b) => b.username).toList();
+    if (!mounted) return;
     int botIdx = 0;
     final seats = <String, Map<String, dynamic>>{};
     for (int s = 0; s < 4; s++) {
@@ -1203,7 +1212,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
       int? myBefore;
       int? myChange;
       Map<String, dynamic>? newStatsMap;
-      if (_isRated || _isFakeBotFallback) {
+      if (_isRated && _isOnline) {
         final won = humanWon;
         final lost = !humanWon;
         final stats = freshUser.dominoStats;
@@ -1228,7 +1237,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
       final iAmWhiteSeat = _mySeat == 0;
       final game = GameModel(
         id: _gameId,
-        mode: _isFakeBotFallback ? GameMode.online : GameMode.values.firstWhere(
+        mode: GameMode.values.firstWhere(
           (m) => m.name == _mode,
           orElse: () => GameMode.bot,
         ),
@@ -1242,7 +1251,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
         createdAt: DateTime.now(),
         endedAt: DateTime.now(),
         campaignChapter: _campaignChapter,
-        isRated: _isRated || _isFakeBotFallback,
+        isRated: _isRated && _isOnline,
         whiteRatingBefore: iAmWhiteSeat ? myBefore : null,
         blackRatingBefore: iAmWhiteSeat ? null : myBefore,
         whiteRatingChange: iAmWhiteSeat ? myChange : null,
@@ -1307,7 +1316,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
   Future<void> _handleResign() async {
     final confirmed = await confirmResign(
       context,
-      online: _looksOnline,
+      online: _isOnline,
       message: _playerCount == 4 && _isOnline ? 'leave_table_confirm'.tr() : null,
     );
 
@@ -1411,7 +1420,10 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                   child: ElevatedButton(
                     onPressed: () {
                       Navigator.pop(ctx);
-                      if (_isOnline) {
+                      if (_arenaId != null) {
+                        // Arena: back to the standings and the next pairing.
+                        returnToArena(context, _arenaId);
+                      } else if (_isOnline) {
                         Navigator.pop(context); // back to matchmaking
                       } else {
                         _resetGame();
@@ -1425,7 +1437,13 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                       ),
                       padding: const EdgeInsets.symmetric(vertical: 14),
                     ),
-                    child: Text((_isOnline ? 'new_game' : 'rematch').tr(),
+                    child: Text(
+                        (_arenaId != null
+                                ? 'back_to_arena'
+                                : _isOnline
+                                    ? 'new_game'
+                                    : 'rematch')
+                            .tr(),
                         style: AppTextStyles.buttonMedium
                             .copyWith(color: const Color(0xFF0A0A0B))),
                   ),
@@ -1505,7 +1523,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                   status: s == _mySeat
                       ? 'you'.tr()
                       : _botSeats.contains(s)
-                          ? 'AI stand-in'
+                          ? 'bot'.tr()
                           : (_seatOnline[s] == true
                               ? 'seat_joined'.tr()
                               : 'seat_invited'.tr()),
@@ -1816,8 +1834,8 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
     String up(String key) => key.tr().toUpperCaseFor(context);
     final base = _arenaId != null
         ? up('arena')
-        : _looksOnline
-            ? '${up('online')} · ${_isRated || _isFakeBotFallback ? up('rated_game') : up('game_casual')}'
+        : _isOnline
+            ? '${up('online')} · ${_isRated ? up('rated_game') : up('game_casual')}'
             : switch (_mode) {
                 'campaign' => up('campaign'),
                 'bot' => '${up('vs_bot')} · ${up('game_casual')}',
@@ -1847,6 +1865,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
       name: name,
       photoUrl: photoUrl,
       isActive: active,
+      isBot: _showBotBadge(seat),
       token: Text(
         name.isEmpty ? '?' : name.characters.first.toUpperCase(),
         style: GoogleFonts.inter(
@@ -1890,7 +1909,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
       onTap: activeGame ? _handleResign : null,
       danger: true,
     );
-    if (_looksOnline) {
+    if (_isOnline) {
       return [
         GameAction(
           icon: PhosphorIcons.chatCircle(PhosphorIconsStyle.regular),

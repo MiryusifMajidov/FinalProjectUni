@@ -21,6 +21,7 @@ import '../providers/game_provider.dart';
 import '../widgets/chess_board_widget.dart';
 import '../widgets/captured_pieces.dart';
 import '../widgets/game_chrome.dart';
+import '../../tournaments/screens/arena_lobby_screen.dart' show returnToArena;
 import '../widgets/game_chat_panel.dart';
 
 import '../../../core/utils/text_case.dart';
@@ -67,7 +68,6 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       opponentUsername: extra['opponentUsername'] as String?,
       arenaId: extra['arenaId'] as String?,
       arenaBotUid: extra['arenaBotUid'] as String?,
-      isFakeBotFallback: extra['isFakeBotFallback'] as bool? ?? false,
       gameType: extra['gameType'] as String? ?? 'chess',
     );
 
@@ -121,7 +121,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               ),
             ),
             const SizedBox(height: 6),
-            if (_config.mode == GameMode.online || _isFakeBotFallback) ...[
+            if (_config.mode == GameMode.online) ...[
               _MoreSheetItem(
                 icon: PhosphorIcons.chatCircle(PhosphorIconsStyle.regular),
                 label: 'chat'.tr(),
@@ -287,7 +287,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       });
     }
 
-    final isOnlineActive = (_config.mode == GameMode.online || _isFakeBotFallback) &&
+    final isOnlineActive = _config.mode == GameMode.online &&
         gameState.status == GameStatus.playing;
 
     // Local pass-and-play: the board stays FIXED (white at the bottom) — it
@@ -367,7 +367,6 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                     timeControl: _config.timeControl,
                     moveCount: gameState.engine.moveHistory.length,
                     isRated: _config.isRated,
-                    isFakeBotFallback: _isFakeBotFallback,
                     isArena: _config.arenaId != null,
                     onBack: isOnlineActive
                         ? () => _confirmLeave(context, notifier)
@@ -390,6 +389,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                         _CalmPlayerStrip(
                           username: oppUsername,
                           photoUrl: oppPhotoUrl,
+                          isBot: _namedBot,
                           isWhite: !_config.playerIsWhite,
                           milliseconds: _config.playerIsWhite
                               ? gameState.blackMsLeft
@@ -500,13 +500,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
 
                   // ── Quiet action row ─────────────────────────────────────
                   _QuietActionRow(
-                    // Fake-bot fallback looks like online game: no Hint/Undo
-                    isOnline: _config.mode == GameMode.online || _isFakeBotFallback,
-                    isBot: !_isFakeBotFallback &&
-                           (_config.mode == GameMode.bot ||
-                            _config.mode == GameMode.campaign),
+                    isOnline: _config.mode == GameMode.online,
+                    isBot: _config.mode == GameMode.bot ||
+                        _config.mode == GameMode.campaign,
                     drawOfferSent: gameState.drawOfferSent,
-                    onChat: (_config.mode == GameMode.online || _isFakeBotFallback)
+                    onChat: _config.mode == GameMode.online
                         ? _openChat
                         : null,
                     onDraw: () => notifier.offerDraw(),
@@ -541,19 +539,16 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     return extra['myUsername'] as String? ?? 'You';
   }
 
-  bool get _isFakeBotFallback =>
-      (widget.extra ?? {})['isFakeBotFallback'] as bool? ?? false;
+  /// A named bot (arena or matchmaking): shown with its name and a BOT
+  /// badge rather than as "Bot (1200)".
+  bool get _namedBot =>
+      _config.mode == GameMode.bot &&
+      (widget.extra ?? {})['opponentIsBot'] == true &&
+      (widget.extra ?? {})['opponentUsername'] != null;
 
   String _opponentName() {
     final extra = widget.extra ?? {};
-    // Fake-bot fallback: show the generated human-looking username, not "Bot"
-    if (_isFakeBotFallback) {
-      return extra['opponentUsername'] as String? ?? 'Opponent';
-    }
-    // Arena bot games: the bot is a named player in the standings.
-    if (_config.arenaId != null && extra['opponentUsername'] != null) {
-      return extra['opponentUsername'] as String;
-    }
+    if (_namedBot) return extra['opponentUsername'] as String;
     if (_config.mode == GameMode.bot || _config.mode == GameMode.campaign) {
       return 'Bot (${_config.botRating ?? 1200})';
     }
@@ -579,7 +574,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   }
 
   Future<void> _confirmResign(BuildContext context, GameNotifier notifier) async {
-    final online = _config.mode == GameMode.online || _isFakeBotFallback;
+    final online = _config.mode == GameMode.online;
     if (await confirmResign(context, online: online)) notifier.resign();
   }
 
@@ -651,7 +646,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         onBackToArena: _config.arenaId != null
             ? () {
                 Navigator.pop(context);
-                context.go('/home/tournaments/${_config.arenaId}');
+                returnToArena(context, _config.arenaId!);
               }
             : null,
       ),
@@ -666,7 +661,6 @@ class _MinimalHeader extends StatelessWidget {
   final TimeControl timeControl;
   final int moveCount;
   final bool isRated;
-  final bool isFakeBotFallback;
   final bool isArena;
   final VoidCallback onBack;
   final VoidCallback onMore;
@@ -677,7 +671,6 @@ class _MinimalHeader extends StatelessWidget {
     required this.timeControl,
     required this.moveCount,
     required this.isRated,
-    this.isFakeBotFallback = false,
     this.isArena = false,
     required this.onBack,
     required this.onMore,
@@ -690,15 +683,13 @@ class _MinimalHeader extends StatelessWidget {
     final tc = timeControl.label.toUpperCase();
     final modeLabel = isArena
         ? '${up('arena')} · $tc'
-        : isFakeBotFallback
-            ? '$tc · ${up('rated_game')}'
-            : switch (gameMode) {
-                GameMode.online =>
-                  '$tc · ${isRated ? up('rated_game') : up('game_casual')}',
-                GameMode.bot => '${up('vs_bot')} · ${up('game_casual')}',
-                GameMode.campaign => up('campaign'),
-                GameMode.local => up('local_game'),
-              };
+        : switch (gameMode) {
+            GameMode.online =>
+              '$tc · ${isRated ? up('rated_game') : up('game_casual')}',
+            GameMode.bot => '${up('vs_bot')} · ${up('game_casual')}',
+            GameMode.campaign => up('campaign'),
+            GameMode.local => up('local_game'),
+          };
     final halfMove = (moveCount / 2).ceil();
     final subLabel = moveCount == 0
         ? 'game_opening'.tr()
@@ -776,6 +767,7 @@ class _CalmPlayerStrip extends StatelessWidget {
   final int? rating;
   final String? countryCode;
   final int materialAdvantage;
+  final bool isBot;
 
   /// Folder of the board's piece set, for the captured-piece icons.
   final String pieceSet;
@@ -791,6 +783,7 @@ class _CalmPlayerStrip extends StatelessWidget {
     this.rating,
     this.countryCode,
     this.materialAdvantage = 0,
+    this.isBot = false,
   });
 
   @override
@@ -810,6 +803,7 @@ class _CalmPlayerStrip extends StatelessWidget {
       photoUrl: photoUrl,
       lightAvatar: isWhite,
       isActive: isActive,
+      isBot: isBot,
       token: PieceIcon(
         'bK',
         size: 22,

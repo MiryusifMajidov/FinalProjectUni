@@ -145,30 +145,6 @@ extension GameTypeX on GameType {
   /// Domino match target scores.
   static const dominoTargets = [100, 150, 200];
 
-  /// Per-game fake bot names used in matchmaking bot fallback.
-  List<String> get fakeBotNames => switch (this) {
-    GameType.chess => const [
-      'NightRider88', 'CastleKing', 'BlitzMaster42', 'QueenSlayer',
-      'PawnStorm', 'KnightErrant', 'TacticalGuru', 'OpeningTheory',
-      'EndgamePro', 'SilentBishop', 'CheckmateAce', 'ForkMaster99',
-      'PinAndWin', 'Grandmaster_X', 'RookLifter', 'MiddleGame77',
-      'SicilianKing', 'CatoTheFish', 'IronDefense', 'TacticsWizard',
-    ],
-    GameType.checkers => const [
-      'JumpKing', 'DoubleJump', 'KingMeNow', 'DiagonalDash',
-      'CrownSeeker', 'MultiCapture', 'BackRowHero', 'CornerKing',
-      'CheckerChamp', 'DiscMaster', 'KingHunter', 'JumpStreak',
-      'CaptureQueen', 'BoardSweeper', 'RedDisc99', 'DiscSlider',
-      'CornerTrap', 'DoubleKing', 'RowRunner', 'JumpForce',
-    ],
-    GameType.domino => const [
-      'BoneyardKing', 'TileShark', 'DoubleSixer', 'PipCounter',
-      'DominoWiz', 'TileChain', 'BlockMaster', 'SpinnerKing',
-      'DrawPile', 'TableRunner', 'DotMatrix', 'BoneYard88',
-      'TileSnap', 'EndGame99', 'ChainLink', 'PipTracker',
-      'BlockDrop', 'TileMaster', 'DominoAce', 'SnapPlay',
-    ],
-  };
 
   /// Route path to the correct game screen for this game type.
   String gameRoute(String gameId) => switch (this) {

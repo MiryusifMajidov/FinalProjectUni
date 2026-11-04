@@ -32,20 +32,28 @@ class TournamentModel {
   final DateTime createdAt;
   final int participantCount;
 
-  /// Created by the server's hourly schedule rather than by a player.
+  /// One of the server's live arenas rather than a player's own.
   final bool isSystem;
 
-  /// Translation key for server-created arenas ("hourly_arena_blitz"), so the
-  /// name shows in the player's language. [name] is the English fallback.
+  /// Translation key for server-created arenas ("arena_theme_golden"), so
+  /// the name shows in the player's language. [name] is the English fallback.
   final String? nameKey;
 
-  /// When a waiting arena goes live (set by the server for hourly arenas and
-  /// for player-created arenas once bots have joined). Null = creator starts.
+  /// When a waiting arena goes live: the slot start for live arenas, two
+  /// minutes after creation for a player's arena (both set by the server).
   final DateTime? startsAt;
 
   /// Set by the server when the arena finishes.
   final String? winnerUid;
   final String? winnerUsername;
+  final DateTime? finishedAt;
+
+  /// Closed without being played (nobody stayed in a player's arena).
+  final bool cancelled;
+
+  /// Bots that are in the middle of a bot-vs-bot game right now, so a player
+  /// is paired with a free one.
+  final Set<String> busyBotUids;
 
   const TournamentModel({
     required this.id,
@@ -69,6 +77,9 @@ class TournamentModel {
     this.startsAt,
     this.winnerUid,
     this.winnerUsername,
+    this.finishedAt,
+    this.cancelled = false,
+    this.busyBotUids = const {},
   });
 
   bool get isActive => status == TournamentStatus.active && !hasEnded;
@@ -121,6 +132,15 @@ class TournamentModel {
       startsAt: (map['startsAt'] as Timestamp?)?.toDate(),
       winnerUid: map['winnerUid'] as String?,
       winnerUsername: map['winnerUsername'] as String?,
+      finishedAt: (map['finishedAt'] as Timestamp?)?.toDate(),
+      cancelled: (map['cancelled'] as bool?) ?? false,
+      busyBotUids: {
+        for (final g in (map['botGames'] as List?) ?? const [])
+          if (g is Map) ...[
+            if (g['a'] is String) g['a'] as String,
+            if (g['b'] is String) g['b'] as String,
+          ],
+      },
     );
   }
 
@@ -151,26 +171,40 @@ class ArenaParticipant {
   final String uid;
   final String username;
   final int rating;
+  final String? countryCode;
 
-  /// Server-run bot that fills the arena (uid starts with `bot_`).
+  /// Server-run bot that fills the arena (uid starts with `bot_`). Shown
+  /// with a BOT badge; bots have no profile and no world ranking.
   final bool isBot;
   final double score;
   final int wins;
   final int draws;
   final int losses;
   final int gamesPlayed;
+
+  /// Wins in a row. From two on the player is [onFire]: the next game scores
+  /// double (4 for a win, 2 for a draw) until they fail to win.
+  final int streak;
+  final bool onFire;
+
+  /// Points per game, oldest first: "w2", "w4", "d1", "d2", "l0".
+  final List<String> results;
   final DateTime joinedAt;
 
   const ArenaParticipant({
     required this.uid,
     required this.username,
     required this.rating,
+    this.countryCode,
     this.isBot = false,
     this.score = 0.0,
     this.wins = 0,
     this.draws = 0,
     this.losses = 0,
     this.gamesPlayed = 0,
+    this.streak = 0,
+    this.onFire = false,
+    this.results = const [],
     required this.joinedAt,
   });
 
@@ -179,6 +213,7 @@ class ArenaParticipant {
       uid: map['uid'] as String? ?? '',
       username: map['username'] as String? ?? '',
       rating: (map['rating'] as num?)?.toInt() ?? 1200,
+      countryCode: map['countryCode'] as String?,
       isBot: (map['isBot'] as bool?) ??
           ((map['uid'] as String?)?.startsWith('bot_') ?? false),
       score: (map['score'] as num?)?.toDouble() ?? 0.0,
@@ -186,19 +221,24 @@ class ArenaParticipant {
       draws: (map['draws'] as num?)?.toInt() ?? 0,
       losses: (map['losses'] as num?)?.toInt() ?? 0,
       gamesPlayed: (map['gamesPlayed'] as num?)?.toInt() ?? 0,
+      streak: (map['streak'] as num?)?.toInt() ?? 0,
+      onFire: (map['onFire'] as bool?) ?? false,
+      results: [
+        for (final r in (map['results'] as List?) ?? const [])
+          if (r is String) r,
+      ],
       joinedAt: (map['joinedAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
     );
   }
 
-  Map<String, dynamic> toMap() => {
-        'uid': uid,
-        'username': username,
-        'rating': rating,
-        'score': score,
-        'wins': wins,
-        'draws': draws,
-        'losses': losses,
-        'gamesPlayed': gamesPlayed,
-        'joinedAt': FieldValue.serverTimestamp(),
-      };
+  /// Arena order: points, then wins, then fewer games (a better rate).
+  static int compare(ArenaParticipant a, ArenaParticipant b) {
+    final byScore = b.score.compareTo(a.score);
+    if (byScore != 0) return byScore;
+    final byWins = b.wins.compareTo(a.wins);
+    if (byWins != 0) return byWins;
+    final byGames = a.gamesPlayed.compareTo(b.gamesPlayed);
+    if (byGames != 0) return byGames;
+    return b.rating.compareTo(a.rating);
+  }
 }

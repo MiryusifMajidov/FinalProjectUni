@@ -129,6 +129,8 @@ flutter:
     - assets/images/app_icon.png
     - assets/sounds/
     - assets/translations/
+    # The arena / matchmaking bots (same list as functions/bot_pool.json).
+    - assets/data/bots.json
     - assets/pieces/cburnett/
     - assets/pieces/merida/
     - assets/pieces/alpha/

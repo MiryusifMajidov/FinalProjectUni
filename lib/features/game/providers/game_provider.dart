@@ -186,7 +186,6 @@ class GameNotifier extends StateNotifier<GameState> {
   /// The arena bot (`bot_…`) a bot-mode arena game is played against, so the
   /// server can score that bot too. Null outside arenas / for online games.
   final String? arenaBotUid;
-  final bool isFakeBotFallback; // true → disguise bot game as online
   final String gameType; // 'chess', 'checkers', 'domino'
   final Ref _ref;
 
@@ -225,7 +224,6 @@ class GameNotifier extends StateNotifier<GameState> {
     this.opponentUsername,
     this.arenaId,
     this.arenaBotUid,
-    this.isFakeBotFallback = false,
     this.gameType = 'chess',
     required Ref ref,
   })  : _ref = ref,
@@ -338,7 +336,7 @@ class GameNotifier extends StateNotifier<GameState> {
 
       // Save first: the rating Cloud Function reads games/{gameId}.
       await _saveGame(result);
-      if ((isRated && mode == GameMode.online) || isFakeBotFallback) {
+      if (isRated && mode == GameMode.online) {
         await _processRatingChange(result);
       }
       if (arenaId != null) await _recordArenaResult(result);
@@ -1040,36 +1038,13 @@ class GameNotifier extends StateNotifier<GameState> {
   }
 
   void offerDraw() {
-    if (mode != GameMode.online && !isFakeBotFallback) return;
+    if (mode != GameMode.online) return;
     if (state.status != GameStatus.playing) return;
     if (state.drawOfferSent || state.drawOfferPending) return;
-
-    // Fake-bot: simulate opponent responding after a short delay
-    if (isFakeBotFallback) {
-      _fakeBotRespondToDraw();
-      return;
-    }
 
     final rtdb = _ref.read(realtimeGameServiceProvider);
     rtdb.sendDrawOffer(_gameId, _myUid ?? '');
     // drawOfferSent will be set true via the RTDB echo in _onDrawOfferUpdate
-  }
-
-  /// Simulates the fake opponent reacting to a draw offer.
-  /// Bot accepts ~25 % of the time after 1.5-3 s, otherwise silently declines.
-  void _fakeBotRespondToDraw() {
-    state = state.copyWith(drawOfferSent: true);
-    final delayMs = 1500 + Random().nextInt(1500);
-    Future.delayed(Duration(milliseconds: delayMs), () {
-      if (!mounted) return;
-      if (state.status != GameStatus.playing) return;
-      state = state.copyWith(drawOfferSent: false);
-      if (Random().nextDouble() < 0.25) {
-        // Bot accepts → end as draw
-        _endGame(GameResult.draw, GameStatus.draw);
-      }
-      // Otherwise decline silently — button re-enables automatically
-    });
   }
 
   Future<void> acceptDraw() async {
@@ -1131,9 +1106,8 @@ class GameNotifier extends StateNotifier<GameState> {
     // Firestore rules, which is why the ELO briefly flashed and reverted.)
     await _saveGame(result);
 
-    // Real rated online games AND fake-bot fallback both get full ELO processing.
-    // For fake-bot games opponentRating is already set to the generated fakeRating.
-    if ((isRated && mode == GameMode.online) || isFakeBotFallback) {
+    // Only rated games against people change ratings; bot games never do.
+    if (isRated && mode == GameMode.online) {
       try {
         await _processRatingChange(result);
       } catch (e) {
@@ -1379,8 +1353,7 @@ class GameNotifier extends StateNotifier<GameState> {
 
     final game = GameModel(
       id: _gameId,
-      // Fake-bot games are saved as online so they appear in online history
-      mode: isFakeBotFallback ? GameMode.online : mode,
+      mode: mode,
       gameType: gameType,
       whiteUid: whiteUid,
       blackUid: blackUid,
@@ -1455,7 +1428,6 @@ final gameProvider = StateNotifierProvider.autoDispose
     opponentUsername: config.opponentUsername,
     arenaId: config.arenaId,
     arenaBotUid: config.arenaBotUid,
-    isFakeBotFallback: config.isFakeBotFallback,
     gameType: config.gameType,
     ref: ref,
   );
@@ -1477,7 +1449,6 @@ class GameConfig {
   final String? opponentUsername;
   final String? arenaId;
   final String? arenaBotUid;
-  final bool isFakeBotFallback;
   final String gameType; // 'chess', 'checkers', 'domino'
 
   const GameConfig({
@@ -1495,7 +1466,6 @@ class GameConfig {
     this.opponentUsername,
     this.arenaId,
     this.arenaBotUid,
-    this.isFakeBotFallback = false,
     this.gameType = 'chess',
   });
 
@@ -1515,12 +1485,11 @@ class GameConfig {
       myUsername == other.myUsername &&
       opponentUsername == other.opponentUsername &&
       arenaId == other.arenaId &&
-      arenaBotUid == other.arenaBotUid &&
-      isFakeBotFallback == other.isFakeBotFallback;
+      arenaBotUid == other.arenaBotUid;
 
   @override
   int get hashCode => Object.hash(mode, timeControl, playerIsWhite, botRating,
       isRated, gameId, campaignChapter, opponentUid, opponentRating,
       opponentCountryCode, myUsername, opponentUsername, arenaId,
-      arenaBotUid, isFakeBotFallback);
+      arenaBotUid);
 }

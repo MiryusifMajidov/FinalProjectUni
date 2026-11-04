@@ -1,7 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
 import 'dart:math';
-import 'dart:ui' show PlatformDispatcher;
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:cloud_functions/cloud_functions.dart';
@@ -169,25 +168,12 @@ class AuthService {
 
   // ── Guest accounts (Firebase anonymous auth) ──────────────────────────────
 
-  static const _guestAdjectives = [
-    'Swift', 'Bold', 'Clever', 'Silent', 'Brave', 'Lucky', 'Quick', 'Wise',
-    'Sharp', 'Calm', 'Mighty', 'Royal', 'Iron', 'Golden', 'Shadow', 'Rapid',
-    'Noble', 'Fierce', 'Cosmic', 'Tactical',
-  ];
-  static const _guestPieces = [
-    'Knight', 'Bishop', 'Rook', 'Queen', 'King', 'Pawn',
-  ];
+  /// "user#" and a random number, for when the server cannot hand out the
+  /// next guest number (offline, or the function is not deployed yet).
+  String _fallbackGuestName() =>
+      'user#${10000 + Random.secure().nextInt(90000)}';
 
-  /// A random, valid username (letters + digits, at most 20 characters),
-  /// e.g. "SwiftKnight4821". Guests can rename themselves later like anyone.
-  String randomGuestUsername() {
-    final r = Random.secure();
-    final adjective = _guestAdjectives[r.nextInt(_guestAdjectives.length)];
-    final piece = _guestPieces[r.nextInt(_guestPieces.length)];
-    return '$adjective$piece${100 + r.nextInt(9900)}';
-  }
-
-  /// Signs in anonymously and creates a full profile with a random username.
+  /// Signs in anonymously and creates a full profile ("user#0001").
   ///
   /// The account works exactly like a registered one, but it only exists on
   /// this device until an e-mail, Google or Apple sign-in is linked to it:
@@ -199,17 +185,38 @@ class AuthService {
 
   /// Returns the profile of an anonymous user, creating it if it is missing
   /// (a first guest sign-in, or one that was interrupted half-way).
+  ///
+  /// The `setupGuestProfile` Cloud Function reserves the next guest name
+  /// ("user#0001", "user#0002", …) and works out the country from the IP
+  /// address. The phone's language says nothing about where someone is (an
+  /// English phone got a British flag), so when the server cannot tell, the
+  /// guest simply has no flag until they pick a country in Account.
   Future<UserModel> ensureGuestProfile(User firebaseUser) async {
     final existing = await _firestore.getUser(firebaseUser.uid);
     if (existing != null) return existing;
 
+    String? serverName;
+    String? country;
+    try {
+      final res = await FirebaseFunctions.instance
+          .httpsCallable('setupGuestProfile')
+          .call()
+          .timeout(const Duration(seconds: 10));
+      final data = Map<String, dynamic>.from(res.data as Map);
+      serverName = data['username'] as String?;
+      final code = (data['countryCode'] as String?)?.toUpperCase();
+      if (code != null && kCountries.any((c) => c.$1 == code)) country = code;
+    } catch (e) {
+      debugPrint('[Guest] setupGuestProfile unavailable: $e');
+    }
+
     for (var attempt = 0; attempt < 6; attempt++) {
       final user = UserModel(
         uid: firebaseUser.uid,
-        username: randomGuestUsername(),
+        username: (attempt == 0 ? serverName : null) ?? _fallbackGuestName(),
         email: '',
         avatarId: 'avatar_01',
-        countryCode: _deviceCountryCode(),
+        countryCode: country,
         createdAt: DateTime.now(),
         isGuest: true,
         checkersStats: const RatingStats(rating: 300),
@@ -225,19 +232,11 @@ class AuthService {
         );
         return user;
       } catch (e) {
-        // Random-name collision: roll again. Anything else is a real error.
+        // Name collision: roll again. Anything else is a real error.
         if (!e.toString().contains('Username already taken')) rethrow;
       }
     }
     throw Exception('guest-username-exhausted');
-  }
-
-  /// The device's region (e.g. "AZ" for az_AZ) when it is a country we list,
-  /// so a new guest starts with the right flag. Changeable in Account.
-  String? _deviceCountryCode() {
-    final code = PlatformDispatcher.instance.locale.countryCode?.toUpperCase();
-    if (code == null || code.isEmpty) return null;
-    return kCountries.any((c) => c.$1 == code) ? code : null;
   }
 
   String get _platformName => defaultTargetPlatform == TargetPlatform.android

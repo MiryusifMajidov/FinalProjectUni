@@ -14,12 +14,16 @@ initializeApp();
 
 const db = getFirestore();
 
-// ─── Arenas: hourly bot arenas, quick start, server-side scoring ────────────
+// ─── Arenas: live arenas with bots, player arenas, server-side scoring ───────
 // See arena.js. Exported one by one so the deploy only sees functions.
 const arena = require('./arena');
 exports.arenaTick         = arena.arenaTick;
 exports.onArenaCreated    = arena.onArenaCreated;
+exports.startArenaNow     = arena.startArenaNow;
 exports.reportArenaResult = arena.reportArenaResult;
+
+// ─── Guest accounts: "user#0001" names and the country from the IP ───────────
+exports.setupGuestProfile = require('./guest').setupGuestProfile;
 
 // ─── Guest accounts: deletion fallback ──────────────────────────────────────
 //
@@ -38,6 +42,7 @@ exports.deleteGuestAccount = onCall(async (request) => {
     throw new HttpsError('permission-denied', 'Only guest accounts');
   }
   await getAuth().deleteUser(uid);
+  await db.collection('guestNames').doc(uid).delete().catch(() => {});
   console.log(`[Guest] deleted anonymous account ${uid}`);
   return { deleted: true };
 });

@@ -1,5 +1,7 @@
+import 'package:chess_app/core/models/game_type.dart';
 import 'package:chess_app/core/models/tournament_model.dart';
 import 'package:chess_app/core/models/user_model.dart';
+import 'package:chess_app/core/services/bot_pool.dart';
 import 'package:chess_app/core/utils/email_validator.dart';
 import 'package:chess_app/features/tournaments/screens/tournament_list_screen.dart'
     show formatCountdown, sortArenas;
@@ -111,10 +113,77 @@ void main() {
       expect(ArenaParticipant.fromMap({'uid': 'bot_pawnstorm'}).isBot, isTrue);
       expect(ArenaParticipant.fromMap({'uid': 'abc'}).isBot, isFalse);
     });
+
+    test('reads streaks, per-game points and the bots that are busy', () {
+      final p = ArenaParticipant.fromMap({
+        'uid': 'u1',
+        'score': 8,
+        'streak': 2,
+        'onFire': true,
+        'results': ['w2', 'w2', 'w4', 7, null],
+        'countryCode': 'AZ',
+      });
+      expect(p.results, ['w2', 'w2', 'w4']);
+      expect(p.onFire, isTrue);
+      expect(p.countryCode, 'AZ');
+
+      final t = TournamentModel.fromMap('t', {
+        'status': 'active',
+        'cancelled': true,
+        'botGames': [
+          {'a': 'bot_0001', 'b': 'bot_0002', 'oa': 'win', 'at': 1},
+          'junk',
+        ],
+      });
+      expect(t.busyBotUids, {'bot_0001', 'bot_0002'});
+      expect(t.cancelled, isTrue);
+    });
+
+    test('standings: points, then wins, then fewer games', () {
+      ArenaParticipant p(String uid, double score, int wins, int games) =>
+          ArenaParticipant(
+            uid: uid,
+            username: uid,
+            rating: 1200,
+            score: score,
+            wins: wins,
+            gamesPlayed: games,
+            joinedAt: DateTime(2026),
+          );
+      final list = [
+        p('a', 6, 2, 4),
+        p('b', 8, 3, 5),
+        p('c', 6, 3, 4),
+        p('d', 6, 3, 3),
+      ]..sort(ArenaParticipant.compare);
+      expect(list.map((e) => e.uid), ['b', 'd', 'c', 'a']);
+    });
+  });
+
+  group('BotPool', () {
+    TestWidgetsFlutterBinding.ensureInitialized();
+
+    test('loads the 2000 bots shared with the server', () async {
+      final bots = await BotPool.load();
+      expect(bots.length, 2000);
+      expect(bots.first.uid, 'bot_0001');
+      expect(bots.last.uid, 'bot_2000');
+      expect(bots.map((b) => b.username.toLowerCase()).toSet().length, 2000);
+    });
+
+    test('picks a bot near the player\'s rating', () async {
+      for (var i = 0; i < 20; i++) {
+        final bot = await BotPool.near(GameType.chess, 1500);
+        expect((bot.chessRating - 1500).abs(), lessThanOrEqualTo(60));
+      }
+      final far = await BotPool.near(GameType.domino, 5000);
+      expect(far.dominoRating, greaterThan(600));
+      expect((await BotPool.some(3)).map((b) => b.uid).toSet().length, 3);
+    });
   });
 
   group('sortArenas', () {
-    test('live first (hourly before player arenas), then upcoming soonest first, then finished', () {
+    test('live first (server arenas before player arenas), then upcoming soonest first, then finished', () {
       final now = DateTime.now();
       final sorted = sortArenas([
         _arena('finished', status: TournamentStatus.finished),
@@ -124,13 +193,13 @@ void main() {
             endsAt: now.add(const Duration(minutes: 5)),
             createdAt: now),
         _arena('upcoming-soon', startsAt: now.add(const Duration(minutes: 2))),
-        _arena('live-hourly',
+        _arena('live-server',
             status: TournamentStatus.active,
             endsAt: now.add(const Duration(minutes: 20)),
             isSystem: true),
       ]).map((t) => t.id).toList();
       expect(sorted, [
-        'live-hourly',
+        'live-server',
         'live-player',
         'upcoming-soon',
         'upcoming-late',
