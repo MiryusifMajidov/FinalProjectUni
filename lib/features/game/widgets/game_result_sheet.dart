@@ -112,10 +112,9 @@ class GameResultSheet extends StatelessWidget {
               // Outcome title
               Text(
                 _outcomeLabel,
-                style: GoogleFonts.fraunces(
+                style: GoogleFonts.inter(
                   fontSize: 38,
-                  fontWeight: FontWeight.w500,
-                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w600,
                   color: _outcomeColor,
                   letterSpacing: -1,
                   height: 1,
@@ -152,8 +151,7 @@ class GameResultSheet extends StatelessWidget {
                       children: [
                         Text(
                           'rating'.tr().toUpperCaseFor(context),
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 9,
+                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                             color: _kInkDim,
                             fontWeight: FontWeight.w700,
                             letterSpacing: 0.4,
@@ -161,9 +159,9 @@ class GameResultSheet extends StatelessWidget {
                         ),
                         Text(
                           _fmt(currentRating),
-                          style: GoogleFonts.fraunces(
+                          style: GoogleFonts.inter(
                             fontSize: 16,
-                            fontWeight: FontWeight.w500,
+                            fontWeight: FontWeight.w600,
                             color: _kInk,
                           ),
                         ),
@@ -183,8 +181,7 @@ class GameResultSheet extends StatelessWidget {
                         ratingDelta >= 0
                             ? '+$ratingDelta'
                             : '$ratingDelta',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 12,
+                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
                           fontWeight: FontWeight.w700,
                           color:
                               ratingDelta >= 0 ? _kWin : _kLoss,

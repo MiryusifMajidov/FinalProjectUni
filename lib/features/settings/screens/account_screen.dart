@@ -81,10 +81,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'account'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -321,9 +320,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     return Center(
       child: Text(
         initial,
-        style: GoogleFonts.fraunces(
+        style: GoogleFonts.inter(
           fontSize: 36,
-          fontWeight: FontWeight.w600,
+          fontWeight: FontWeight.w700,
           color: _kAmber,
         ),
       ),
@@ -582,10 +581,9 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   const SizedBox(height: 14),
                   Text(
                     'delete_account_confirm'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -802,10 +800,9 @@ class _EditSheetState extends State<_EditSheet> {
           const SizedBox(height: 20),
           Text(
             widget.title,
-            style: GoogleFonts.fraunces(
+            style: GoogleFonts.inter(
               fontSize: 18,
-              fontWeight: FontWeight.w600,
-              fontStyle: FontStyle.italic,
+              fontWeight: FontWeight.w700,
               color: _kInk,
             ),
           ),
@@ -970,15 +967,14 @@ class _CountrySheetState extends ConsumerState<_CountrySheet> {
           ),
           const SizedBox(height: 12),
           Text('change_country'.tr(),
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.inter(
                   fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w700,
                   color: _kInk)),
           const SizedBox(height: 4),
           // No country
           ListTile(
-            leading: const Text('🏳️', style: TextStyle(fontSize: 22)),
+            leading: Icon(PhosphorIcons.prohibit(PhosphorIconsStyle.regular), size: 20, color: AppColors.inkMute),
             title: Text('no_flag'.tr(),
                 style: GoogleFonts.inter(fontSize: 14, color: _kInk)),
             trailing: _selected == null

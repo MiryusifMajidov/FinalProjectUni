@@ -1247,8 +1247,7 @@ class _MessageBubble extends StatelessWidget {
                           children: [
                             Text(
                               DateFormat('HH:mm').format(message.createdAt),
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 9,
+                              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                                 color: isMe
                                     ? _kBg.withValues(alpha: 0.6)
                                     : _kInkMute,

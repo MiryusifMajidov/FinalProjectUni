@@ -103,10 +103,9 @@ class _InGameChatSheetState extends State<InGameChatSheet> {
                 Expanded(
                   child: Text(
                     'Chat',
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                       letterSpacing: -0.2,
                     ),

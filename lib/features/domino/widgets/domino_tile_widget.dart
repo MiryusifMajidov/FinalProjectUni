@@ -493,8 +493,7 @@ class DominoSnakeBoard extends StatelessWidget {
                   ? Center(
                       child: Text(
                         '$endValue',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 16,
+                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: _accent,
                         ),

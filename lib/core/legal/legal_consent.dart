@@ -60,10 +60,9 @@ void showLegalDocSheet(
                 const SizedBox(height: 12),
                 Text(
                   title,
-                  style: GoogleFonts.fraunces(
+                  style: GoogleFonts.inter(
                     fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w700,
                     color: _kInk,
                   ),
                 ),

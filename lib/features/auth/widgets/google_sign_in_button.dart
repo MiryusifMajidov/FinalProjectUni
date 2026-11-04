@@ -19,6 +19,17 @@ const _googleLogoSvg = '''
 </svg>
 ''';
 
+/// Google's four-colour "G" — the mark Google's branding rules ask for on
+/// any "Continue with Google" button.
+class GoogleLogo extends StatelessWidget {
+  final double size;
+  const GoogleLogo({super.key, this.size = 20});
+
+  @override
+  Widget build(BuildContext context) =>
+      SvgPicture.string(_googleLogoSvg, width: size, height: size);
+}
+
 class GoogleSignInButton extends ConsumerStatefulWidget {
   final VoidCallback onSuccess;
   const GoogleSignInButton({super.key, required this.onSuccess});
@@ -129,11 +140,7 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
-                  SvgPicture.string(
-                    _googleLogoSvg,
-                    width: 20,
-                    height: 20,
-                  ),
+                  const GoogleLogo(),
                   const SizedBox(width: 12),
                   Text(
                     'continue_with_google'.tr(),

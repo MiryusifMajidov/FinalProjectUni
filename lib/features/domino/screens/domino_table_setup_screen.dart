@@ -235,9 +235,9 @@ class _DominoTableSetupScreenState
                   const SizedBox(width: 14),
                   Text(
                     '2v2 Table',
-                    style: GoogleFonts.fraunces(
-                      fontSize: 22, fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic, color: AppColors.ink,
+                    style: GoogleFonts.inter(
+                      fontSize: 22, fontWeight: FontWeight.w700,
+                      color: AppColors.ink,
                     ),
                   ),
                 ],
@@ -546,8 +546,7 @@ class _SeatCard extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9, fontWeight: FontWeight.w600,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w600,
                     color: accent.withValues(alpha: 0.9),
                     letterSpacing: 0.8,
                   ),

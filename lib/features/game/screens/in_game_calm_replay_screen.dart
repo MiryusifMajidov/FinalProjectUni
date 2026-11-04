@@ -191,10 +191,9 @@ class _InGameCalmReplayScreenState
                     child: Center(
                       child: Text(
                         'replay'.tr(),
-                        style: GoogleFonts.fraunces(
+                        style: GoogleFonts.inter(
                           fontSize: 16,
-                          fontWeight: FontWeight.w500,
-                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w600,
                           color: _kInk,
                           letterSpacing: -0.2,
                         ),
@@ -224,8 +223,7 @@ class _InGameCalmReplayScreenState
                 children: [
                   Text(
                     '${_timeAgo(game.createdAt).toUpperCase()} · ${game.timeControl.minutes} MIN',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9,
+                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                       color: _kInkMute,
                       fontWeight: FontWeight.w700,
                       letterSpacing: 1.2,
@@ -234,10 +232,8 @@ class _InGameCalmReplayScreenState
                   const SizedBox(height: 4),
                   Text.rich(
                     TextSpan(
-                      style: GoogleFonts.fraunces(
-                        fontSize: 18,
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 18,
                         color: _kInk,
-                        fontStyle: FontStyle.italic,
                       ),
                       children: [
                         TextSpan(text: whiteName),
@@ -274,8 +270,7 @@ class _InGameCalmReplayScreenState
                         const SizedBox(width: 5),
                         Text(
                           _resultLabel(result),
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
+                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                             fontWeight: FontWeight.w700,
                             color: _resultColor(result),
                             letterSpacing: 0.4,
@@ -344,8 +339,7 @@ class _InGameCalmReplayScreenState
                   children: [
                     Text(
                       'MOVE ${((currentHalf + 1) / 2).ceil()} OF ${(totalHalf / 2).ceil()}',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                         color: _kInkMute,
                         fontWeight: FontWeight.w700,
                         letterSpacing: 0.6,
@@ -354,10 +348,9 @@ class _InGameCalmReplayScreenState
                     const SizedBox(height: 4),
                     Text.rich(
                       TextSpan(
-                        style: GoogleFonts.fraunces(
+                        style: GoogleFonts.inter(
                           fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w700,
                         ),
                         children: [
                           TextSpan(
@@ -379,14 +372,16 @@ class _InGameCalmReplayScreenState
                 mainAxisAlignment: MainAxisAlignment.center,
                 children: [
                   _NavBtn(
-                    child: const Text('⏮',
-                        style: TextStyle(fontSize: 14, color: _kInkDim)),
+                    child: Icon(
+                        PhosphorIcons.skipBack(PhosphorIconsStyle.fill),
+                        size: 15, color: _kInkDim),
                     onTap: () => _goTo(0),
                   ),
                   const SizedBox(width: 8),
                   _NavBtn(
-                    child: const Text('◀',
-                        style: TextStyle(fontSize: 14, color: _kInkDim)),
+                    child: Icon(
+                        PhosphorIcons.caretLeft(PhosphorIconsStyle.bold),
+                        size: 15, color: _kInkDim),
                     onTap: () => _goTo(_index - 1),
                   ),
                   const SizedBox(width: 12),
@@ -406,27 +401,27 @@ class _InGameCalmReplayScreenState
                           ),
                         ],
                       ),
-                      child: const Center(
-                        child: Text(
-                          '▶',
-                          style: TextStyle(
-                            fontSize: 18,
-                            color: Color(0xFF1A1205),
-                          ),
+                      child: Center(
+                        child: Icon(
+                          PhosphorIcons.play(PhosphorIconsStyle.fill),
+                          size: 20,
+                          color: const Color(0xFF1A1205),
                         ),
                       ),
                     ),
                   ),
                   const SizedBox(width: 12),
                   _NavBtn(
-                    child: const Text('▶',
-                        style: TextStyle(fontSize: 14, color: _kInkDim)),
+                    child: Icon(
+                        PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+                        size: 15, color: _kInkDim),
                     onTap: () => _goTo(_index + 1),
                   ),
                   const SizedBox(width: 8),
                   _NavBtn(
-                    child: const Text('⏭',
-                        style: TextStyle(fontSize: 14, color: _kInkDim)),
+                    child: Icon(
+                        PhosphorIcons.skipForward(PhosphorIconsStyle.fill),
+                        size: 15, color: _kInkDim),
                     onTap: () => _goTo(_engines.length - 1),
                   ),
                 ],
@@ -447,8 +442,7 @@ class _InGameCalmReplayScreenState
                         // Move number
                         Text(
                           '${fullMove + 1}.',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
+                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                             color: _kInkMute,
                             fontWeight: FontWeight.w600,
                           ),
@@ -511,17 +505,16 @@ class _AccuracyBar extends StatelessWidget {
             children: [
               Text(
                 accuracy.toStringAsFixed(1),
-                style: GoogleFonts.fraunces(
+                style: GoogleFonts.inter(
                   fontSize: 22,
-                  fontWeight: FontWeight.w600,
+                  fontWeight: FontWeight.w700,
                   color: color,
                   letterSpacing: -0.4,
                 ),
               ),
               Text(
                 '%',
-                style: GoogleFonts.fraunces(
-                  fontSize: 13,
+                style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13,
                   color: color,
                 ),
               ),
@@ -557,7 +550,6 @@ class _AccuracyBar extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 10,
               color: _kInkMute,
-              fontStyle: FontStyle.italic,
             ),
           ),
         ],
@@ -602,8 +594,7 @@ class _MoveChip extends StatelessWidget {
         ),
         child: Text(
           text,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 11,
+          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
             color: col,
           ),

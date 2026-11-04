@@ -142,10 +142,9 @@ class _HelpFeedbackScreenState extends ConsumerState<HelpFeedbackScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'help_feedback'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -183,9 +182,9 @@ class _HelpFeedbackScreenState extends ConsumerState<HelpFeedbackScreen> {
             const SizedBox(height: 20),
             Text(
               'feedback_sent'.tr(),
-              style: GoogleFonts.fraunces(
-                fontSize: 24, fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic, color: _kInk,
+              style: GoogleFonts.inter(
+                fontSize: 24, fontWeight: FontWeight.w700,
+                color: _kInk,
               ),
             ),
             const SizedBox(height: 10),

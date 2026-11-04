@@ -68,10 +68,9 @@ class BlockedUsersScreen extends ConsumerWidget {
                   const SizedBox(width: 14),
                   Text(
                     'block_list'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),

@@ -9,12 +9,12 @@ enum GameType {
   domino,
 }
 
-/// Visual identity for each game type — accent colour, glyph, gradient, labels.
+/// Visual identity for each game type — accent colour, gradient, labels.
+/// (Icons are drawn by GameIcon; the old Unicode glyphs ♞ ⛀ 🁫 are gone.)
 /// Mirrors the GAMES constant from the design system (screens-8.jsx).
 class GameIdentity {
   final GameType type;
   final String name;
-  final String glyph;
   final Color accent;
   final Color accentSoft;  // 14 % opacity variant
   final List<Color> gradientColors;
@@ -24,7 +24,6 @@ class GameIdentity {
   const GameIdentity({
     required this.type,
     required this.name,
-    required this.glyph,
     required this.accent,
     required this.accentSoft,
     required this.gradientColors,
@@ -38,7 +37,6 @@ const Map<GameType, GameIdentity> kGameIdentities = {
   GameType.chess: GameIdentity(
     type: GameType.chess,
     name: 'Chess',
-    glyph: '♞', // ♞
     accent: AppColors.amber,                   // #E8B960
     accentSoft: Color(0x24E8B960),
     gradientColors: [Color(0xFF1f1709), Color(0xFF3d2410)],
@@ -48,7 +46,6 @@ const Map<GameType, GameIdentity> kGameIdentities = {
   GameType.checkers: GameIdentity(
     type: GameType.checkers,
     name: 'Checkers',
-    glyph: '⛀', // ⛀
     accent: Color(0xFF6FB4E0),                 // #6FB4E0
     accentSoft: Color(0x246FB4E0),
     gradientColors: [Color(0xFF0a1620), Color(0xFF102a3d)],
@@ -58,7 +55,6 @@ const Map<GameType, GameIdentity> kGameIdentities = {
   GameType.domino: GameIdentity(
     type: GameType.domino,
     name: 'Domino',
-    glyph: '🁫', // domino tile emoji fallback
     accent: Color(0xFF5FD4A3),                 // #5FD4A3
     accentSoft: Color(0x245FD4A3),
     gradientColors: [Color(0xFF0a1f16), Color(0xFF0f3329)],
@@ -73,7 +69,6 @@ extension GameTypeX on GameType {
   String get label => identity.name;
   Color get accent => identity.accent;
   Color get accentSoft => identity.accentSoft;
-  String get glyph => identity.glyph;
 
   /// Whether this game uses a point system (300 start, min 100)
   /// instead of chess-style ELO (1200 start).
@@ -173,13 +168,6 @@ extension GameTypeX on GameType {
       'TileSnap', 'EndGame99', 'ChainLink', 'PipTracker',
       'BlockDrop', 'TileMaster', 'DominoAce', 'SnapPlay',
     ],
-  };
-
-  /// Per-game searching orb emoji.
-  String get searchEmoji => switch (this) {
-    GameType.chess    => '♟',
-    GameType.checkers => '⛀',
-    GameType.domino   => '🁫',
   };
 
   /// Route path to the correct game screen for this game type.

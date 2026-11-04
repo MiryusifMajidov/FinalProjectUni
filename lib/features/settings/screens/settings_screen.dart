@@ -262,10 +262,9 @@ class SettingsScreen extends ConsumerWidget {
                   const SizedBox(width: 14),
                   Text(
                     'settings'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -425,8 +424,7 @@ class SettingsScreen extends ConsumerWidget {
             child: Center(
               child: Text(
                 'CHECKMATE · LUDODO',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                   color: _kInkFaint,
                   letterSpacing: 0.5,
                 ),
@@ -540,10 +538,9 @@ class _AccountActionsSheet extends ConsumerWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
               'Account',
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.inter(
                 fontSize: 18,
-                fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w700,
                 color: _kInk,
               ),
             ),
@@ -669,10 +666,9 @@ class _PrivacySheet extends StatelessWidget {
             padding: const EdgeInsets.symmetric(horizontal: 20),
             child: Text(
               'Privacy',
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.inter(
                 fontSize: 18,
-                fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w700,
                 color: _kInk,
               ),
             ),
@@ -757,10 +753,9 @@ class _UserCard extends StatelessWidget {
               child: Center(
                 child: Text(
                   initial,
-                  style: GoogleFonts.fraunces(
+                  style: GoogleFonts.inter(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    fontStyle: FontStyle.italic,
                     color: const Color(0xFF1A1205),
                   ),
                 ),
@@ -774,10 +769,9 @@ class _UserCard extends StatelessWidget {
                 children: [
                   Text(
                     user.username,
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 18,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -1401,13 +1395,13 @@ class _ChangeCountrySheetState extends ConsumerState<_ChangeCountrySheet> {
         Text('change_country'.tr(), style: AppTextStyles.titleMedium),
         const SizedBox(height: 4),
         ListTile(
-          leading: const Text('🏳️', style: TextStyle(fontSize: 24)),
+          leading: Icon(PhosphorIcons.prohibit(PhosphorIconsStyle.regular), size: 22, color: AppColors.inkMute),
           title: Text('no_flag'.tr(), style: AppTextStyles.bodyMedium),
           trailing: _selected == null ? const Icon(Icons.check_rounded, color: AppColors.primary, size: 20) : null,
           onTap: () => _save(null),
         ),
         ListTile(
-          leading: const Text('🌍', style: TextStyle(fontSize: 24)),
+          leading: Icon(PhosphorIcons.globeHemisphereWest(PhosphorIconsStyle.regular), size: 22, color: AppColors.inkDim),
           title: Text('international'.tr(), style: AppTextStyles.bodyMedium),
           trailing: _selected == 'XX' ? const Icon(Icons.check_rounded, color: AppColors.primary, size: 20) : null,
           onTap: () => _save('XX'),
@@ -1494,10 +1488,9 @@ class _LanguageTile extends StatelessWidget {
               alignment: Alignment.centerLeft,
               child: Text(
                 'language'.tr(),
-                style: GoogleFonts.fraunces(
+                style: GoogleFonts.inter(
                   fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w700,
                   color: _kInk,
                 ),
               ),

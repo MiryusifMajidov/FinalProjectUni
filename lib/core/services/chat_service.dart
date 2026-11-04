@@ -7,7 +7,7 @@ class ChatService {
   final FirebaseFirestore _db = FirebaseFirestore.instance;
 
   /// Shown in place of a deleted message's text — UI-neutral marker.
-  static const String deletedMarker = '🗑 This message was deleted';
+  static const String deletedMarker = 'This message was deleted';
 
   /// Maximum allowed message length in characters.
   static const int maxMessageLength = 2000;

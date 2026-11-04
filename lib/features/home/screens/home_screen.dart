@@ -33,6 +33,7 @@ import '../../../core/constants/countries.dart';
 import '../../../core/models/game_type.dart';
 import '../../../core/widgets/game_switch.dart';
 import '../../../core/utils/text_case.dart';
+import '../../../core/widgets/app_logo.dart';
 // Bot setup screens navigated via GoRouter (activeGame.botSetupRoute)
 
 // ── Global rank provider ───────────────────────────────────────────────────────
@@ -524,28 +525,7 @@ class _SideNav extends StatelessWidget {
           children: [
             const SizedBox(height: 16),
             // Logo
-            Container(
-              width: 40,
-              height: 40,
-              decoration: BoxDecoration(
-                gradient: const LinearGradient(
-                  begin: Alignment.topLeft,
-                  end: Alignment.bottomRight,
-                  colors: [AppColors.amber, AppColors.amberDeep],
-                ),
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Text(
-                  '♞',
-                  style: GoogleFonts.fraunces(
-                    fontSize: 22,
-                    color: const Color(0xFF1a1205),
-                    height: 1.0,
-                  ),
-                ),
-              ),
-            ),
+            const AppLogo(size: 40),
             const SizedBox(height: 24),
             ...items.asMap().entries.map((e) {
               final i = e.key;
@@ -711,7 +691,7 @@ class _PhotoOnboardingSheetState extends ConsumerState<_PhotoOnboardingSheet>
                       child: Center(
                         child: Text(
                           initial,
-                          style: GoogleFonts.fraunces(
+                          style: GoogleFonts.inter(
                             fontSize: 44,
                             fontWeight: FontWeight.w700,
                             color: const Color(0xFF0A0A0B),
@@ -899,10 +879,9 @@ class _HomeContent extends ConsumerWidget {
                   delegate: SliverChildListDelegate([
                     Text(
                       'recent_games'.tr(),
-                      style: GoogleFonts.fraunces(
+                      style: GoogleFonts.inter(
                         fontSize: 22,
-                        fontWeight: FontWeight.w500,
-                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w600,
                         color: AppColors.ink,
                         letterSpacing: -0.5,
                       ),
@@ -947,10 +926,9 @@ class _HomeContent extends ConsumerWidget {
               const SizedBox(height: 28),
               Text(
                 'recent_games'.tr(),
-                style: GoogleFonts.fraunces(
+                style: GoogleFonts.inter(
                   fontSize: 20,
-                  fontWeight: FontWeight.w500,
-                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.ink,
                   letterSpacing: -0.5,
                 ),
@@ -981,28 +959,7 @@ class _HomeContent extends ConsumerWidget {
         child: Row(
           children: [
             if (showLogo) ...[
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  gradient: const LinearGradient(
-                    begin: Alignment.topLeft,
-                    end: Alignment.bottomRight,
-                    colors: [AppColors.amber, AppColors.amberDeep],
-                  ),
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Center(
-                  child: Text(
-                    '♞',
-                    style: GoogleFonts.fraunces(
-                      fontSize: 20,
-                      color: const Color(0xFF1a1205),
-                      height: 1.0,
-                    ),
-                  ),
-                ),
-              ),
+              const AppLogo(size: 36),
             ],
             const Spacer(),
             _NavButton(
@@ -1044,10 +1001,9 @@ class _HomeContent extends ConsumerWidget {
         const SizedBox(height: 4),
         Text(
           user.username,
-          style: GoogleFonts.fraunces(
+          style: GoogleFonts.inter(
             fontSize: isTablet ? 38 : 34,
-            fontWeight: FontWeight.w500,
-            fontStyle: FontStyle.italic,
+            fontWeight: FontWeight.w600,
             color: AppColors.ink,
             letterSpacing: -1,
             height: 1.05,
@@ -1064,7 +1020,7 @@ class _HomeContent extends ConsumerWidget {
           child: _RatingPill(
             label: 'bullet'.tr(),
             icon: PhosphorIcons.lightning(PhosphorIconsStyle.fill),
-            color: const Color(0xFFF5A462),
+            color: AppColors.bullet,
             rating: user.bulletStats.rating,
             trend: 0,
             delay: 150,
@@ -1074,8 +1030,8 @@ class _HomeContent extends ConsumerWidget {
         Expanded(
           child: _RatingPill(
             label: 'blitz'.tr(),
-            icon: PhosphorIcons.flame(PhosphorIconsStyle.fill),
-            color: const Color(0xFF6FB4E0),
+            icon: PhosphorIcons.fire(PhosphorIconsStyle.fill),
+            color: AppColors.blitz,
             rating: user.blitzStats.rating,
             trend: 0,
             delay: 200,
@@ -1086,7 +1042,7 @@ class _HomeContent extends ConsumerWidget {
           child: _RatingPill(
             label: 'rapid'.tr(),
             icon: PhosphorIcons.timer(PhosphorIconsStyle.fill),
-            color: AppColors.win,
+            color: AppColors.rapid,
             rating: user.rapidStats.rating,
             trend: 0,
             delay: 250,
@@ -1198,9 +1154,9 @@ class _HomeContent extends ConsumerWidget {
             const SizedBox(height: 16),
             Text(
               'play_with_friend'.tr(),
-              style: GoogleFonts.fraunces(
-                fontSize: 22, fontWeight: FontWeight.w500,
-                fontStyle: FontStyle.italic, color: AppColors.ink,
+              style: GoogleFonts.inter(
+                fontSize: 22, fontWeight: FontWeight.w600,
+                color: AppColors.ink,
                 letterSpacing: -0.5,
               ),
             ),
@@ -1245,8 +1201,8 @@ class _HomeContent extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('same_device'.tr(),
-                            style: GoogleFonts.fraunces(
-                              fontSize: 16, fontWeight: FontWeight.w600,
+                            style: GoogleFonts.inter(
+                              fontSize: 16, fontWeight: FontWeight.w700,
                               color: AppColors.ink, letterSpacing: -0.2)),
                           const SizedBox(height: 2),
                           Text('same_device_subtitle'.tr(),
@@ -1301,8 +1257,8 @@ class _HomeContent extends ConsumerWidget {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text('invite_by_username'.tr(),
-                            style: GoogleFonts.fraunces(
-                              fontSize: 16, fontWeight: FontWeight.w600,
+                            style: GoogleFonts.inter(
+                              fontSize: 16, fontWeight: FontWeight.w700,
                               color: AppColors.ink, letterSpacing: -0.2)),
                           const SizedBox(height: 2),
                           Text(
@@ -1363,8 +1319,8 @@ class _HomeContent extends ConsumerWidget {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                             Text('2v2 Table',
-                              style: GoogleFonts.fraunces(
-                                fontSize: 16, fontWeight: FontWeight.w600,
+                              style: GoogleFonts.inter(
+                                fontSize: 16, fontWeight: FontWeight.w700,
                                 color: AppColors.ink, letterSpacing: -0.2)),
                             const SizedBox(height: 2),
                             Text(
@@ -1466,30 +1422,6 @@ class _HeroRatingCard extends ConsumerWidget {
         child: Stack(
           clipBehavior: Clip.none,
           children: [
-            // Game glyph watermark
-            Positioned(
-              right: -18,
-              top: -18,
-              bottom: -18,
-              child: Opacity(
-                opacity: 0.07,
-                child: AspectRatio(
-                  aspectRatio: 1.0,
-                  child: activeGame == GameType.chess
-                      ? const _MiniBoardWatermark()
-                      : Center(
-                          child: Text(
-                            identity.glyph,
-                            style: GoogleFonts.fraunces(
-                              fontSize: 100,
-                              color: identity.accent,
-                              height: 1.0,
-                            ),
-                          ),
-                        ),
-                ),
-              ),
-            ),
             Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1511,9 +1443,9 @@ class _HeroRatingCard extends ConsumerWidget {
                 children: [
                   Text(
                     _formatRating(_overallRating),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 48,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       color: AppColors.ink,
                       letterSpacing: -2,
                       height: 1.0,
@@ -1534,8 +1466,7 @@ class _HeroRatingCard extends ConsumerWidget {
                           ),
                           child: Text(
                             '${pos ? '+' : ''}$change',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 12,
+                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: pos ? AppColors.win : AppColors.loss,
                             ),
@@ -1643,36 +1574,6 @@ class _Dot extends StatelessWidget {
   }
 }
 
-class _MiniBoardWatermark extends StatelessWidget {
-  const _MiniBoardWatermark();
-
-  @override
-  Widget build(BuildContext context) {
-    return CustomPaint(painter: _MiniBoardPainter());
-  }
-}
-
-class _MiniBoardPainter extends CustomPainter {
-  @override
-  void paint(Canvas canvas, Size size) {
-    final darkPaint = Paint()..color = AppColors.amberDeep;
-    final lightPaint = Paint()..color = AppColors.amberSoft;
-    final cellW = size.width / 8;
-    final cellH = size.height / 8;
-    for (int row = 0; row < 8; row++) {
-      for (int col = 0; col < 8; col++) {
-        canvas.drawRect(
-          Rect.fromLTWH(col * cellW, row * cellH, cellW, cellH),
-          (row + col) % 2 == 1 ? darkPaint : lightPaint,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_MiniBoardPainter old) => false;
-}
-
 // ── Rating Pill ───────────────────────────────────────────────────────────────
 
 class _RatingPill extends StatelessWidget {
@@ -1722,9 +1623,9 @@ class _RatingPill extends StatelessWidget {
           const SizedBox(height: 8),
           Text(
             rating.toString(),
-            style: GoogleFonts.fraunces(
+            style: GoogleFonts.inter(
               fontSize: 26,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
               color: AppColors.ink,
               letterSpacing: -0.5,
               height: 1.0,
@@ -1734,8 +1635,7 @@ class _RatingPill extends StatelessWidget {
             const SizedBox(height: 4),
             Text(
               '${trend > 0 ? '+' : ''}$trend',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 10,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                 fontWeight: FontWeight.w500,
                 color: trend > 0 ? AppColors.win : AppColors.loss,
               ),
@@ -1805,19 +1705,6 @@ class _PlayVsBotCardState extends State<_PlayVsBotCard> {
             ),
             child: Stack(
               children: [
-                // Background glyph
-                Positioned(
-                  right: 14,
-                  bottom: -8,
-                  child: Text(
-                    identity.glyph,
-                    style: GoogleFonts.fraunces(
-                      fontSize: 56,
-                      color: accentDark,
-                      height: 0.8,
-                    ),
-                  ),
-                ),
                 Row(
                   children: [
                     Container(
@@ -1842,9 +1729,9 @@ class _PlayVsBotCardState extends State<_PlayVsBotCard> {
                         children: [
                           Text(
                             'play_vs_bot'.tr(),
-                            style: GoogleFonts.fraunces(
+                            style: GoogleFonts.inter(
                               fontSize: 20,
-                              fontWeight: FontWeight.w600,
+                              fontWeight: FontWeight.w700,
                               color: accentDark,
                               letterSpacing: -0.3,
                             ),
@@ -1939,9 +1826,9 @@ class _ModeCardState extends State<_ModeCard> {
                 const SizedBox(height: 22),
                 Text(
                   widget.title,
-                  style: GoogleFonts.fraunces(
+                  style: GoogleFonts.inter(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.ink,
                     letterSpacing: -0.2,
                   ),
@@ -2034,9 +1921,9 @@ class _SoloQuestCardState extends State<_SoloQuestCard> {
                       children: [
                         Text(
                           widget.gameType.identity.questTitle,
-                          style: GoogleFonts.fraunces(
+                          style: GoogleFonts.inter(
                             fontSize: 15,
-                            fontWeight: FontWeight.w600,
+                            fontWeight: FontWeight.w700,
                             color: AppColors.ink,
                             letterSpacing: -0.2,
                           ),
@@ -2044,8 +1931,7 @@ class _SoloQuestCardState extends State<_SoloQuestCard> {
                         const Spacer(),
                         Text(
                           '${widget.progress}/${widget.gameType.identity.questChapters}',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 11,
+                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                             fontWeight: FontWeight.w600,
                             color: widget.gameType.accent,
                           ),
@@ -2411,26 +2297,13 @@ class _CompleteProfileScreenState
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   const SizedBox(height: 28),
-                  Container(
-                    width: 56,
-                    height: 56,
-                    decoration: BoxDecoration(
-                      color: AppColors.amberGlow,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Center(
-                      child: Text('♞',
-                          style: GoogleFonts.fraunces(
-                              fontSize: 32, color: AppColors.amber)),
-                    ),
-                  ),
+                  const AppLogo(size: 56),
                   const SizedBox(height: 20),
                   Text(
                     'choose_username'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 28,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.ink,
                     ),
                   ),
@@ -2669,8 +2542,7 @@ class _ArenaTeaserState extends ConsumerState<_ArenaTeaser> {
                         '${t.timeControlLabel} · $timing',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11,
+                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                           color: AppColors.inkDim,
                         ),
                       ),

@@ -145,11 +145,12 @@ class UserModel {
         .round();
   }
 
-  /// Returns a flag emoji for a 2-letter ISO country code, e.g. "US" -> "🇺🇸"
+  /// Flag emoji for a 2-letter ISO country code ("US" → 🇺🇸); '' when unset.
   static String flagEmoji(String? code) {
-    if (code == null || code.isEmpty) return '🌍'; // no country → international globe
-    if (code == 'XX') return '🌍'; // explicitly international
-    if (code.length != 2) return '🌍';
+    // No country chosen → no flag. (It used to return a 🌍 here, so every
+    // player without a country wore a cartoon globe next to their name.)
+    if (code == null || code.isEmpty || code.length != 2) return '';
+    if (code == 'XX') return '🌍'; // explicitly "International" in the picker
     final base = 0x1F1E6 - 0x41;
     final codePoints = code.toUpperCase().codeUnits;
     return String.fromCharCodes([base + codePoints[0], base + codePoints[1]]);

@@ -17,14 +17,13 @@ import '../widgets/google_sign_in_button.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/text_case.dart';
+import '../../../core/widgets/app_logo.dart';
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
 const _kBg        = AppColors.background;
 const _kField     = AppColors.surface;
 const _kAmber     = AppColors.amber;
-const _kAmberDeep = AppColors.amberDeep;
 const _kAmberGlow = AppColors.amberGlow;
-const _kAmberSoft = AppColors.amberSoft;
 const _kInk       = AppColors.ink;
 const _kInkDim    = AppColors.inkDim;
 const _kInkMute   = AppColors.inkMute;
@@ -235,10 +234,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         const SizedBox(height: 32),
                         Text(
                           'CheckMate',
-                          style: GoogleFonts.fraunces(
+                          style: GoogleFonts.inter(
                             fontSize: 48,
-                            fontWeight: FontWeight.w600,
-                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w700,
                             color: _kInk,
                             letterSpacing: -1.5,
                             height: 1.0,
@@ -257,15 +255,15 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            ('♟', 'feature_online_offline'.tr()),
-                            ('🏆', 'feature_hourly_arenas'.tr()),
-                            ('🤖', 'feature_bot'.tr()),
-                            ('🌍', 'feature_languages'.tr()),
+                            (PhosphorIcons.gameController(PhosphorIconsStyle.regular), 'feature_online_offline'.tr()),
+                            (PhosphorIcons.trophy(PhosphorIconsStyle.regular), 'feature_hourly_arenas'.tr()),
+                            (PhosphorIcons.robot(PhosphorIconsStyle.regular), 'feature_bot'.tr()),
+                            (PhosphorIcons.translate(PhosphorIconsStyle.regular), 'feature_languages'.tr()),
                           ].map((item) => Padding(
                             padding: const EdgeInsets.only(bottom: 14),
                             child: Row(
                               children: [
-                                Text(item.$1, style: const TextStyle(fontSize: 18)),
+                                Icon(item.$1, size: 18, color: _kAmber),
                                 const SizedBox(width: 12),
                                 Text(
                                   item.$2,
@@ -346,31 +344,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ),
       );
 
-  Widget _logoMark(double size) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(size * 0.28),
-          gradient: const RadialGradient(colors: [_kAmberSoft, _kAmberDeep]),
-          boxShadow: const [
-            BoxShadow(color: _kAmberGlow, blurRadius: 24, offset: Offset(0, 6)),
-          ],
-        ),
-        child: Center(
-          child: Text(
-            '♞',
-            style: GoogleFonts.fraunces(
-              fontSize: size * 0.62,
-              color: _kDark,
-              height: 1.0,
-            ),
-          ),
-        ),
-      ).animate().scale(
-            begin: const Offset(0.7, 0.7),
-            duration: 500.ms,
-            curve: Curves.elasticOut,
-          );
+  Widget _logoMark(double size) => AppLogo(size: size).animate().scale(
+        begin: const Offset(0.8, 0.8),
+        duration: 400.ms,
+        curve: Curves.easeOutBack,
+      );
 
   // ── Shared column ──────────────────────────────────────────────────────────
 
@@ -385,10 +363,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           const SizedBox(height: 24),
           Text(
             'CheckMate',
-            style: GoogleFonts.fraunces(
+            style: GoogleFonts.inter(
               fontSize: 40,
-              fontWeight: FontWeight.w600,
-              fontStyle: FontStyle.italic,
+              fontWeight: FontWeight.w700,
               color: _kInk,
               letterSpacing: -1.2,
               height: 1.0,
@@ -403,10 +380,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         ] else ...[
           Text(
             'login_headline'.tr(),
-            style: GoogleFonts.fraunces(
+            style: GoogleFonts.inter(
               fontSize: 34,
-              fontWeight: FontWeight.w500,
-              fontStyle: FontStyle.italic,
+              fontWeight: FontWeight.w600,
               color: _kInk,
               letterSpacing: -1.0,
               height: 1.05,
@@ -452,8 +428,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
                 'or_sign_in'.tr().toUpperCaseFor(context),
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11, color: _kInkMute, letterSpacing: 0.6,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: _kInkMute, letterSpacing: 0.6,
                 ),
               ),
             ),
@@ -813,8 +788,7 @@ class _DesignField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 11,
+          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
             fontWeight: FontWeight.w700,
             color: _kInkMute,
             letterSpacing: 0.6,
@@ -962,9 +936,9 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
         const SizedBox(height: 20),
         Text(
           'reset_password'.tr(),
-          style: GoogleFonts.fraunces(
-            fontSize: 24, fontWeight: FontWeight.w600,
-            fontStyle: FontStyle.italic, color: _kInk,
+          style: GoogleFonts.inter(
+            fontSize: 24, fontWeight: FontWeight.w700,
+            color: _kInk,
           ),
         ),
         const SizedBox(height: 6),
@@ -1034,9 +1008,9 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
         Text(
           'reset_link_sent_title'.tr(),
           textAlign: TextAlign.center,
-          style: GoogleFonts.fraunces(
-            fontSize: 22, fontWeight: FontWeight.w600,
-            fontStyle: FontStyle.italic, color: _kInk,
+          style: GoogleFonts.inter(
+            fontSize: 22, fontWeight: FontWeight.w700,
+            color: _kInk,
           ),
         ),
         const SizedBox(height: 8),

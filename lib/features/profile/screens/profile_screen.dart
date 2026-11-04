@@ -30,6 +30,7 @@ import '../../../core/models/game_type.dart';
 import '../../../core/widgets/game_switch.dart';
 
 
+import '../../../core/widgets/game_icon.dart';
 // StreamProvider — Firestore real-time stream, auto-updates when photoUrl changes
 final _profileProvider =
     StreamProvider.family<UserModel?, String>((ref, uid) {
@@ -62,19 +63,19 @@ final _isFriendProvider =
 
 // ── Font helpers ───────────────────────────────────────────────────────────────
 
-TextStyle _fraunces({
+/// Headings and large numbers: Inter, a step bolder than body text. (This was
+/// an italic serif — Fraunces — which read as decoration, not as a product.)
+TextStyle _display({
   double size = 14,
-  FontWeight weight = FontWeight.w400,
+  FontWeight weight = FontWeight.w600,
   Color color = AppColors.ink,
   double letterSpacing = 0,
-  bool italic = true,
 }) =>
-    GoogleFonts.fraunces(
+    GoogleFonts.inter(
       fontSize: size,
       fontWeight: weight,
-      fontStyle: italic ? FontStyle.italic : FontStyle.normal,
       color: color,
-      letterSpacing: letterSpacing,
+      letterSpacing: letterSpacing != 0 ? letterSpacing : (size >= 20 ? -0.4 : 0),
     );
 
 TextStyle _inter({
@@ -105,8 +106,7 @@ TextStyle _mono({
   Color color = AppColors.inkDim,
   double letterSpacing = 0,
 }) =>
-    GoogleFonts.jetBrainsMono(
-      fontSize: size,
+    GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: size,
       fontWeight: weight,
       color: color,
       letterSpacing: letterSpacing,
@@ -384,9 +384,9 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout> {
                               user.username.isNotEmpty
                                   ? user.username[0].toUpperCase()
                                   : '?',
-                              style: _fraunces(
+                              style: _display(
                                   size: 40,
-                                  weight: FontWeight.w600,
+                                  weight: FontWeight.w700,
                                   color: const Color(0xFF1A1205)),
                             )),
                 ),
@@ -414,7 +414,7 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout> {
           ),
           const SizedBox(height: 12),
           Text(user.username,
-              style: _fraunces(size: 26, weight: FontWeight.w500, color: AppColors.ink)),
+              style: _display(size: 26, weight: FontWeight.w600, color: AppColors.ink)),
           const SizedBox(height: 4),
           Text(
               [
@@ -660,7 +660,7 @@ class _PrivateProfileView extends StatelessWidget {
                   ),
                   Text(
                     user.username,
-                    style: _fraunces(size: 18, weight: FontWeight.w600,
+                    style: _display(size: 18, weight: FontWeight.w700,
                         color: AppColors.ink),
                   ),
                 ],
@@ -673,7 +673,7 @@ class _PrivateProfileView extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'Private profile',
-              style: _fraunces(size: 20, weight: FontWeight.w600,
+              style: _display(size: 20, weight: FontWeight.w700,
                   color: AppColors.ink),
             ),
             const SizedBox(height: 8),
@@ -885,16 +885,19 @@ class _OtherProfileLayout extends ConsumerWidget {
                       )
                     : Text(
                         displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                        style: _fraunces(size: 40, weight: FontWeight.w600, color: const Color(0xFF1A1205)),
+                        style: _display(size: 40, weight: FontWeight.w700, color: const Color(0xFF1A1205)),
                       ),
               ),
             ],
           ),
           const SizedBox(height: 10),
           Text(displayName,
-              style: _fraunces(size: 22, weight: FontWeight.w500, color: AppColors.ink)),
+              style: _display(size: 22, weight: FontWeight.w600, color: AppColors.ink)),
           const SizedBox(height: 4),
-          Text('${UserModel.flagEmoji(user.countryCode)} · ${user.skillLevel ?? 'Player'}',
+          Text([
+                UserModel.flagEmoji(user.countryCode),
+                user.skillLevel ?? 'Player',
+              ].where((part) => part.isNotEmpty).join(' · '),
               style: _inter(size: 11, color: AppColors.inkMute)),
         ],
       ),
@@ -989,7 +992,7 @@ class _OtherProfileLayout extends ConsumerWidget {
             onPressed: () => context.pop(),
           ),
           title: Text(displayName,
-              style: _fraunces(size: 18, weight: FontWeight.w600, color: AppColors.ink)),
+              style: _display(size: 18, weight: FontWeight.w700, color: AppColors.ink)),
           actions: [
             IconButton(
               icon: Icon(PhosphorIcons.dotsThreeVertical(PhosphorIconsStyle.bold),
@@ -1103,18 +1106,6 @@ class _OverallRatingCard extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Queen watermark
-          Positioned(
-            right: -8,
-            top: -12,
-            child: Text(
-              '♛',
-              style: TextStyle(
-                fontSize: 72,
-                color: Colors.white.withOpacity(0.22),
-              ),
-            ),
-          ),
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -1130,7 +1121,7 @@ class _OverallRatingCard extends StatelessWidget {
               const SizedBox(height: 4),
               Text(
                 '$rating',
-                style: _fraunces(
+                style: _display(
                   size: 44,
                   weight: FontWeight.w700,
                   color: const Color(0xFF1A1205),
@@ -1269,9 +1260,9 @@ class _RatingGraphCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '$overallRating',
-                    style: _fraunces(
+                    style: _display(
                       size: 40,
-                      weight: FontWeight.w500,
+                      weight: FontWeight.w600,
                       color: AppColors.ink,
                       letterSpacing: -1.2,
                     ),
@@ -1497,7 +1488,7 @@ class _StatPillCard extends StatelessWidget {
           const SizedBox(height: 4),
           Text(
             '$rating',
-            style: _fraunces(size: 22, weight: FontWeight.w600, color: ratingColor),
+            style: _display(size: 22, weight: FontWeight.w700, color: ratingColor),
           ),
           const SizedBox(height: 2),
           Text(
@@ -1693,11 +1684,10 @@ class _WinLossDonutPainter extends CustomPainter {
     final countTP = TextPainter(
       text: TextSpan(
         text: '$total',
-        style: GoogleFonts.fraunces(
+        style: GoogleFonts.inter(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           color: AppColors.ink,
-          fontStyle: FontStyle.italic,
         ),
       ),
       textDirection: ui.TextDirection.ltr,
@@ -1711,8 +1701,7 @@ class _WinLossDonutPainter extends CustomPainter {
     final gamesTP = TextPainter(
       text: TextSpan(
         text: 'GAMES',
-        style: GoogleFonts.jetBrainsMono(
-          fontSize: 7,
+        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
           color: AppColors.inkMute,
           letterSpacing: 0.3,
         ),
@@ -2144,7 +2133,8 @@ class _OtherProfileActionsState extends ConsumerState<_OtherProfileActions> {
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
-                              const Text('♟', style: TextStyle(fontSize: 16)),
+                              Icon(PhosphorIcons.sword(PhosphorIconsStyle.bold),
+                                  size: 16, color: AppColors.amber),
                               const SizedBox(width: 8),
                               Text(
                                 'Challenge',
@@ -2636,7 +2626,7 @@ class _ChallengeSheetState extends ConsumerState<_ChallengeSheet> {
           const SizedBox(height: 8),
           Row(
             children: [
-              for (final opt in [('white', '♔ White'), ('random', '⚄ Random'), ('black', '♚ Black')]) ...[
+              for (final opt in [('white', 'White'), ('random', 'Random'), ('black', 'Black')]) ...[
                 Expanded(
                   child: GestureDetector(
                     onTap: () => setState(() => _color = opt.$1),
@@ -2654,16 +2644,23 @@ class _ChallengeSheetState extends ConsumerState<_ChallengeSheet> {
                               : AppColors.border,
                         ),
                       ),
-                      child: Center(
-                        child: Text(
-                          opt.$2,
-                          style: _inter(
-                            size: 12,
-                            weight: _color == opt.$1 ? FontWeight.w700 : FontWeight.w400,
-                            color: _color == opt.$1 ? AppColors.amber : AppColors.inkDim,
+                      child: Row(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          if (opt.$1 != 'random') ...[
+                            PieceIcon(opt.$1 == 'white' ? 'wK' : 'bK', size: 18),
+                            const SizedBox(width: 6),
+                          ],
+                          Text(
+                            opt.$2,
+                            style: _inter(
+                              size: 12,
+                              weight: _color == opt.$1 ? FontWeight.w700 : FontWeight.w400,
+                              color: _color == opt.$1 ? AppColors.amber : AppColors.inkDim,
+                            ),
+                            textAlign: TextAlign.center,
                           ),
-                          textAlign: TextAlign.center,
-                        ),
+                        ],
                       ),
                     ),
                   ),

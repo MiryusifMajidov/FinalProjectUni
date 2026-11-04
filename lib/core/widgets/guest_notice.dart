@@ -7,6 +7,8 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../features/auth/widgets/apple_sign_in_button.dart'
     show appleSignInAvailable;
+import '../../features/auth/widgets/google_sign_in_button.dart'
+    show GoogleLogo;
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/email_validator.dart';
@@ -123,10 +125,9 @@ class _GuestDialog extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.inter(
                 fontSize: 21,
-                fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w700,
                 color: AppColors.ink,
                 height: 1.2,
               ),
@@ -431,10 +432,9 @@ class _LinkAccountSheetState extends ConsumerState<_LinkAccountSheet> {
               const SizedBox(height: 18),
               Text(
                 'link_title'.tr(),
-                style: GoogleFonts.fraunces(
+                style: GoogleFonts.inter(
                   fontSize: 23,
-                  fontWeight: FontWeight.w600,
-                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w700,
                   color: AppColors.ink,
                 ),
               ),
@@ -539,8 +539,7 @@ class _LinkAccountSheetState extends ConsumerState<_LinkAccountSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: Text(
                       'or_divider'.tr(),
-                      style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11, color: AppColors.inkMute),
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.inkMute),
                     ),
                   ),
                   const Expanded(child: Divider(color: AppColors.border)),
@@ -549,11 +548,7 @@ class _LinkAccountSheetState extends ConsumerState<_LinkAccountSheet> {
               const SizedBox(height: 12),
               _ProviderButton(
                 label: 'continue_with_google'.tr(),
-                leading: const Text('G',
-                    style: TextStyle(
-                        fontSize: 17,
-                        fontWeight: FontWeight.w800,
-                        color: Color(0xFF4285F4))),
+                leading: const GoogleLogo(),
                 loading: _busy == 'google',
                 onTap: busy
                     ? null

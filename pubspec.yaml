@@ -120,6 +120,9 @@ flutter:
     enable-swift-package-manager: false
   uses-material-design: true
   assets:
+    # Inter, bundled so first launch and offline use never fall back to a
+    # system font. google_fonts picks these up by file name.
+    - assets/google_fonts/
     - assets/images/
     - assets/sounds/
     - assets/translations/

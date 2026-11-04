@@ -4,6 +4,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/game_icon.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kCard      = AppColors.card;
@@ -19,7 +20,7 @@ class _Level {
   final String label;
   final String copy;
   final int elo;
-  final String glyph;   // chess piece Unicode
+  final String glyph;   // piece letter in the cburnett set (P … K)
   final Color color;
 
   const _Level({
@@ -32,12 +33,12 @@ class _Level {
 }
 
 const _levels = [
-  _Level(label: 'Beginner',     copy: 'Just learning the moves', elo: 400,  glyph: '♙', color: Color(0xFFA8C8E8)),
-  _Level(label: 'Casual',       copy: 'Plays with friends',       elo: 800,  glyph: '♘', color: Color(0xFFA8E8C8)),
-  _Level(label: 'Intermediate', copy: 'Knows openings',           elo: 1200, glyph: '♗', color: Color(0xFFE8B960)),
-  _Level(label: 'Advanced',     copy: 'Studies tactics daily',    elo: 1600, glyph: '♖', color: Color(0xFFE8B0A8)),
-  _Level(label: 'Expert',       copy: 'Tournament player',        elo: 2000, glyph: '♕', color: Color(0xFFC8A8E8)),
-  _Level(label: 'Master',       copy: 'Title-caliber play',       elo: 2400, glyph: '♔', color: Color(0xFFE8C8A0)),
+  _Level(label: 'Beginner',     copy: 'Just learning the moves', elo: 400,  glyph: 'P', color: Color(0xFFA8C8E8)),
+  _Level(label: 'Casual',       copy: 'Plays with friends',       elo: 800,  glyph: 'N', color: Color(0xFFA8E8C8)),
+  _Level(label: 'Intermediate', copy: 'Knows openings',           elo: 1200, glyph: 'B', color: Color(0xFFE8B960)),
+  _Level(label: 'Advanced',     copy: 'Studies tactics daily',    elo: 1600, glyph: 'R', color: Color(0xFFE8B0A8)),
+  _Level(label: 'Expert',       copy: 'Tournament player',        elo: 2000, glyph: 'Q', color: Color(0xFFC8A8E8)),
+  _Level(label: 'Master',       copy: 'Title-caliber play',       elo: 2400, glyph: 'K', color: Color(0xFFE8C8A0)),
 ];
 
 class SkillLevelScreen extends StatefulWidget {
@@ -71,10 +72,9 @@ class _SkillLevelScreenState extends State<SkillLevelScreen> {
                         const SizedBox(height: 8),
                         Text(
                           "What's your level?",
-                          style: GoogleFonts.fraunces(
+                          style: GoogleFonts.inter(
                             fontSize: 30,
-                            fontWeight: FontWeight.w500,
-                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w600,
                             color: _kInk,
                             letterSpacing: -0.8,
                             height: 1.1,
@@ -227,20 +227,14 @@ class _LevelCard extends StatelessWidget {
                         color: level.color.withValues(alpha: 0.28)),
                   ),
                   alignment: Alignment.center,
-                  child: Text(
-                    level.glyph,
-                    style: TextStyle(
-                      fontSize: 22,
-                      color: level.color,
-                    ),
-                  ),
+                  child: PieceIcon('b${level.glyph}', size: 24, color: level.color),
                 ),
                 const SizedBox(height: 10),
                 Text(
                   level.label,
-                  style: GoogleFonts.fraunces(
+                  style: GoogleFonts.inter(
                     fontSize: 16,
-                    fontWeight: FontWeight.w600,
+                    fontWeight: FontWeight.w700,
                     color: _kInk,
                     letterSpacing: -0.2,
                   ),
@@ -257,8 +251,7 @@ class _LevelCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   '${level.elo} ELO',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: selected ? _kAmber : _kInkDim,
                     letterSpacing: 0.4,
@@ -332,10 +325,9 @@ class _AuthHeader extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.inter(
                 fontSize: 17,
-                fontWeight: FontWeight.w500,
-                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w600,
                 color: _kInk,
                 letterSpacing: -0.3,
               ),

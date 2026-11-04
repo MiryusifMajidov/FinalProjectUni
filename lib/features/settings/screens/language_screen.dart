@@ -66,10 +66,9 @@ class LanguageScreen extends StatelessWidget {
                   const SizedBox(width: 14),
                   Text(
                     'language'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -161,8 +160,7 @@ class _LangRow extends StatelessWidget {
               child: Center(
                 child: Text(
                   lang.code.toUpperCase(),
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: selected ? _kAmber : _kInkDim,
                   ),

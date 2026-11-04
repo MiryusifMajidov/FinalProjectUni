@@ -11,9 +11,11 @@ import '../../../core/services/cache_service.dart';
 import '../../settings/screens/settings_screen.dart';
 import '../engine/chess_engine.dart';
 import '../providers/game_provider.dart';
+import '../widgets/captured_pieces.dart';
 import '../widgets/chess_board_widget.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/board_themes.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;   // slightly warm near-black
 const _kCard      = AppColors.card;
@@ -127,10 +129,9 @@ class _InGameCalmScreenState extends ConsumerState<InGameCalmScreen> {
             const SizedBox(height: 14),
             Text(
               'resign'.tr(),
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.inter(
                 fontSize: 20,
-                fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w700,
                 color: _kInk,
               ),
             ),
@@ -249,8 +250,7 @@ class _InGameCalmScreenState extends ConsumerState<InGameCalmScreen> {
                           Text(
                             _tcBadge(
                                 _config.timeControl, isBot, _config.isRated),
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 9,
+                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                               color: _kInkMute,
                               letterSpacing: 1.4,
                               fontWeight: FontWeight.w700,
@@ -261,10 +261,8 @@ class _InGameCalmScreenState extends ConsumerState<InGameCalmScreen> {
                             isBot
                                 ? (gs.isMyTurn ? 'Your turn' : 'Thinking…')
                                 : 'Move $move',
-                            style: GoogleFonts.fraunces(
-                              fontSize: 13,
+                            style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13,
                               color: _kInkDim,
-                              fontStyle: FontStyle.italic,
                             ),
                           ),
                         ],
@@ -274,12 +272,10 @@ class _InGameCalmScreenState extends ConsumerState<InGameCalmScreen> {
                       width: 36,
                       height: 36,
                       child: Center(
-                        child: Text(
-                          '⋯',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 18,
-                            color: _kInkDim,
-                          ),
+                        child: Icon(
+                          PhosphorIcons.dotsThree(PhosphorIconsStyle.bold),
+                          size: 18,
+                          color: _kInkDim,
                         ),
                       ),
                     ),
@@ -297,6 +293,7 @@ class _InGameCalmScreenState extends ConsumerState<InGameCalmScreen> {
                 active: !gs.isMyTurn &&
                     gs.status == GameStatus.playing,
                 captured: oppCapt,
+                pieceSet: settings.pieceSet.folderName,
                 isTop: true,
               ),
 
@@ -366,7 +363,6 @@ class _InGameCalmScreenState extends ConsumerState<InGameCalmScreen> {
                               fontSize: 12,
                               color: _kAmber,
                               fontWeight: FontWeight.w600,
-                              fontStyle: FontStyle.italic,
                             ),
                           ),
                         ],
@@ -383,6 +379,7 @@ class _InGameCalmScreenState extends ConsumerState<InGameCalmScreen> {
                 active: gs.isMyTurn &&
                     gs.status == GameStatus.playing,
                 captured: myCapt,
+                pieceSet: settings.pieceSet.folderName,
                 isTop: false,
               ),
 
@@ -455,6 +452,7 @@ class _CalmStrip extends StatelessWidget {
   final int msLeft;
   final bool active;
   final List<PieceInfo> captured;
+  final String pieceSet;
   final bool isTop;
 
   const _CalmStrip({
@@ -463,6 +461,7 @@ class _CalmStrip extends StatelessWidget {
     required this.msLeft,
     required this.active,
     required this.captured,
+    required this.pieceSet,
     required this.isTop,
   });
 
@@ -476,7 +475,6 @@ class _CalmStrip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final clock   = msLeft <= 0 ? '00:00' : _formatClock(msLeft);
-    final symbols = captured.map((p) => p.symbol).join();
 
     return AnimatedContainer(
       duration: const Duration(milliseconds: 300),
@@ -513,10 +511,9 @@ class _CalmStrip extends StatelessWidget {
             child: Center(
               child: Text(
                 name.isNotEmpty ? name[0].toUpperCase() : '?',
-                style: GoogleFonts.fraunces(
+                style: GoogleFonts.inter(
                   fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w700,
                   color: active ? _kAmber : _kInkDim,
                 ),
               ),
@@ -547,13 +544,18 @@ class _CalmStrip extends StatelessWidget {
                         color: _kInkMute,
                       ),
                     ),
-                    if (symbols.isNotEmpty) ...[
+                    if (captured.isNotEmpty) ...[
                       const SizedBox(width: 6),
-                      Text(
-                        symbols,
-                        style: const TextStyle(
-                          fontSize: 10,
-                          color: _kInkMute,
+                      Flexible(
+                        child: FittedBox(
+                          fit: BoxFit.scaleDown,
+                          alignment: Alignment.centerLeft,
+                          child: CapturedPieces(
+                            pieces: captured,
+                            pieceSet: pieceSet,
+                            color: _kInkMute,
+                            size: 12,
+                          ),
                         ),
                       ),
                     ],
@@ -574,8 +576,7 @@ class _CalmStrip extends StatelessWidget {
             ),
             child: Text(
               clock,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 16,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: active ? const Color(0xFF1A1205) : _kInkMute,
                 letterSpacing: 0,
@@ -601,8 +602,7 @@ class _EvalBar extends StatelessWidget {
         children: [
           Text(
             '+0.4',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
               color: _kInkMute,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,
@@ -658,12 +658,10 @@ class _EvalBar extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             'slight edge',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
               color: _kInkMute,
               fontWeight: FontWeight.w700,
               letterSpacing: 0.4,
-              fontStyle: FontStyle.italic,
             ),
           ),
         ],

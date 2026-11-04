@@ -729,9 +729,9 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.cardElevated,
-        title: Text('Resign', style: GoogleFonts.fraunces(
-          fontSize: 20, fontWeight: FontWeight.w600,
-          fontStyle: FontStyle.italic, color: AppColors.ink,
+        title: Text('Resign', style: GoogleFonts.inter(
+          fontSize: 20, fontWeight: FontWeight.w700,
+          color: AppColors.ink,
         )),
         content: Text(
             _isLocalGame
@@ -821,10 +821,9 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
             const SizedBox(height: 24),
             Text(
               title,
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.inter(
                 fontSize: 32,
-                fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w700,
                 color: titleColor,
                 letterSpacing: -1,
               ),
@@ -962,7 +961,6 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('⛀ ', style: TextStyle(fontSize: 18)),
               Text(
                 switch (_variant) {
                   CheckersVariant.international => 'International',
@@ -971,10 +969,9 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
                   CheckersVariant.russian       => 'Russian',
                   _                             => 'Checkers',
                 },
-                style: GoogleFonts.fraunces(
+                style: GoogleFonts.inter(
                   fontSize: 20,
-                  fontWeight: FontWeight.w500,
-                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.ink,
                 ),
               ),
@@ -1134,8 +1131,7 @@ class _PlayerBar extends StatelessWidget {
               ),
               child: Text(
                 '${secondsLeft}s',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 12,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: lowTime ? AppColors.loss : const Color(0xFF6FB4E0),
                 ),
@@ -1146,8 +1142,7 @@ class _PlayerBar extends StatelessWidget {
           // Piece count
           Text(
             '$count pieces',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 12,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
               fontWeight: FontWeight.w500,
               color: AppColors.inkDim,
             ),

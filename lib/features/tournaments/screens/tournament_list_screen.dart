@@ -105,10 +105,9 @@ class TournamentListScreen extends ConsumerWidget {
                       children: [
                         Text(
                           'arena'.tr(),
-                          style: GoogleFonts.fraunces(
+                          style: GoogleFonts.inter(
                             fontSize: 28,
-                            fontWeight: FontWeight.w500,
-                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w600,
                             color: AppColors.ink,
                             letterSpacing: -0.8,
                           ),
@@ -276,9 +275,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'no_arenas_yet'.tr(),
-              style: GoogleFonts.fraunces(
-                fontSize: 18,
-                fontStyle: FontStyle.italic,
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 18,
                 color: AppColors.inkDim,
               ),
             ),
@@ -305,7 +302,7 @@ class TournamentCard extends StatelessWidget {
   final TournamentModel tournament;
   const TournamentCard({super.key, required this.tournament});
 
-  /// "Ends in 12:04" / "Starts in 03:10" / "🏆 winner" — or null.
+  /// "Ends in 12:04" / "Starts in 03:10" / the winner's name — or null.
   static String? timingFor(TournamentModel t) {
     final now = DateTime.now();
     return switch (t.effectiveStatus) {
@@ -314,7 +311,7 @@ class TournamentCard extends StatelessWidget {
       TournamentStatus.waiting when t.startsAt != null => 'arena_starts_in_short'
           .tr(namedArgs: {'time': formatCountdown(t.startsAt!.difference(now))}),
       TournamentStatus.finished when (t.winnerUsername ?? '').isNotEmpty =>
-        '🏆 ${t.winnerUsername}',
+        t.winnerUsername,
       _ => null,
     };
   }
@@ -366,8 +363,7 @@ class TournamentCard extends StatelessWidget {
                               ),
                               child: Text(
                                 'arena_hourly_badge'.tr().toUpperCaseFor(context),
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 9.5,
+                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                                   fontWeight: FontWeight.w700,
                                   color: accent,
                                   letterSpacing: 0.5,
@@ -379,9 +375,9 @@ class TournamentCard extends StatelessWidget {
                           Expanded(
                             child: Text(
                               tournamentDisplayName(t),
-                              style: GoogleFonts.fraunces(
+                              style: GoogleFonts.inter(
                                 fontSize: 18,
-                                fontWeight: FontWeight.w600,
+                                fontWeight: FontWeight.w700,
                                 color: AppColors.ink,
                                 letterSpacing: -0.3,
                               ),
@@ -427,14 +423,18 @@ class TournamentCard extends StatelessWidget {
                       .tr(namedArgs: {'minutes': '${t.durationMinutes}'}),
                 ),
                 const Spacer(),
+                if (hasTiming && status == TournamentStatus.finished) ...[
+                  Icon(PhosphorIcons.trophy(PhosphorIconsStyle.fill),
+                      size: 12, color: AppColors.amber),
+                  const SizedBox(width: 4),
+                ],
                 if (hasTiming)
                   Flexible(
                     child: _EverySecond(
                       builder: (_) => Text(
                         timingFor(t) ?? '',
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11.5,
+                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11.5,
                           fontWeight: FontWeight.w600,
                           color: status == TournamentStatus.finished
                               ? AppColors.inkDim
@@ -473,8 +473,7 @@ class TournamentCard extends StatelessWidget {
                 const SizedBox(width: 4),
                 Text(
                   '${t.participantCount}/${t.maxPlayers}',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: AppColors.inkDim,
                   ),
@@ -504,8 +503,7 @@ class _MetaChip extends StatelessWidget {
         const SizedBox(width: 4),
         Text(
           label,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 11,
+          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
             fontWeight: FontWeight.w600,
             color: AppColors.inkDim,
           ),

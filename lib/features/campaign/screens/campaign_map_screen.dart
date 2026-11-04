@@ -165,24 +165,25 @@ TextStyle _mono({
   Color color = AppColors.inkMute,
   double letterSpacing = 0.6,
 }) =>
-    GoogleFonts.jetBrainsMono(
-      fontSize: size,
+    GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: size,
       fontWeight: weight,
       color: color,
       letterSpacing: letterSpacing,
     );
 
-TextStyle _fraunces({
+/// Headings and large numbers: Inter, a step bolder than body text. (This was
+/// an italic serif — Fraunces — which read as decoration, not as a product.)
+TextStyle _display({
   double size = 14,
-  FontWeight weight = FontWeight.w400,
+  FontWeight weight = FontWeight.w600,
   Color color = AppColors.ink,
-  bool italic = true,
+  double letterSpacing = 0,
 }) =>
-    GoogleFonts.fraunces(
+    GoogleFonts.inter(
       fontSize: size,
       fontWeight: weight,
-      fontStyle: italic ? FontStyle.italic : FontStyle.normal,
       color: color,
+      letterSpacing: letterSpacing != 0 ? letterSpacing : (size >= 20 ? -0.4 : 0),
     );
 
 TextStyle _inter({
@@ -289,9 +290,9 @@ class CampaignMapScreen extends ConsumerWidget {
                       const SizedBox(width: 14),
                       Text(
                         activeGame.identity.questTitle,
-                        style: _fraunces(
+                        style: _display(
                           size: 22,
-                          weight: FontWeight.w600,
+                          weight: FontWeight.w700,
                           color: AppColors.ink,
                         ),
                       ),
@@ -449,11 +450,11 @@ class _ProgressHeroCard extends StatelessWidget {
                         children: [
                           TextSpan(
                             text: '$progress',
-                            style: _fraunces(size: 30, weight: FontWeight.w700, color: AppColors.ink),
+                            style: _display(size: 30, weight: FontWeight.w700, color: AppColors.ink),
                           ),
                           TextSpan(
                             text: '/$totalChapters',
-                            style: _fraunces(size: 20, weight: FontWeight.w400, color: AppColors.inkMute),
+                            style: _display(size: 20, weight: FontWeight.w600, color: AppColors.inkMute),
                           ),
                         ],
                       ),
@@ -582,11 +583,10 @@ class _UpNextCard extends StatelessWidget {
               child: progress > 0
                   ? Text(
                       '$nextChapter',
-                      style: _fraunces(
+                      style: _display(
                         size: 18,
                         weight: FontWeight.w700,
                         color: const Color(0xFF1A1205),
-                        italic: false,
                       ),
                     )
                   : Icon(
@@ -608,9 +608,9 @@ class _UpNextCard extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     title,
-                    style: _fraunces(
+                    style: _display(
                       size: 16,
-                      weight: FontWeight.w600,
+                      weight: FontWeight.w700,
                       color: AppColors.ink,
                     ),
                   ),
@@ -784,8 +784,8 @@ class _ChapterNode extends StatelessWidget {
     if (isDone) {
       bgColor = AppColors.winSoft;
       borderColor = AppColors.win.withValues(alpha: 0.5);
-      centerChild = const Text('✓',
-          style: TextStyle(color: AppColors.win, fontSize: 22, fontWeight: FontWeight.w700));
+      centerChild = Icon(PhosphorIcons.check(PhosphorIconsStyle.bold),
+          color: AppColors.win, size: 22);
       shadows = [
         BoxShadow(color: AppColors.win.withValues(alpha: 0.2), blurRadius: 12, spreadRadius: 1),
       ];
@@ -794,7 +794,7 @@ class _ChapterNode extends StatelessWidget {
       borderColor = _accent;
       centerChild = Text(
         '$chapter',
-        style: _fraunces(size: 18, weight: FontWeight.w700, color: const Color(0xFF1A1205)),
+        style: _display(size: 18, weight: FontWeight.w700, color: const Color(0xFF1A1205)),
       );
       shadows = [
         BoxShadow(color: _accent.withValues(alpha: 0.35), blurRadius: 16, spreadRadius: 2),

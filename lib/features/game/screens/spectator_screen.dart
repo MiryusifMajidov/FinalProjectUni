@@ -142,10 +142,9 @@ class _SpectatorScreenState extends ConsumerState<SpectatorScreen> {
                 const SizedBox(width: 14),
                 Text(
                   'spectating'.tr(),
-                  style: GoogleFonts.fraunces(
+                  style: GoogleFonts.inter(
                     fontSize: 20,
-                    fontWeight: FontWeight.w600,
-                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w700,
                     color: AppColors.ink,
                   ),
                 ),

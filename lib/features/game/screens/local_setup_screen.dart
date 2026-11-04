@@ -10,6 +10,7 @@ import '../../../core/models/game_model.dart';
 import '../../../core/models/game_type.dart';
 import '../../../core/services/auth_service.dart';
 
+import '../../../core/widgets/game_icon.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kCard      = AppColors.card;
@@ -111,10 +112,9 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'play_with_friend'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -144,7 +144,7 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                     // ── Player fields ────────────────────────────────────────
                     _PlayerField(
                       controller: _player1Ctrl,
-                      pieceSymbol: _gameType == GameType.checkers ? '⛀' : _gameType == GameType.domino ? '🁫' : '♔',
+                      icon: SideToken(type: _gameType, light: true, size: 26),
                       colorLabel: _gameType == GameType.checkers ? 'LIGHT' : _gameType == GameType.domino ? 'PLAYER 1' : 'WHITE',
                       hint: 'Player 1 name',
                       accent: _gameType.accent,
@@ -152,7 +152,7 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                     const SizedBox(height: 12),
                     _PlayerField(
                       controller: _player2Ctrl,
-                      pieceSymbol: _gameType == GameType.checkers ? '⛂' : _gameType == GameType.domino ? '🁫' : '♚',
+                      icon: SideToken(type: _gameType, light: false, size: 26),
                       colorLabel: _gameType == GameType.checkers ? 'DARK' : _gameType == GameType.domino ? 'PLAYER 2' : 'BLACK',
                       hint: 'Player 2 name',
                       accent: _gameType.accent,
@@ -320,14 +320,14 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
 
 class _PlayerField extends StatefulWidget {
   final TextEditingController controller;
-  final String pieceSymbol;
+  final Widget icon;
   final String colorLabel;
   final String hint;
   final Color accent;
 
   const _PlayerField({
     required this.controller,
-    required this.pieceSymbol,
+    required this.icon,
     required this.colorLabel,
     required this.hint,
     required this.accent,
@@ -381,12 +381,7 @@ class _PlayerFieldState extends State<_PlayerField> {
               color: widget.accent.withValues(alpha: 0.12),
               shape: BoxShape.circle,
             ),
-            child: Center(
-              child: Text(
-                widget.pieceSymbol,
-                style: const TextStyle(fontSize: 22),
-              ),
-            ),
+            child: Center(child: widget.icon),
           ),
 
           // Label + text field
@@ -397,8 +392,7 @@ class _PlayerFieldState extends State<_PlayerField> {
               children: [
                 Text(
                   'PLAYER · ${widget.colorLabel}',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                     fontWeight: FontWeight.w600,
                     color: _kInkMute,
                     letterSpacing: 0.8,

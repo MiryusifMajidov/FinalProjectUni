@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_fonts/google_fonts.dart';
 import '../models/game_type.dart';
 import '../theme/app_colors.dart';
+import 'game_icon.dart';
 
 /// Three-segment game switcher matching the design's `GameSwitch` component.
 /// Sits at the top of Home / Profile / Leaderboard / Arena screens.
@@ -59,16 +60,12 @@ class GameSwitch extends ConsumerWidget {
                   child: Row(
                     mainAxisSize: MainAxisSize.min,
                     children: [
-                      Text(
-                        identity.glyph,
-                        style: TextStyle(
-                          fontSize: 16,
-                          color: selected
-                              ? identity.accent
-                              : AppColors.inkMute,
-                        ),
+                      GameIcon(
+                        type: type,
+                        size: 15,
+                        color: selected ? identity.accent : AppColors.inkMute,
                       ),
-                      const SizedBox(width: 6),
+                      const SizedBox(width: 7),
                       Text(
                         identity.type.name.tr(),
                         style: GoogleFonts.inter(

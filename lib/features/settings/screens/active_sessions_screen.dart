@@ -63,10 +63,9 @@ class ActiveSessionsScreen extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       'active_sessions'.tr(),
-                      style: GoogleFonts.fraunces(
+                      style: GoogleFonts.inter(
                         fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w700,
                         color: _kInk,
                       ),
                     ),
@@ -226,9 +225,9 @@ class ActiveSessionsScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             Text(
               'Sign out all other devices?',
-              style: GoogleFonts.fraunces(
-                fontSize: 18, fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic, color: _kInk,
+              style: GoogleFonts.inter(
+                fontSize: 18, fontWeight: FontWeight.w700,
+                color: _kInk,
               ),
             ),
             const SizedBox(height: 8),

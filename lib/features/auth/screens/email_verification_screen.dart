@@ -206,10 +206,9 @@ class _EmailVerificationScreenState
 
                       Text(
                         'verification_title'.tr(),
-                        style: GoogleFonts.fraunces(
+                        style: GoogleFonts.inter(
                           fontSize: 34,
-                          fontWeight: FontWeight.w600,
-                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w700,
                           color: _kInk,
                           height: 1.1,
                           letterSpacing: -0.5,

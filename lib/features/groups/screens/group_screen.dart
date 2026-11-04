@@ -269,10 +269,9 @@ class _GroupScreenState extends ConsumerState<GroupScreen>
                           children: [
                             Text(
                               group?.name ?? 'Group',
-                              style: GoogleFonts.fraunces(
+                              style: GoogleFonts.inter(
                                 fontSize: 18,
-                                fontWeight: FontWeight.w600,
-                                fontStyle: FontStyle.italic,
+                                fontWeight: FontWeight.w700,
                                 color: AppColors.ink,
                               ),
                               maxLines: 1,
@@ -492,9 +491,9 @@ class _EmptyChat extends StatelessWidget {
   const _EmptyChat({required this.groupId});
 
   static const _prompts = [
-    '👋 Salam',
-    '♟ Anyone up for 5+0?',
-    '🏆 Tonight\'s arena?',
+    'Salam',
+    'Anyone up for 5+0?',
+    'Tonight\'s arena?',
   ];
 
   @override
@@ -536,10 +535,9 @@ class _EmptyChat extends StatelessWidget {
             const SizedBox(height: 18),
             Text(
               'Break the silence',
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.inter(
                 fontSize: 22,
-                fontWeight: FontWeight.w500,
-                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w600,
                 color: AppColors.ink,
                 letterSpacing: -0.4,
               ),

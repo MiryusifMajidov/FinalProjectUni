@@ -14,12 +14,12 @@ import '../../../core/services/otp_service.dart';
 import '../../../core/legal/legal_texts.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/app_logo.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg       = AppColors.background;
 const _kSurface  = AppColors.surface;
 const _kCard     = AppColors.card;
 const _kAmber    = AppColors.amber;
-const _kAmberDeep = AppColors.amberDeep;
 const _kAmberGlow = AppColors.amberGlow;
 const _kInk      = AppColors.ink;
 const _kInkDim   = AppColors.inkDim;
@@ -80,10 +80,9 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'about'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -121,43 +120,13 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                         Column(
                           children: [
                             // Knight icon box
-                            Container(
-                              width: 76,
-                              height: 76,
-                              decoration: BoxDecoration(
-                                borderRadius: BorderRadius.circular(22),
-                                gradient: const LinearGradient(
-                                  begin: Alignment.topLeft,
-                                  end: Alignment.bottomRight,
-                                  colors: [_kAmber, _kAmberDeep],
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: _kAmber.withValues(alpha: 0.35),
-                                    blurRadius: 36,
-                                    offset: const Offset(0, 14),
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Text(
-                                  '♞',
-                                  style: TextStyle(
-                                    fontSize: 42,
-                                    color: const Color(0xFF1A1205),
-                                    fontFamily:
-                                        'serif', // system chess rendering
-                                  ),
-                                ),
-                              ),
-                            ),
+                            const AppLogo(size: 76),
                             const SizedBox(height: 14),
                             Text(
                               'CheckMate',
-                              style: GoogleFonts.fraunces(
+                              style: GoogleFonts.inter(
                                 fontSize: 26,
-                                fontWeight: FontWeight.w500,
-                                fontStyle: FontStyle.italic,
+                                fontWeight: FontWeight.w600,
                                 color: _kInk,
                                 letterSpacing: -0.5,
                               ),
@@ -182,8 +151,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                               ),
                               child: Text(
                                 'MADE BY LUDODO',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 10,
+                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   color: _kAmber,
                                   letterSpacing: 0.4,
@@ -202,9 +170,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                     child: Text(
                       '"The board is set, the pieces move. All we have to decide is what to do with the time given to us."',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.fraunces(
-                        fontSize: 14,
-                        fontStyle: FontStyle.italic,
+                      style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14,
                         color: _kInkDim,
                         height: 1.55,
                       ),
@@ -300,8 +266,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                     child: Center(
                       child: Text(
                         '© 2026 CHECKMATE · ALL RIGHTS RESERVED',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9,
+                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                           color: _kInkFaint,
                           letterSpacing: 0.5,
                         ),
@@ -372,9 +337,9 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   const SizedBox(height: 12),
                   Text(
                     title,
-                    style: GoogleFonts.fraunces(
-                      fontSize: 18, fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic, color: _kInk,
+                    style: GoogleFonts.inter(
+                      fontSize: 18, fontWeight: FontWeight.w700,
+                      color: _kInk,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -436,9 +401,9 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
             const SizedBox(height: 18),
             Text(
               'Contact support',
-              style: GoogleFonts.fraunces(
-                fontSize: 18, fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic, color: _kInk,
+              style: GoogleFonts.inter(
+                fontSize: 18, fontWeight: FontWeight.w700,
+                color: _kInk,
               ),
             ),
             const SizedBox(height: 6),
@@ -461,8 +426,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
               ),
               child: Text(
                 kSupportEmail,
-                style: GoogleFonts.jetBrainsMono(
-                    fontSize: 12, color: _kInk, letterSpacing: 0.2),
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12, color: _kInk, letterSpacing: 0.2),
               ),
             ),
             const SizedBox(height: 14),
@@ -530,9 +494,9 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                 const SizedBox(height: 20),
                 Text(
                   isBug ? 'report_bug_label'.tr() : 'send_feedback'.tr(),
-                  style: GoogleFonts.fraunces(
-                    fontSize: 18, fontWeight: FontWeight.w600,
-                    fontStyle: FontStyle.italic, color: _kInk,
+                  style: GoogleFonts.inter(
+                    fontSize: 18, fontWeight: FontWeight.w700,
+                    color: _kInk,
                   ),
                 ),
                 const SizedBox(height: 6),

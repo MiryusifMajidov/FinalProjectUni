@@ -2,7 +2,8 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_core/firebase_core.dart';
-import 'package:flutter/foundation.dart' show kIsWeb, defaultTargetPlatform, TargetPlatform;
+import 'package:flutter/foundation.dart'
+    show kIsWeb, defaultTargetPlatform, TargetPlatform, LicenseRegistry, LicenseEntryWithLineBreaks;
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -19,15 +20,24 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await EasyLocalization.ensureInitialized();
 
+  // The bundled font is SIL OFL 1.1 — the licence travels with the app and
+  // shows up under Settings → About → Licenses.
+  LicenseRegistry.addLicense(() async* {
+    final license = await rootBundle.loadString('assets/google_fonts/OFL.txt');
+    yield LicenseEntryWithLineBreaks(['google_fonts', 'Inter'], license);
+  });
+
   // Pre-load fonts before the first frame so glyphs are always ready.
-  // A timeout prevents a slow/offline network from blocking the splash screen.
   // Impeller is disabled in AndroidManifest.xml (EnableImpeller=false) to avoid
   // Vulkan driver bugs that corrupt font texture atlases on certain Android GPUs.
   try {
+    // Inter is bundled (assets/google_fonts), so this only waits for the
+    // asset loads — no network needed, even on the very first launch.
     await GoogleFonts.pendingFonts([
-      GoogleFonts.fraunces(),
       GoogleFonts.inter(),
-      GoogleFonts.jetBrainsMono(),
+      GoogleFonts.inter(fontWeight: FontWeight.w500),
+      GoogleFonts.inter(fontWeight: FontWeight.w600),
+      GoogleFonts.inter(fontWeight: FontWeight.w700),
     ]).timeout(const Duration(seconds: 5));
   } catch (_) {
     // Fonts will fall back to cached / system fonts — acceptable on slow networks.

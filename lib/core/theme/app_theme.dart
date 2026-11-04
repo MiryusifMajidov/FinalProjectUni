@@ -70,10 +70,9 @@ class AppTheme {
           systemNavigationBarColor: AppColors.background,
         ),
         iconTheme: const IconThemeData(color: AppColors.ink),
-        titleTextStyle: GoogleFonts.fraunces(
+        titleTextStyle: GoogleFonts.inter(
           fontSize: 20,
-          fontWeight: FontWeight.w600,
-          fontStyle: FontStyle.italic,
+          fontWeight: FontWeight.w700,
           color: AppColors.ink,
         ),
       ),
@@ -182,10 +181,9 @@ class AppTheme {
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.circular(20),
         ),
-        titleTextStyle: GoogleFonts.fraunces(
+        titleTextStyle: GoogleFonts.inter(
           fontSize: 20,
-          fontWeight: FontWeight.w600,
-          fontStyle: FontStyle.italic,
+          fontWeight: FontWeight.w700,
           color: AppColors.ink,
         ),
         contentTextStyle: GoogleFonts.inter(
@@ -297,10 +295,9 @@ class AppTheme {
           systemNavigationBarColor: AppColors.lightBackground,
         ),
         iconTheme: const IconThemeData(color: AppColors.lightTextPrimary),
-        titleTextStyle: GoogleFonts.fraunces(
+        titleTextStyle: GoogleFonts.inter(
           fontSize: 20,
-          fontWeight: FontWeight.w600,
-          fontStyle: FontStyle.italic,
+          fontWeight: FontWeight.w700,
           color: AppColors.lightTextPrimary,
         ),
       ),
@@ -362,7 +359,7 @@ class AppTheme {
         backgroundColor: AppColors.lightSurface,
         elevation: 8,
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-        titleTextStyle: GoogleFonts.fraunces(fontSize: 20, fontWeight: FontWeight.w600, fontStyle: FontStyle.italic, color: AppColors.lightTextPrimary),
+        titleTextStyle: GoogleFonts.inter(fontSize: 20, fontWeight: FontWeight.w700, color: AppColors.lightTextPrimary),
         contentTextStyle: GoogleFonts.inter(fontSize: 14, color: AppColors.lightTextSecondary),
       ),
       snackBarTheme: SnackBarThemeData(

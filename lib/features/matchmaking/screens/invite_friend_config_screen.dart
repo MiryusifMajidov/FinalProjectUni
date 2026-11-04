@@ -6,6 +6,7 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/models/user_model.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/game_icon.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg           = AppColors.background;
 const _kCard         = AppColors.card;
@@ -117,10 +118,9 @@ class _InviteFriendConfigScreenState
                       const SizedBox(width: 14),
                       Text(
                         'play_with_friend'.tr(),
-                        style: GoogleFonts.fraunces(
+                        style: GoogleFonts.inter(
                           fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w700,
                           color: _kInk,
                         ),
                       ),
@@ -168,8 +168,7 @@ class _InviteFriendConfigScreenState
                                                 .username[0]
                                                 .toUpperCase()
                                             : '?',
-                                        style: GoogleFonts.fraunces(
-                                          fontSize: 18,
+                                        style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 18,
                                           color: _kInk,
                                         ),
                                       ),
@@ -194,8 +193,7 @@ class _InviteFriendConfigScreenState
                                         Text(
                                           '${widget.opponent.overallRating} rating',
                                           style:
-                                              GoogleFonts.jetBrainsMono(
-                                            fontSize: 11,
+                                              GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                                             color: _kInkDim,
                                           ),
                                         ),
@@ -238,7 +236,7 @@ class _InviteFriendConfigScreenState
                               children: [
                                 _ColorOption(
                                   label: 'white'.tr(),
-                                  piece: '♔',
+                                  icon: const PieceIcon('bK', size: 20, color: Color(0xFF1A1205)),
                                   bgColor: const Color(0xFFF5F3EF),
                                   textColor: const Color(0xFF1A1205),
                                   selected: _colorChoice == 0,
@@ -248,7 +246,7 @@ class _InviteFriendConfigScreenState
                                 const SizedBox(width: 8),
                                 _ColorOption(
                                   label: 'random_color'.tr(),
-                                  piece: '⇋',
+                                  icon: Icon(PhosphorIcons.shuffle(PhosphorIconsStyle.bold), size: 18, color: _kInkDim),
                                   bgColor: Colors.transparent,
                                   textColor: _kInkDim,
                                   bordered: true,
@@ -259,7 +257,7 @@ class _InviteFriendConfigScreenState
                                 const SizedBox(width: 8),
                                 _ColorOption(
                                   label: 'black'.tr(),
-                                  piece: '♚',
+                                  icon: const PieceIcon('bK', size: 20, color: _kInk),
                                   bgColor: const Color(0xFF1A1205),
                                   textColor: _kInk,
                                   selected: _colorChoice == 2,
@@ -472,7 +470,7 @@ class _InviteFriendConfigScreenState
 
 class _ColorOption extends StatelessWidget {
   final String label;
-  final String piece;
+  final Widget icon;
   final Color bgColor;
   final Color textColor;
   final bool bordered;
@@ -481,7 +479,7 @@ class _ColorOption extends StatelessWidget {
 
   const _ColorOption({
     required this.label,
-    required this.piece,
+    required this.icon,
     required this.bgColor,
     required this.textColor,
     this.bordered = false,
@@ -519,13 +517,7 @@ class _ColorOption extends StatelessWidget {
                       : null,
                 ),
                 alignment: Alignment.center,
-                child: Text(
-                  piece,
-                  style: TextStyle(
-                    fontSize: 20,
-                    color: textColor,
-                  ),
-                ),
+                child: icon,
               ),
               const SizedBox(height: 6),
               Text(
@@ -573,8 +565,7 @@ class _TimePill extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 12,
+          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
             fontWeight: FontWeight.w600,
             color: selected ? _kAmber : _kInkDim,
           ),

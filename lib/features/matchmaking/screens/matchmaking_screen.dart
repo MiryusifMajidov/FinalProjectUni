@@ -14,6 +14,7 @@ import '../../../core/models/game_type.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/realtime_game_service.dart';
 
+import '../../../core/widgets/game_icon.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kCard      = AppColors.card;
@@ -480,10 +481,9 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
                       const SizedBox(width: 14),
                       Text(
                         'find_opponent'.tr(),
-                        style: GoogleFonts.fraunces(
+                        style: GoogleFonts.inter(
                           fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w700,
                           color: _kInk,
                         ),
                       ),
@@ -848,8 +848,7 @@ class _HeroCard extends StatelessWidget {
                     ),
                     child: Text(
                       'RATED · ONLINE',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: _kInkMute,
                         letterSpacing: 0.8,
@@ -861,10 +860,9 @@ class _HeroCard extends StatelessWidget {
                   // Heading
                   Text(
                     'Find a match',
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
-                      fontStyle: FontStyle.italic,
                       color: _kInk,
                       height: 1.1,
                     ),
@@ -902,10 +900,9 @@ class _HeroCard extends StatelessWidget {
                           const SizedBox(height: 2),
                           Text(
                             '$myRating',
-                            style: GoogleFonts.fraunces(
+                            style: GoogleFonts.inter(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
-                              fontStyle: FontStyle.italic,
                               color: accent,
                             ),
                           ),
@@ -922,8 +919,7 @@ class _HeroCard extends StatelessWidget {
                           ),
                           child: Text(
                             '±200',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 12,
+                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: accent,
                             ),
@@ -1094,17 +1090,16 @@ class _SearchingView extends StatelessWidget {
           const SizedBox(height: 20),
 
           // ── Pulsing orb ─────────────────────────────────────────────────
-          _PulsingOrb(accent: accent, emoji: gameType.searchEmoji),
+          _PulsingOrb(accent: accent, gameType: gameType),
 
           const SizedBox(height: 28),
 
           // Large timer
           Text(
             timeStr,
-            style: GoogleFonts.fraunces(
+            style: GoogleFonts.inter(
               fontSize: 48,
               fontWeight: FontWeight.w700,
-              fontStyle: FontStyle.italic,
               color: accent,
               letterSpacing: -1,
             ),
@@ -1125,8 +1120,7 @@ class _SearchingView extends StatelessWidget {
               ),
               child: Text(
                 _statusPillLabel,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                   fontWeight: FontWeight.w500,
                   color: _kInkDim,
                   letterSpacing: 0.4,
@@ -1203,10 +1197,9 @@ class _StatItem extends StatelessWidget {
       children: [
         Text(
           value,
-          style: GoogleFonts.fraunces(
+          style: GoogleFonts.inter(
             fontSize: 18,
             fontWeight: FontWeight.w700,
-            fontStyle: FontStyle.italic,
             color: valueColor,
           ),
         ),
@@ -1273,7 +1266,7 @@ class _MatchFoundOverlay extends StatelessWidget {
                 ],
               ),
               child: Center(
-                child: Text(gameType.searchEmoji, style: const TextStyle(fontSize: 42)),
+                child: GameIcon(type: gameType, size: 44, color: const Color(0xFF1A1205)),
               ),
             )
                 .animate(onPlay: (c) => c.repeat(reverse: true))
@@ -1288,10 +1281,9 @@ class _MatchFoundOverlay extends StatelessWidget {
 
             Text(
               'Opponent found!',
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.inter(
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
-                fontStyle: FontStyle.italic,
                 color: _kInk,
                 letterSpacing: -0.5,
               ),
@@ -1304,8 +1296,7 @@ class _MatchFoundOverlay extends StatelessWidget {
 
             Text(
               opponentName,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 16,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 16,
                 fontWeight: FontWeight.w600,
                 color: accent,
                 letterSpacing: 0.5,
@@ -1336,8 +1327,8 @@ class _MatchFoundOverlay extends StatelessWidget {
 
 class _PulsingOrb extends StatelessWidget {
   final Color accent;
-  final String emoji;
-  const _PulsingOrb({required this.accent, required this.emoji});
+  final GameType gameType;
+  const _PulsingOrb({required this.accent, required this.gameType});
 
   @override
   Widget build(BuildContext context) {
@@ -1380,7 +1371,7 @@ class _PulsingOrb extends StatelessWidget {
               shape: BoxShape.circle,
               boxShadow: [BoxShadow(color: accent.withOpacity(0.35), blurRadius: 24, offset: const Offset(0, 6))],
             ),
-            child: Center(child: Text(emoji, style: const TextStyle(fontSize: 36))),
+            child: Center(child: GameIcon(type: gameType, size: 38, color: const Color(0xFF1A1205))),
           ),
         ],
       ),

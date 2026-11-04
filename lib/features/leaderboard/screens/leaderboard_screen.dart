@@ -148,10 +148,9 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                   const SizedBox(width: 14),
                   Text(
                     'leaderboard'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 24,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -299,9 +298,7 @@ class _LeaderboardTab extends ConsumerWidget {
           return Center(
             child: Text(
               'No players yet',
-              style: GoogleFonts.fraunces(
-                fontSize: 18,
-                fontStyle: FontStyle.italic,
+              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 18,
                 color: _kInkMute,
               ),
             ),
@@ -464,7 +461,8 @@ class _PodiumSlot extends StatelessWidget {
         children: [
           // Crown (only for 1st)
           if (crownSize > 0) ...[
-            Text('♛', style: TextStyle(fontSize: crownSize, color: _kAmber)),
+            Icon(PhosphorIcons.crownSimple(PhosphorIconsStyle.fill),
+                size: crownSize, color: _kAmber),
             const SizedBox(height: 2),
           ],
 
@@ -516,8 +514,7 @@ class _PodiumSlot extends StatelessWidget {
           // Rating
           Text(
             '$rating',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: rank == 1 ? 13 : 11,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: rank == 1 ? 13 : 11,
               fontWeight: FontWeight.w700,
               color: rank == 1 ? _kAmber : medalColor,
             ),
@@ -562,10 +559,9 @@ class _PodiumSlot extends StatelessWidget {
                 child: Center(
                   child: Text(
                     medalLabel,
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
-                      fontStyle: FontStyle.italic,
                       color: medalColor,
                     ),
                   ),
@@ -617,8 +613,7 @@ class _LeaderboardRow extends StatelessWidget {
               width: 32,
               child: Text(
                 '$rank',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 13,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: isMe ? _kAmber : _kInkMute,
                 ),
@@ -664,8 +659,7 @@ class _LeaderboardRow extends StatelessWidget {
             // Rating
             Text(
               '$rating',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 14,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: isMe ? _kAmber : _kInk,
               ),
@@ -712,8 +706,7 @@ class _StickyOwnRank extends StatelessWidget {
           // "YOUR RANK" label
           Text(
             'your_rank'.tr().toUpperCaseFor(context),
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 9,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
               fontWeight: FontWeight.w600,
               color: _kInkMute,
               letterSpacing: 0.6,
@@ -731,8 +724,7 @@ class _StickyOwnRank extends StatelessWidget {
             ),
             child: Text(
               '#$rank',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 12,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: _kAmber,
               ),
@@ -777,8 +769,7 @@ class _StickyOwnRank extends StatelessWidget {
           // Rating
           Text(
             '$rating',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 14,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 14,
               fontWeight: FontWeight.w700,
               color: _kAmber,
             ),

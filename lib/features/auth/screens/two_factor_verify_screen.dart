@@ -107,9 +107,9 @@ class _TwoFactorVerifyScreenState
 
               Text(
                 'Two-Factor Authentication',
-                style: GoogleFonts.fraunces(
-                  fontSize: 22, fontWeight: FontWeight.w600,
-                  fontStyle: FontStyle.italic, color: _kInk,
+                style: GoogleFonts.inter(
+                  fontSize: 22, fontWeight: FontWeight.w700,
+                  color: _kInk,
                 ),
                 textAlign: TextAlign.center,
               ),
@@ -141,8 +141,7 @@ class _TwoFactorVerifyScreenState
                       textAlign: TextAlign.center,
                       keyboardType: TextInputType.number,
                       maxLength: 1,
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 20, fontWeight: FontWeight.bold,
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 20, fontWeight: FontWeight.bold,
                         color: _kAmber,
                       ),
                       decoration: const InputDecoration(

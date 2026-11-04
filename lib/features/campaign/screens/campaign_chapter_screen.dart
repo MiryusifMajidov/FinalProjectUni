@@ -12,6 +12,7 @@ import '../../../core/models/game_type.dart';
 import '../../../core/widgets/app_button.dart';
 import '../../../core/services/auth_service.dart';
 
+import '../../../core/widgets/game_icon.dart';
 // ── Chapter title list (short display names) ──────────────────────────────────
 
 const List<String> _chapterTitles = [
@@ -162,31 +163,16 @@ String _chapterTitle(int chapter, GameType gameType) {
   return titles[chapter - 1];
 }
 
-// Piece emoji per chapter group
-String _pieceEmoji(int chapter, GameType gameType) {
-  if (gameType == GameType.checkers) {
-    if (chapter <= 15) return '⛀';
-    if (chapter <= 30) return '⛁';
-    if (chapter <= 45) return '⛂';
-    return '⛃';
+/// The chapter's emblem: a chess piece that climbs pawn → king as the path
+/// goes on, or the game's own icon for checkers and domino. (These were
+/// Unicode glyphs — ♙ ⛀ 🁫 … — that rendered differently on every phone.)
+Widget _chapterIcon(int chapter, GameType gameType, {double size = 40, required Color color}) {
+  if (gameType != GameType.chess) {
+    return GameIcon(type: gameType, size: size, color: color);
   }
-  if (gameType == GameType.domino) {
-    if (chapter <= 10) return '🁫';
-    if (chapter <= 20) return '🁣';
-    if (chapter <= 30) return '🁳';
-    return '🂓';
-  }
-  // Chess
-  if (chapter <= 10) return '♙';
-  if (chapter <= 20) return '♘';
-  if (chapter <= 30) return '♗';
-  if (chapter <= 40) return '♖';
-  if (chapter <= 50) return '♕';
-  if (chapter <= 60) return '♔';
-  if (chapter <= 70) return '♙';
-  if (chapter <= 80) return '♘';
-  if (chapter <= 90) return '♗';
-  return '♛';
+  const ladder = ['P', 'N', 'B', 'R', 'Q', 'K', 'P', 'N', 'B', 'Q'];
+  final step = ((chapter - 1) ~/ 10).clamp(0, ladder.length - 1);
+  return PieceIcon('b${ladder[step]}', size: size, color: color);
 }
 
 // ── Font helpers ──────────────────────────────────────────────────────────────
@@ -197,24 +183,25 @@ TextStyle _mono({
   Color color = AppColors.inkMute,
   double letterSpacing = 0.6,
 }) =>
-    GoogleFonts.jetBrainsMono(
-      fontSize: size,
+    GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: size,
       fontWeight: weight,
       color: color,
       letterSpacing: letterSpacing,
     );
 
-TextStyle _fraunces({
+/// Headings and large numbers: Inter, a step bolder than body text. (This was
+/// an italic serif — Fraunces — which read as decoration, not as a product.)
+TextStyle _display({
   double size = 14,
-  FontWeight weight = FontWeight.w400,
+  FontWeight weight = FontWeight.w600,
   Color color = AppColors.ink,
-  bool italic = true,
+  double letterSpacing = 0,
 }) =>
-    GoogleFonts.fraunces(
+    GoogleFonts.inter(
       fontSize: size,
       fontWeight: weight,
-      fontStyle: italic ? FontStyle.italic : FontStyle.normal,
       color: color,
+      letterSpacing: letterSpacing != 0 ? letterSpacing : (size >= 20 ? -0.4 : 0),
     );
 
 TextStyle _inter({
@@ -236,7 +223,6 @@ class CampaignChapterScreen extends ConsumerWidget {
     final totalChapters = activeGame.identity.questChapters;
     final data = CampaignChapter.all[chapter - 1];
     final title = _chapterTitle(chapter, activeGame);
-    final piece = _pieceEmoji(chapter, activeGame);
     final accent = activeGame.accent;
 
     return Scaffold(
@@ -303,9 +289,9 @@ class CampaignChapterScreen extends ConsumerWidget {
                     // Large chapter title
                     Text(
                       title,
-                      style: _fraunces(
+                      style: _display(
                         size: 44,
-                        weight: FontWeight.w600,
+                        weight: FontWeight.w700,
                         color: AppColors.ink,
                       ),
                     ).animate(delay: 60.ms).fadeIn().slideY(begin: 0.08),
@@ -315,7 +301,7 @@ class CampaignChapterScreen extends ConsumerWidget {
                     // Piece portrait card
                     _PiecePortraitCard(
                       chapter: chapter,
-                      piece: piece,
+                      gameType: activeGame,
                       flavorText: data.flavorText,
                       accent: accent,
                     ).animate(delay: 100.ms).fadeIn(),
@@ -471,13 +457,13 @@ class CampaignChapterScreen extends ConsumerWidget {
 
 class _PiecePortraitCard extends StatelessWidget {
   final int chapter;
-  final String piece;
+  final GameType gameType;
   final String flavorText;
   final Color accent;
 
   const _PiecePortraitCard({
     required this.chapter,
-    required this.piece,
+    required this.gameType,
     required this.flavorText,
     required this.accent,
   });
@@ -497,7 +483,7 @@ class _PiecePortraitCard extends StatelessWidget {
       ),
       child: Row(
         children: [
-          // Radial circle with game piece/emoji
+          // Chapter emblem
           Container(
             width: 76,
             height: 76,
@@ -509,10 +495,8 @@ class _PiecePortraitCard extends StatelessWidget {
               ),
             ),
             alignment: Alignment.center,
-            child: Text(
-              piece,
-              style: const TextStyle(fontSize: 38),
-            ),
+            child: _chapterIcon(chapter, gameType,
+                size: 40, color: const Color(0xFF1A1205)),
           ),
           const SizedBox(width: 14),
           Expanded(
@@ -520,7 +504,6 @@ class _PiecePortraitCard extends StatelessWidget {
               flavorText,
               style: GoogleFonts.inter(
                 fontSize: 13,
-                fontStyle: FontStyle.italic,
                 color: AppColors.inkDim,
                 height: 1.5,
               ),
@@ -606,8 +589,7 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 9,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
               color: AppColors.inkMute,
               letterSpacing: 0.5,
             ),
@@ -615,11 +597,10 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             value,
-            style: GoogleFonts.fraunces(
+            style: GoogleFonts.inter(
               fontSize: 14,
-              fontWeight: FontWeight.w600,
+              fontWeight: FontWeight.w700,
               color: valueColor ?? AppColors.ink,
-              fontStyle: FontStyle.italic,
             ),
           ),
         ],
@@ -685,8 +666,7 @@ class _ObjectiveRow extends StatelessWidget {
               ),
               child: Text(
                 xp,
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: accent,
                 ),

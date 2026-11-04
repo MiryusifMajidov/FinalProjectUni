@@ -106,10 +106,9 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'sound'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -226,8 +225,7 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
                             alignment: Alignment.centerRight,
                             child: Text(
                               '${(_masterVolume * 100).round()}/100',
-                              style: GoogleFonts.jetBrainsMono(
-                                fontSize: 11,
+                              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                                 color: _kInkMute,
                               ),
                             ),

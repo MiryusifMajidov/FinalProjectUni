@@ -60,10 +60,9 @@ class GroupsScreen extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         'groups'.tr(),
-                        style: GoogleFonts.fraunces(
+                        style: GoogleFonts.inter(
                           fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w700,
                           color: _kInk,
                         ),
                       ),
@@ -184,10 +183,9 @@ class _MyGroupsTab extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(
                   'No groups yet',
-                  style: GoogleFonts.fraunces(
+                  style: GoogleFonts.inter(
                     fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w700,
                     color: _kInk,
                   ),
                 ),

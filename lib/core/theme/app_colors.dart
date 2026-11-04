@@ -46,6 +46,11 @@ class AppColors {
   static const drawSoft      = Color(0x24B8A888);  // rgba(184,168,136,0.14)
   static const live          = Color(0xFFFF6B6B);
 
+  // ─── Time-control categories — one colour each, on every screen ─────────
+  static const bullet        = Color(0xFFF5A462);
+  static const blitz         = Color(0xFF6FB4E0);
+  static const rapid         = win;
+
   // ─── Semantic (keep old names as aliases) ─────────────────────────────────
   static const success       = win;
   static const warning       = amber;

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../engine/checkers_engine.dart';
 
+import 'package:phosphor_icons/phosphor_icons.dart';
 /// Renders an N×N checkers board (8×8 or 10×10) with disc-shaped pieces,
 /// radial gradient 3-D effect, king markers, legal-move hints, and
 /// forced-capture highlights. Board size is derived from the engine's variant.
@@ -194,13 +195,10 @@ class CheckersBoardWidget extends StatelessWidget {
                   ),
                 ),
                 child: Center(
-                  child: Text(
-                    '♛',
-                    style: TextStyle(
-                      fontSize: size * 0.25,
-                      color: _checkerAccent,
-                      height: 1.0,
-                    ),
+                  child: Icon(
+                    PhosphorIcons.crownSimple(PhosphorIconsStyle.fill),
+                    size: size * 0.26,
+                    color: _checkerAccent,
                   ),
                 ),
               ),

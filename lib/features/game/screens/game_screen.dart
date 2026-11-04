@@ -21,10 +21,13 @@ import '../../../core/widgets/user_avatar.dart';
 import '../engine/chess_engine.dart';
 import '../providers/game_provider.dart';
 import '../widgets/chess_board_widget.dart';
+import '../widgets/captured_pieces.dart';
 import '../widgets/clock_widget.dart';
 import '../widgets/game_chat_panel.dart';
 
 import '../../../core/utils/text_case.dart';
+import '../../../core/widgets/game_icon.dart';
+import '../../../core/theme/board_themes.dart';
 class GameScreen extends ConsumerStatefulWidget {
   final String gameId;
   final Map<String, dynamic>? extra;
@@ -414,6 +417,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                     rating: oppRating,
                     countryCode: oppCountryCode,
                     materialAdvantage: (-myMaterialAdv).clamp(0, 99),
+                    pieceSet: ref.watch(settingsProvider).pieceSet.folderName,
                   ),
 
                   // Disconnect banner
@@ -481,6 +485,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                         ? gameState.engine.capturedByWhite
                         : gameState.engine.capturedByBlack,
                     materialAdvantage: myMaterialAdv.clamp(0, 99),
+                    pieceSet: ref.watch(settingsProvider).pieceSet.folderName,
                   ),
 
                   // ── Move history strip (always visible after first move) ──
@@ -531,6 +536,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         bottomSheet: gameState.needsPromotion
             ? _PromotionSheet(
                 isWhite: gameState.engine.isWhiteTurn,
+                pieceSet: ref.watch(settingsProvider).pieceSet.folderName,
                 onSelect: (piece) =>
                     ref
                         .read(gameProvider(_config).notifier)
@@ -746,8 +752,7 @@ class _MinimalHeader extends StatelessWidget {
               children: [
                 Text(
                   modeLabel,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                     fontWeight: FontWeight.w700,
                     color: AppColors.inkMute,
                     letterSpacing: 1.4,
@@ -756,9 +761,7 @@ class _MinimalHeader extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   subLabel,
-                  style: GoogleFonts.fraunces(
-                    fontSize: 13,
-                    fontStyle: FontStyle.italic,
+                  style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 13,
                     color: AppColors.inkDim,
                   ),
                 ),
@@ -790,14 +793,9 @@ class _MinimalHeader extends StatelessWidget {
                 shape: BoxShape.circle,
                 color: Colors.white.withValues(alpha: 0.06),
               ),
-              child: Center(
-                child: Text(
-                  '⋯',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 18, color: AppColors.inkDim,
-                    letterSpacing: -2, height: 1.2,
-                  ),
-                ),
+              child: Icon(
+                PhosphorIcons.dotsThree(PhosphorIconsStyle.bold),
+                color: AppColors.inkDim, size: 18,
               ),
             ),
           ),
@@ -859,12 +857,16 @@ class _CalmPlayerStrip extends StatelessWidget {
   final String? countryCode;
   final int materialAdvantage;
 
+  /// Folder of the board's piece set, for the captured-piece icons.
+  final String pieceSet;
+
   const _CalmPlayerStrip({
     required this.username,
     required this.isWhite,
     required this.milliseconds,
     required this.isActive,
     required this.capturedPieces,
+    required this.pieceSet,
     this.photoUrl,
     this.rating,
     this.countryCode,
@@ -907,12 +909,12 @@ class _CalmPlayerStrip extends StatelessWidget {
                     child: CachedNetworkImage(imageUrl: photoUrl!, fit: BoxFit.cover),
                   )
                 : Center(
-                    child: Text(
-                      isWhite ? '♔' : '♚',
-                      style: TextStyle(
-                        fontSize: 20,
-                        color: isWhite ? const Color(0xFF1A1310) : const Color(0xFFF5F3EF),
-                      ),
+                    child: PieceIcon(
+                      'bK',
+                      size: 22,
+                      color: isWhite
+                          ? const Color(0xFF1A1310)
+                          : const Color(0xFFF5F3EF),
                     ),
                   ),
           ),
@@ -925,10 +927,9 @@ class _CalmPlayerStrip extends StatelessWidget {
               children: [
                 Text(
                   username,
-                  style: GoogleFonts.fraunces(
-                    fontSize: 16, fontWeight: FontWeight.w600,
+                  style: GoogleFonts.inter(
+                    fontSize: 16, fontWeight: FontWeight.w700,
                     color: AppColors.ink, letterSpacing: -0.2,
-                    fontStyle: FontStyle.italic,
                   ),
                   overflow: TextOverflow.ellipsis,
                 ),
@@ -938,25 +939,31 @@ class _CalmPlayerStrip extends StatelessWidget {
                       if (subParts.isNotEmpty)
                         Text(
                           subParts.join(' · '),
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10, color: AppColors.inkMute,
+                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.inkMute,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
                       if (capturedPieces.isNotEmpty) ...[
                         const SizedBox(width: 6),
-                        Text(
-                          capturedPieces.map((p) => p.symbol).join(''),
-                          style: const TextStyle(fontSize: 11, height: 1.0),
-                          overflow: TextOverflow.ellipsis,
+                        // Shrinks rather than overflowing late in a game.
+                        Flexible(
+                          child: FittedBox(
+                            fit: BoxFit.scaleDown,
+                            alignment: Alignment.centerLeft,
+                            child: CapturedPieces(
+                              pieces: capturedPieces,
+                              pieceSet: pieceSet,
+                              color: AppColors.inkDim,
+                              size: 13,
+                            ),
+                          ),
                         ),
                       ],
                       if (materialAdvantage > 0) ...[
                         const SizedBox(width: 4),
                         Text(
                           '+$materialAdvantage',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10, color: AppColors.win,
+                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.win,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -969,11 +976,10 @@ class _CalmPlayerStrip extends StatelessWidget {
           // Clock — large, amber when active
           Text(
             clockStr,
-            style: GoogleFonts.fraunces(
-              fontSize: 26, fontWeight: FontWeight.w500,
+            style: GoogleFonts.inter(
+              fontSize: 26, fontWeight: FontWeight.w600,
               color: isActive ? AppColors.amber : AppColors.inkDim,
               letterSpacing: -0.5,
-              fontStyle: FontStyle.italic,
             ),
           ),
         ],
@@ -1004,8 +1010,7 @@ class _EvalBaseline extends StatelessWidget {
         children: [
           Text(
             evalScore == 0.0 ? '0.0' : label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10, fontWeight: FontWeight.w700,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w700,
               color: AppColors.inkMute, letterSpacing: 0.4,
             ),
           ),
@@ -1060,10 +1065,8 @@ class _EvalBaseline extends StatelessWidget {
           const SizedBox(width: 10),
           Text(
             label == '0.0' ? 'equal' : label,
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 10, fontWeight: FontWeight.w700,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w700,
               color: AppColors.inkMute, letterSpacing: 0.4,
-              fontStyle: FontStyle.italic,
             ),
           ),
         ],
@@ -1290,16 +1293,18 @@ class _DisconnectBanner extends StatelessWidget {
 
 class _PromotionSheet extends StatelessWidget {
   final bool isWhite;
+  final String pieceSet;
   final void Function(String piece) onSelect;
 
-  const _PromotionSheet({required this.isWhite, required this.onSelect});
+  const _PromotionSheet({
+    required this.isWhite,
+    required this.pieceSet,
+    required this.onSelect,
+  });
 
   @override
   Widget build(BuildContext context) {
     final pieces = ['q', 'r', 'b', 'n'];
-    final symbols = isWhite
-        ? ['♕', '♖', '♗', '♘']
-        : ['♛', '♜', '♝', '♞'];
 
     return Container(
       color: context.appColors.surface,
@@ -1323,9 +1328,10 @@ class _PromotionSheet extends StatelessWidget {
                     border: Border.all(color: AppColors.primary),
                   ),
                   child: Center(
-                    child: Text(
-                      symbols[i],
-                      style: const TextStyle(fontSize: 36),
+                    child: PieceIcon(
+                      '${isWhite ? 'w' : 'b'}${pieces[i].toUpperCase()}',
+                      size: 44,
+                      pieceSet: pieceSet,
                     ),
                   ),
                 ),
@@ -1701,7 +1707,7 @@ class _GameResultSheetState extends ConsumerState<_GameResultSheet> {
             if (widget.onContinue != null && _playerWon) ...[
               AppButton(
                 label: widget.campaignChapter == GameTypeX.fromString(widget.config.gameType).identity.questChapters
-                    ? '🏆 You Completed the Campaign!'
+                    ? 'You Completed the Campaign!'
                     : 'Continue → Chapter ${widget.campaignChapter! + 1}',
                 onTap: widget.onContinue!,
               ).animate(delay: 500.ms).fadeIn().slideY(begin: 0.2),
@@ -1886,8 +1892,7 @@ class _CampaignObjectivesSummary extends StatelessWidget {
       children: [
         Text(
           'OBJECTIVES',
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 10,
+          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
             fontWeight: FontWeight.w700,
             color: AppColors.textSecondary,
             letterSpacing: 1.2,
@@ -1947,8 +1952,7 @@ class _CampaignObjectivesSummary extends StatelessWidget {
                   ),
                   child: Text(
                     '+5 XP',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
+                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: completed
                           ? AppColors.amber
@@ -2145,8 +2149,7 @@ class _MoveHistoryStripState extends State<_MoveHistoryStrip> {
                     // Move number
                     Text(
                       '${pairIdx + 1}.',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                         color: const Color(0xFF504840),
                         fontWeight: FontWeight.w600,
                       ),
@@ -2230,8 +2233,7 @@ class _MoveChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 12,
+          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
             fontWeight: FontWeight.w600,
             color: highlighted
                 ? const Color(0xFF1A1205)
@@ -2372,9 +2374,8 @@ class _FullMovesSheetState extends ConsumerState<_FullMovesSheet> {
                 children: [
                   Text(
                     'move_history'.tr(),
-                    style: GoogleFonts.fraunces(
-                      fontSize: 20, fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                    style: GoogleFonts.inter(
+                      fontSize: 20, fontWeight: FontWeight.w700,
                       color: const Color(0xFFF5F3EF),
                     ),
                   ),
@@ -2508,8 +2509,7 @@ class _MovePairRow extends StatelessWidget {
             width: 34,
             child: Text(
               '$moveNumber.',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 12, fontWeight: FontWeight.w600,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12, fontWeight: FontWeight.w600,
                 color: const Color(0xFF504840),
               ),
             ),
@@ -2531,8 +2531,7 @@ class _MovePairRow extends StatelessWidget {
                 ),
                 child: Text(
                   whiteLabel,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 13, fontWeight: FontWeight.w600,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13, fontWeight: FontWeight.w600,
                     color: whiteHighlighted
                         ? const Color(0xFF1A1205)
                         : const Color(0xFFD0C8BF),
@@ -2560,8 +2559,7 @@ class _MovePairRow extends StatelessWidget {
                       ),
                       child: Text(
                         blackLabel!,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 13, fontWeight: FontWeight.w600,
+                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13, fontWeight: FontWeight.w600,
                           color: blackHighlighted
                               ? const Color(0xFF1A1205)
                               : const Color(0xFFD0C8BF),

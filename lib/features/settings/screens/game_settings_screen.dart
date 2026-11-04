@@ -14,6 +14,7 @@ import '../../game/widgets/chess_board_widget.dart';
 import 'settings_screen.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/game_icon.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg           = AppColors.background;
 const _kSurface      = AppColors.surface;
@@ -148,10 +149,9 @@ class _GameSettingsScreenState extends ConsumerState<GameSettingsScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'game_settings'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -164,10 +164,7 @@ class _GameSettingsScreenState extends ConsumerState<GameSettingsScreen> {
                       borderRadius: BorderRadius.circular(8),
                       border: Border.all(color: accent.withValues(alpha: 0.3)),
                     ),
-                    child: Text(
-                      activeGame.glyph,
-                      style: const TextStyle(fontSize: 16),
-                    ),
+                    child: GameIcon(type: activeGame, size: 16, color: accent),
                   ),
                 ],
               ),

@@ -79,10 +79,9 @@ class FriendsScreen extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         'friends'.tr(),
-                        style: GoogleFonts.fraunces(
+                        style: GoogleFonts.inter(
                           fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w700,
                           color: _kInk,
                         ),
                       ),
@@ -242,10 +241,9 @@ class _FriendsTab extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(
                   'no_friends_yet'.tr(),
-                  style: GoogleFonts.fraunces(
+                  style: GoogleFonts.inter(
                     fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w700,
                     color: _kInk,
                   ),
                 ),
@@ -402,10 +400,9 @@ class _FriendTile extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'remove_friend'.tr(),
-          style: GoogleFonts.fraunces(
+          style: GoogleFonts.inter(
             fontSize: 18,
-            fontWeight: FontWeight.w600,
-            fontStyle: FontStyle.italic,
+            fontWeight: FontWeight.w700,
             color: _kInk,
           ),
         ),
@@ -478,10 +475,9 @@ class _RequestsTab extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(
                   'No pending requests',
-                  style: GoogleFonts.fraunces(
+                  style: GoogleFonts.inter(
                     fontSize: 18,
-                    fontWeight: FontWeight.w600,
-                    fontStyle: FontStyle.italic,
+                    fontWeight: FontWeight.w700,
                     color: _kInk,
                   ),
                 ),

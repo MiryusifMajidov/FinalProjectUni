@@ -147,10 +147,9 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'add_friend'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -358,8 +357,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                               ),
                               Text(
                                 '${u.overallRating}',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 11,
+                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                                   color: _kInkMute,
                                 ),
                               ),

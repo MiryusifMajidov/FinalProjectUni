@@ -122,10 +122,9 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                     widget.enabling
                         ? 'enable_2fa'.tr()
                         : 'disable_2fa'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 20,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -170,9 +169,9 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
             widget.enabling
                 ? 'tfa_security_add'.tr()
                 : 'tfa_security_remove'.tr(),
-            style: GoogleFonts.fraunces(
-              fontSize: 22, fontWeight: FontWeight.w600,
-              fontStyle: FontStyle.italic, color: _kInk,
+            style: GoogleFonts.inter(
+              fontSize: 22, fontWeight: FontWeight.w700,
+              color: _kInk,
             ),
             textAlign: TextAlign.center,
           ),
@@ -264,9 +263,9 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
           const SizedBox(height: 16),
           Text(
             'enter_verification_code'.tr(),
-            style: GoogleFonts.fraunces(
-              fontSize: 22, fontWeight: FontWeight.w600,
-              fontStyle: FontStyle.italic, color: _kInk,
+            style: GoogleFonts.inter(
+              fontSize: 22, fontWeight: FontWeight.w700,
+              color: _kInk,
             ),
           ),
           const SizedBox(height: 10),
@@ -294,8 +293,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                   textAlign: TextAlign.center,
                   keyboardType: TextInputType.number,
                   maxLength: 1,
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 20, fontWeight: FontWeight.bold, color: _kAmber,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 20, fontWeight: FontWeight.bold, color: _kAmber,
                   ),
                   decoration: const InputDecoration(
                     border: InputBorder.none,
@@ -391,9 +389,9 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
             const SizedBox(height: 20),
             Text(
               widget.enabling ? 'tfa_enabled'.tr() : 'tfa_disabled'.tr(),
-              style: GoogleFonts.fraunces(
-                fontSize: 24, fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic, color: _kInk,
+              style: GoogleFonts.inter(
+                fontSize: 24, fontWeight: FontWeight.w700,
+                color: _kInk,
               ),
             ),
             const SizedBox(height: 10),

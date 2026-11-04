@@ -445,10 +445,9 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
                       t == null ? 'arena'.tr() : tournamentDisplayName(t),
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.fraunces(
+                      style: GoogleFonts.inter(
                         fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.ink,
                       ),
                     ),
@@ -564,10 +563,9 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
                   children: [
                     Text(
                       'standings'.tr(),
-                      style: GoogleFonts.fraunces(
+                      style: GoogleFonts.inter(
                         fontSize: 18,
-                        fontWeight: FontWeight.w600,
-                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.ink,
                         letterSpacing: -0.3,
                       ),
@@ -575,8 +573,7 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
                     const Spacer(),
                     Text(
                       'arena_col_wdl'.tr(),
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 11,
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                         fontWeight: FontWeight.w600,
                         color: AppColors.inkMute,
                         letterSpacing: 0.5,
@@ -585,8 +582,7 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
                     const SizedBox(width: 14),
                     Text(
                       'arena_col_pts'.tr(),
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 11,
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: accent,
                         letterSpacing: 0.8,
@@ -674,13 +670,18 @@ class _HintText extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Text(
-      text,
-      textAlign: TextAlign.center,
-      style: GoogleFonts.inter(
-        fontSize: 12.5,
-        color: AppColors.inkMute,
-        height: 1.45,
+    // Full width, so the centred text lines up with the buttons around it
+    // instead of hugging the left edge of the column.
+    return SizedBox(
+      width: double.infinity,
+      child: Text(
+        text,
+        textAlign: TextAlign.center,
+        style: GoogleFonts.inter(
+          fontSize: 12.5,
+          color: AppColors.inkMute,
+          height: 1.45,
+        ),
       ),
     );
   }
@@ -879,8 +880,7 @@ class _CountdownCard extends StatelessWidget {
                   children: [
                     Text(
                       caption.toUpperCaseFor(context),
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10.5,
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                         fontWeight: FontWeight.w600,
                         color: AppColors.inkMute,
                         letterSpacing: 0.8,
@@ -890,8 +890,7 @@ class _CountdownCard extends StatelessWidget {
                     // Tabular digits so the countdown doesn't jitter.
                     Text(
                       value,
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 34,
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 34,
                         fontWeight: FontWeight.w700,
                         color: t.isFinished ? AppColors.inkMute : accent,
                         letterSpacing: -1,
@@ -908,8 +907,7 @@ class _CountdownCard extends StatelessWidget {
                             ? 'arena_time_control'.tr()
                             : 'arena_rules'.tr())
                         .toUpperCase(),
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10.5,
+                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                       fontWeight: FontWeight.w600,
                       color: AppColors.inkMute,
                       letterSpacing: 0.8,
@@ -918,10 +916,9 @@ class _CountdownCard extends StatelessWidget {
                   const SizedBox(height: 6),
                   Text(
                     t.timeControlLabel,
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
-                      fontStyle: FontStyle.italic,
                       color: AppColors.ink,
                     ),
                   ),
@@ -929,8 +926,7 @@ class _CountdownCard extends StatelessWidget {
                   Text(
                     'arena_duration_min'
                         .tr(namedArgs: {'minutes': '${t.durationMinutes}'}),
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11,
+                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                       color: AppColors.inkMute,
                     ),
                   ),
@@ -964,8 +960,7 @@ class _CountdownCard extends StatelessWidget {
                   'count': '${t.participantCount}',
                   'max': '${t.maxPlayers}',
                 }),
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11.5,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11.5,
                   color: AppColors.inkMute,
                 ),
               ),
@@ -993,7 +988,8 @@ class _WinnerCard extends StatelessWidget {
         text: 'arena_no_winner'.tr(),
       );
     }
-    const medals = ['🥇', '🥈', '🥉'];
+    // Gold / silver / bronze rank discs (were 🥇🥈🥉 emoji).
+    const medalColors = [Color(0xFFE8B960), Color(0xFFC0C4CC), Color(0xFFC98A5A)];
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -1007,10 +1003,9 @@ class _WinnerCard extends StatelessWidget {
         children: [
           Text(
             'arena_finished_title'.tr(),
-            style: GoogleFonts.fraunces(
+            style: GoogleFonts.inter(
               fontSize: 18,
-              fontWeight: FontWeight.w600,
-              fontStyle: FontStyle.italic,
+              fontWeight: FontWeight.w700,
               color: AppColors.ink,
             ),
           ),
@@ -1020,7 +1015,24 @@ class _WinnerCard extends StatelessWidget {
               padding: const EdgeInsets.only(bottom: 6),
               child: Row(
                 children: [
-                  Text(medals[i], style: const TextStyle(fontSize: 18)),
+                  Container(
+                    width: 24,
+                    height: 24,
+                    alignment: Alignment.center,
+                    decoration: BoxDecoration(
+                      color: medalColors[i].withValues(alpha: 0.18),
+                      shape: BoxShape.circle,
+                      border: Border.all(color: medalColors[i], width: 1.5),
+                    ),
+                    child: Text(
+                      '${i + 1}',
+                      style: GoogleFonts.inter(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w700,
+                        color: medalColors[i],
+                      ),
+                    ),
+                  ),
                   const SizedBox(width: 10),
                   Expanded(
                     child: Text(
@@ -1035,8 +1047,7 @@ class _WinnerCard extends StatelessWidget {
                   ),
                   Text(
                     '${_fmtPts(top[i].score)} ${'arena_col_pts'.tr().toLowerCase()}',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 12,
+                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
                       fontWeight: FontWeight.w600,
                       color: AppColors.amber,
                     ),
@@ -1192,8 +1203,7 @@ class _ReadyButton extends StatelessWidget {
                 ),
                 Text(
                   '0:${queueSeconds.toString().padLeft(2, '0')}',
-                  style: GoogleFonts.jetBrainsMono(
-                      fontSize: 13, color: AppColors.inkDim),
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13, color: AppColors.inkDim),
                 ),
               ],
             ),
@@ -1252,8 +1262,7 @@ class _ParticipantRow extends StatelessWidget {
             width: 26,
             child: Text(
               '$rank',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 14,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: rankColor,
               ),
@@ -1297,8 +1306,7 @@ class _ParticipantRow extends StatelessWidget {
                   pointBased
                       ? '${participant.rating} ${'points_short'.tr()}'
                       : '${participant.rating} ELO',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10.5,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                     color: AppColors.inkMute,
                   ),
                 ),
@@ -1317,8 +1325,7 @@ class _ParticipantRow extends StatelessWidget {
                   text: '${participant.losses}',
                   style: const TextStyle(color: AppColors.loss)),
             ]),
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 11.5,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11.5,
               fontWeight: FontWeight.w600,
               color: AppColors.inkMute,
             ),
@@ -1329,8 +1336,7 @@ class _ParticipantRow extends StatelessWidget {
             child: Text(
               _fmtPts(participant.score),
               textAlign: TextAlign.right,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 16,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 16,
                 fontWeight: FontWeight.w700,
                 color: isMe ? accent : AppColors.ink,
               ),

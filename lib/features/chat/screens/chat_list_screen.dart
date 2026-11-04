@@ -129,10 +129,9 @@ class _Header extends ConsumerWidget {
             children: [
               Text(
                 'Messages',
-                style: GoogleFonts.fraunces(
+                style: GoogleFonts.inter(
                   fontSize: 28,
-                  fontWeight: FontWeight.w500,
-                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w600,
                   color: _kInk,
                   height: 1.1,
                 ),
@@ -275,8 +274,7 @@ class _Tab extends StatelessWidget {
                 ),
                 child: Text(
                   badge! > 99 ? '99+' : '$badge',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: _kBg,
                     height: 1.2,
@@ -328,10 +326,9 @@ class _ChatsTab extends ConsumerWidget {
           const SizedBox(height: 16),
           Text(
             'no_messages_yet'.tr(),
-            style: GoogleFonts.fraunces(
+            style: GoogleFonts.inter(
               fontSize: 18,
-              fontStyle: FontStyle.italic,
-              fontWeight: FontWeight.w500,
+              fontWeight: FontWeight.w600,
               color: _kInkDim,
             ),
           ),
@@ -424,8 +421,7 @@ class _ChatTile extends ConsumerWidget {
                     if (chat.lastMessageAt != null)
                       Text(
                         _formatTime(chat.lastMessageAt!),
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 10,
+                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                           color: hasUnread ? _kAmber : _kInkMute,
                         ),
                       ),
@@ -441,8 +437,7 @@ class _ChatTile extends ConsumerWidget {
                         child: Center(
                           child: Text(
                             unread > 99 ? '99+' : '$unread',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 9,
+                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                               fontWeight: FontWeight.w700,
                               color: _kBg,
                             ),
@@ -569,10 +564,9 @@ class _SquircleAvatar extends StatelessWidget {
       child: Center(
         child: Text(
           initial,
-          style: GoogleFonts.fraunces(
+          style: GoogleFonts.inter(
             fontSize: size * 0.38,
             fontWeight: FontWeight.w700,
-            fontStyle: FontStyle.italic,
             color: Colors.white,
             height: 1.0,
           ),
@@ -610,10 +604,9 @@ class _GroupsTab extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(
                   'No groups yet',
-                  style: GoogleFonts.fraunces(
+                  style: GoogleFonts.inter(
                     fontSize: 18,
-                    fontStyle: FontStyle.italic,
-                    fontWeight: FontWeight.w500,
+                    fontWeight: FontWeight.w600,
                     color: _kInkDim,
                   ),
                 ),
@@ -739,8 +732,7 @@ class _GroupTile extends StatelessWidget {
                 if (group.lastMessageAt != null)
                   Text(
                     _formatTime(group.lastMessageAt!),
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 10,
+                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                       color: hasUnread ? _kAmber : _kInkMute,
                     ),
                   ),
@@ -756,8 +748,7 @@ class _GroupTile extends StatelessWidget {
                     child: Center(
                       child: Text(
                         unread > 99 ? '99+' : '$unread',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9,
+                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                           fontWeight: FontWeight.w700,
                           color: _kBg,
                         ),

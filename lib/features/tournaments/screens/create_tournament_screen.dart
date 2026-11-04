@@ -151,8 +151,7 @@ class _CreateTournamentScreenState
             ),
             child: Text(
               opt.$2,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 13,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color:
                     isSel ? const Color(0xFF1A1205) : AppColors.inkDim,
@@ -196,10 +195,9 @@ class _CreateTournamentScreenState
                   const SizedBox(width: 14),
                   Text(
                     'create_arena'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: AppColors.ink,
                     ),
                   ),
@@ -222,8 +220,7 @@ class _CreateTournamentScreenState
                         children: [
                           Text(
                             'arena_name_label'.tr().toUpperCaseFor(context),
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 10,
+                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: AppColors.inkMute,
                               letterSpacing: 0.8,
@@ -272,8 +269,7 @@ class _CreateTournamentScreenState
                         children: [
                           Text(
                             'arena_description_label'.tr().toUpperCaseFor(context),
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 10,
+                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: AppColors.inkMute,
                               letterSpacing: 0.8,
@@ -368,8 +364,7 @@ class _CreateTournamentScreenState
                               ),
                               child: Text(
                                 'arena_minutes_short'.tr(namedArgs: {'minutes': '$d'}),
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 13,
+                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: selected
                                       ? const Color(0xFF1A1205)
@@ -410,8 +405,7 @@ class _CreateTournamentScreenState
                               ),
                               child: Text(
                                 '$n',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 13,
+                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: selected
                                       ? const Color(0xFF1A1205)
@@ -575,8 +569,7 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: GoogleFonts.jetBrainsMono(
-        fontSize: 11,
+      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
         fontWeight: FontWeight.w600,
         color: AppColors.inkMute,
         letterSpacing: 0.8,

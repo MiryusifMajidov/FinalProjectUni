@@ -4,6 +4,8 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme_extension.dart';
 import '../../../core/models/game_model.dart';
 
+import 'package:phosphor_icons/phosphor_icons.dart';
+import 'package:easy_localization/easy_localization.dart';
 class TimeControlSelector extends StatelessWidget {
   final TimeControl selected;
   final void Function(TimeControl) onSelect;
@@ -20,21 +22,27 @@ class TimeControlSelector extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         _TimeControlRow(
-          label: '⚡ Bullet',
+          icon: PhosphorIcons.lightning(PhosphorIconsStyle.fill),
+          color: AppColors.bullet,
+          label: 'bullet'.tr(),
           controls: TimeControls.allBullet,
           selected: selected,
           onSelect: onSelect,
         ),
         const SizedBox(height: 10),
         _TimeControlRow(
-          label: '🔥 Blitz',
+          icon: PhosphorIcons.fire(PhosphorIconsStyle.fill),
+          color: AppColors.blitz,
+          label: 'blitz'.tr(),
           controls: TimeControls.allBlitz,
           selected: selected,
           onSelect: onSelect,
         ),
         const SizedBox(height: 10),
         _TimeControlRow(
-          label: '⏱ Rapid',
+          icon: PhosphorIcons.timer(PhosphorIconsStyle.fill),
+          color: AppColors.rapid,
+          label: 'rapid'.tr(),
           controls: TimeControls.allRapid,
           selected: selected,
           onSelect: onSelect,
@@ -45,12 +53,16 @@ class TimeControlSelector extends StatelessWidget {
 }
 
 class _TimeControlRow extends StatelessWidget {
+  final IconData icon;
+  final Color color;
   final String label;
   final List<TimeControl> controls;
   final TimeControl selected;
   final void Function(TimeControl) onSelect;
 
   const _TimeControlRow({
+    required this.icon,
+    required this.color,
     required this.label,
     required this.controls,
     required this.selected,
@@ -62,8 +74,18 @@ class _TimeControlRow extends StatelessWidget {
     return Row(
       children: [
         SizedBox(
-          width: 72,
-          child: Text(label, style: AppTextStyles.labelSmall),
+          width: 78,
+          child: Row(
+            children: [
+              Icon(icon, size: 13, color: color),
+              const SizedBox(width: 5),
+              Flexible(
+                child: Text(label,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppTextStyles.labelSmall),
+              ),
+            ],
+          ),
         ),
         Expanded(
           child: Row(

@@ -951,8 +951,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
               const SizedBox(height: 18),
               Text(
                 'Round ${summary.roundNumber}',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 12, color: AppColors.inkMute, letterSpacing: 1,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12, color: AppColors.inkMute, letterSpacing: 1,
                 ),
               ),
               const SizedBox(height: 6),
@@ -962,9 +961,8 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                     : (summary.wasBlocked
                         ? '${_entityName(summary.winnerEntity!)} wins blocked round'
                         : '${_seatName(summary.winnerSeat!)} dominoed!'),
-                style: GoogleFonts.fraunces(
-                  fontSize: 22, fontWeight: FontWeight.w600,
-                  fontStyle: FontStyle.italic,
+                style: GoogleFonts.inter(
+                  fontSize: 22, fontWeight: FontWeight.w700,
                   color: isWash
                       ? AppColors.draw
                       : (iWon ? AppColors.win : _accent),
@@ -991,8 +989,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                           style: GoogleFonts.inter(
                               fontSize: 13, color: AppColors.inkDim)),
                       Text('${summary.pipCounts[s]} pips',
-                          style: GoogleFonts.jetBrainsMono(
-                              fontSize: 13, color: AppColors.ink)),
+                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13, color: AppColors.ink)),
                     ],
                   ),
                 );
@@ -1006,8 +1003,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                       color: AppColors.inkDim)),
                   Text(
                     _scoreLine(summary.totalScores),
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 14, fontWeight: FontWeight.w600,
+                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 14, fontWeight: FontWeight.w600,
                       color: AppColors.ink,
                     ),
                   ),
@@ -1209,9 +1205,9 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
       context: context,
       builder: (ctx) => AlertDialog(
         backgroundColor: AppColors.cardElevated,
-        title: Text('Resign', style: GoogleFonts.fraunces(
-          fontSize: 20, fontWeight: FontWeight.w600,
-          fontStyle: FontStyle.italic, color: AppColors.ink,
+        title: Text('Resign', style: GoogleFonts.inter(
+          fontSize: 20, fontWeight: FontWeight.w700,
+          color: AppColors.ink,
         )),
         content: Text(
             _playerCount == 4 && _isOnline
@@ -1291,9 +1287,9 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
             const SizedBox(height: 24),
             Text(
               title,
-              style: GoogleFonts.fraunces(
-                fontSize: 32, fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic, color: color,
+              style: GoogleFonts.inter(
+                fontSize: 32, fontWeight: FontWeight.w700,
+                color: color,
                 letterSpacing: -1,
               ),
             ),
@@ -1394,9 +1390,9 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
         ),
         title: Text(
           '2v2 Table',
-          style: GoogleFonts.fraunces(
-            fontSize: 20, fontWeight: FontWeight.w500,
-            fontStyle: FontStyle.italic, color: AppColors.ink,
+          style: GoogleFonts.inter(
+            fontSize: 20, fontWeight: FontWeight.w600,
+            color: AppColors.ink,
           ),
         ),
         centerTitle: true,
@@ -1561,15 +1557,13 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
           title: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('🎲 ', style: TextStyle(fontSize: 18)),
               Text(
                 _playerCount == 4
                     ? (engine.config.teams ? 'Domino 2v2' : 'Domino 4P')
                     : 'Domino',
-                style: GoogleFonts.fraunces(
+                style: GoogleFonts.inter(
                   fontSize: 20,
-                  fontWeight: FontWeight.w500,
-                  fontStyle: FontStyle.italic,
+                  fontWeight: FontWeight.w600,
                   color: AppColors.ink,
                 ),
               ),
@@ -1647,16 +1641,14 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                   children: [
                     Text(
                       'Round ${engine.roundNumber}',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 11, color: AppColors.inkMute,
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.inkMute,
                       ),
                     ),
                     if (engine.boneyardCount > 0) ...[
                       const SizedBox(width: 12),
                       Text(
                         'Boneyard: ${engine.boneyardCount}',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 11, color: AppColors.inkMute,
+                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.inkMute,
                         ),
                       ),
                     ],
@@ -1904,8 +1896,7 @@ class _ScoreHeader extends StatelessWidget {
         ),
         child: Text(
           '${entityLabel(e)} ${engine.scores[e]}',
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 11,
+          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
             fontWeight: FontWeight.w600,
             color: e == myEntity ? accent : AppColors.inkDim,
           ),
@@ -1925,8 +1916,7 @@ class _ScoreHeader extends StatelessWidget {
           ...chips,
           Text(
             '→ ${engine.targetScore}',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 11, color: AppColors.inkMute,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.inkMute,
             ),
           ),
         ],
@@ -1985,8 +1975,7 @@ class _InfoBar extends StatelessWidget {
               ),
               child: Text(
                 '${secondsLeft}s',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 12,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: lowTime ? AppColors.loss : accent,
                 ),
@@ -1996,8 +1985,7 @@ class _InfoBar extends StatelessWidget {
           ],
           Text(
             '$tileCount tiles',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 12, color: AppColors.inkDim,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12, color: AppColors.inkDim,
             ),
           ),
           if (isActive) ...[
@@ -2068,8 +2056,7 @@ class _CompactInfoBar extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             secondsLeft != null ? '$tileCount · ${secondsLeft}s' : '$tileCount',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 11, color: AppColors.inkDim,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.inkDim,
             ),
           ),
         ],
@@ -2147,8 +2134,7 @@ class _WaitingSeatTile extends StatelessWidget {
             ),
             child: Text(
               team,
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9, fontWeight: FontWeight.w700,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                 color: accent, letterSpacing: 0.6,
               ),
             ),
@@ -2176,8 +2162,7 @@ class _EndChip extends StatelessWidget {
       ),
       child: Text(
         label,
-        style: GoogleFonts.jetBrainsMono(
-          fontSize: 11, fontWeight: FontWeight.w600, color: accent,
+        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w600, color: accent,
         ),
       ),
     );

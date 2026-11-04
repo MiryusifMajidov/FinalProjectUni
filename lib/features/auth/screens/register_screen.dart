@@ -21,14 +21,17 @@ import '../../../core/constants/countries.dart';
 import '../widgets/apple_sign_in_button.dart';
 import '../widgets/google_sign_in_button.dart';
 
-/// Skill levels shown on step 2.
+import '../../../core/widgets/game_icon.dart';
+/// Skill levels shown on step 2. Each is drawn with a chess piece, pawn to
+/// king — the same scale the bot-difficulty picker uses — instead of the
+/// emoji (🐣 🙂 ⚡ 🔥 🏆 👑) it had before.
 const _skillLevels = [
-  (label: 'Beginner', sub: 'Just learning the rules', rating: 400, emoji: '🐣'),
-  (label: 'Casual', sub: 'Play for fun occasionally', rating: 800, emoji: '🙂'),
-  (label: 'Intermediate', sub: 'Know most tactics', rating: 1200, emoji: '⚡'),
-  (label: 'Advanced', sub: 'Study and play regularly', rating: 1600, emoji: '🔥'),
-  (label: 'Expert', sub: 'Tournament experience', rating: 2000, emoji: '🏆'),
-  (label: 'Master', sub: 'Professional / near-master', rating: 2400, emoji: '👑'),
+  (label: 'Beginner', sub: 'Just learning the rules', rating: 400, piece: 'P'),
+  (label: 'Casual', sub: 'Play for fun occasionally', rating: 800, piece: 'B'),
+  (label: 'Intermediate', sub: 'Know most tactics', rating: 1200, piece: 'N'),
+  (label: 'Advanced', sub: 'Study and play regularly', rating: 1600, piece: 'R'),
+  (label: 'Expert', sub: 'Tournament experience', rating: 2000, piece: 'Q'),
+  (label: 'Master', sub: 'Professional / near-master', rating: 2400, piece: 'K'),
 ];
 
 
@@ -190,13 +193,13 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             const SizedBox(height: 8),
             // Special: No flag
             ListTile(
-              leading: const Text('🏳️', style: TextStyle(fontSize: 24)),
+              leading: Icon(PhosphorIcons.prohibit(PhosphorIconsStyle.regular), size: 22, color: AppColors.inkMute),
               title: Text('no_flag'.tr(), style: AppTextStyles.bodyMedium),
               onTap: () => Navigator.pop(ctx, '__none__'),
             ),
             // Special: International
             ListTile(
-              leading: const Text('🌍', style: TextStyle(fontSize: 24)),
+              leading: Icon(PhosphorIcons.globeHemisphereWest(PhosphorIconsStyle.regular), size: 22, color: AppColors.inkDim),
               title: Text('international'.tr(), style: AppTextStyles.bodyMedium),
               onTap: () => Navigator.pop(ctx, 'XX'),
             ),
@@ -377,10 +380,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Expanded(
                     child: Text(
                       _currentPage == 0 ? 'create_account'.tr() : 'your_level'.tr(),
-                      style: GoogleFonts.fraunces(
+                      style: GoogleFonts.inter(
                         fontSize: 20,
-                        fontWeight: FontWeight.w600,
-                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w700,
                         color: AppColors.ink,
                       ),
                     ),
@@ -446,10 +448,9 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           children: [
             Text(
               'register_story_headline'.tr(),
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.inter(
                 fontSize: 32,
-                fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w700,
                 color: AppColors.ink,
                 letterSpacing: -0.5,
                 height: 1.1,
@@ -672,7 +673,7 @@ class _CountryPickerRow extends StatelessWidget {
     String flag;
     if (selectedCode == 'XX') {
       name = 'international'.tr();
-      flag = '🌍';
+      flag = '';
     } else if (selectedCode != null) {
       name = kCountries.firstWhere((c) => c.$1 == selectedCode, orElse: () => (selectedCode!, selectedCode!)).$2;
       flag = UserModel.flagEmoji(selectedCode);
@@ -691,7 +692,11 @@ class _CountryPickerRow extends StatelessWidget {
         child: Row(
           children: [
             if (selectedCode != null) ...[
-              Text(flag, style: const TextStyle(fontSize: 22)),
+              if (selectedCode == 'XX')
+                Icon(PhosphorIcons.globeHemisphereWest(PhosphorIconsStyle.regular),
+                    size: 20, color: AppColors.inkDim)
+              else
+                Text(flag, style: const TextStyle(fontSize: 22)),
               const SizedBox(width: 10),
               Expanded(child: Text(name!, style: AppTextStyles.bodyMedium)),
             ] else
@@ -783,8 +788,11 @@ class _Step2 extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(skill.emoji,
-                          style: const TextStyle(fontSize: 24)),
+                      PieceIcon(
+                        'b${skill.piece}',
+                        size: 26,
+                        color: sel ? AppColors.primary : AppColors.inkDim,
+                      ),
                       const Spacer(),
                       Text(
                         'skill_${skill.label.toLowerCase()}'.tr(),

@@ -16,6 +16,8 @@ import '../../../core/services/auth_service.dart';
 import '../../settings/screens/settings_screen.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/game_icon.dart';
+import '../../../core/models/game_type.dart';
 // ── Design tokens (map-specific dark palette) ─────────────────────────────────
 const _kMapBg        = Color(0xFF0D1014);
 const _kAmber        = AppColors.amber;
@@ -230,7 +232,7 @@ class _PlayerMapScreenState extends ConsumerState<PlayerMapScreen> {
       context: context,
       builder: (_) => AlertDialog(
         backgroundColor: _kCard,
-        title: Text(title, style: GoogleFonts.fraunces(color: _kInk)),
+        title: Text(title, style: GoogleFonts.inter(fontWeight: FontWeight.w600, color: _kInk)),
         content: Text(message, style: GoogleFonts.inter(color: _kInkDim)),
         actions: [
           TextButton(
@@ -495,14 +497,12 @@ class _TopOverlayState extends State<_TopOverlay> {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text('player_map'.tr(),
-                        style: GoogleFonts.fraunces(
-                          fontSize: 18, fontWeight: FontWeight.w500,
-                          fontStyle: FontStyle.italic,
+                        style: GoogleFonts.inter(
+                          fontSize: 18, fontWeight: FontWeight.w600,
                           color: _kInk, letterSpacing: -0.3,
                         )),
                       Text('500M RADIUS',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 9, fontWeight: FontWeight.w700,
+                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                           color: _kInkMute, letterSpacing: 0.5,
                         )),
                     ],
@@ -623,8 +623,7 @@ class _TopOverlayState extends State<_TopOverlay> {
                                             color: _kAmber.withValues(alpha: 0.35)),
                                       ),
                                       child: Text('$online ONLINE',
-                                        style: GoogleFonts.jetBrainsMono(
-                                          fontSize: 9,
+                                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                                           fontWeight: FontWeight.w700,
                                           color: _kAmber,
                                           letterSpacing: 0.3,
@@ -989,7 +988,7 @@ class _PillPin extends StatelessWidget {
                 ),
                 alignment: Alignment.center,
                 child: Text(initial,
-                  style: GoogleFonts.fraunces(
+                  style: GoogleFonts.inter(
                     fontSize: 13,
                     fontWeight: FontWeight.w700,
                     color: isSelected ? _kAmber : const Color(0xFF1A1205),
@@ -998,8 +997,7 @@ class _PillPin extends StatelessWidget {
               const SizedBox(width: 5),
               // ELO
               Text('$elo',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10, fontWeight: FontWeight.w700,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w700,
                   color: textColor, letterSpacing: 0.3,
                 )),
               // Online dot
@@ -1245,9 +1243,9 @@ class _BottomDockState extends State<_BottomDock> {
                             nearby.isEmpty
                                 ? 'No players match filter'
                                 : '${nearby.length} ${widget.activeFilter == 'All' ? 'nearby' : '· ${widget.activeFilter}'}',
-                            style: GoogleFonts.fraunces(
-                              fontSize: 14, fontWeight: FontWeight.w600,
-                              fontStyle: FontStyle.italic, color: _kInk,
+                            style: GoogleFonts.inter(
+                              fontSize: 14, fontWeight: FontWeight.w700,
+                              color: _kInk,
                             )),
                           AnimatedSwitcher(
                             duration: const Duration(milliseconds: 180),
@@ -1335,7 +1333,7 @@ class _BottomDockState extends State<_BottomDock> {
                                   u.username.isNotEmpty
                                       ? u.username[0].toUpperCase()
                                       : '?',
-                                  style: GoogleFonts.fraunces(
+                                  style: GoogleFonts.inter(
                                     fontSize: 13, fontWeight: FontWeight.w700,
                                     color: const Color(0xFF1A1205),
                                   )),
@@ -1352,8 +1350,7 @@ class _BottomDockState extends State<_BottomDock> {
                                   Row(
                                     children: [
                                       Text('${u.overallRating}',
-                                        style: GoogleFonts.jetBrainsMono(
-                                          fontSize: 9, fontWeight: FontWeight.w700,
+                                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                                           color: _kInkMute)),
                                       if (isOnline) ...[
                                         const SizedBox(width: 4),
@@ -1427,7 +1424,7 @@ class _DockPlayerRow extends StatelessWidget {
                   ),
                   alignment: Alignment.center,
                   child: Text(initial,
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 17, fontWeight: FontWeight.w700,
                       color: const Color(0xFF1A1205),
                     )),
@@ -1459,8 +1456,7 @@ class _DockPlayerRow extends StatelessWidget {
                   Row(
                     children: [
                       Text('${user.overallRating}',
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 10, fontWeight: FontWeight.w700,
+                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w700,
                           color: _kAmber)),
                       if (user.skillLevel != null &&
                           user.skillLevel!.isNotEmpty) ...[
@@ -1543,13 +1539,13 @@ class _PinCard extends StatelessWidget {
                           imageUrl: user.photoUrl!,
                           width: 48, height: 48, fit: BoxFit.cover,
                           errorWidget: (_, __, ___) => Text(initial,
-                            style: GoogleFonts.fraunces(
+                            style: GoogleFonts.inter(
                               fontSize: 22, fontWeight: FontWeight.w700,
                               color: const Color(0xFF1A1205))),
                         ),
                       )
                     : Text(initial,
-                        style: GoogleFonts.fraunces(
+                        style: GoogleFonts.inter(
                           fontSize: 22, fontWeight: FontWeight.w700,
                           color: const Color(0xFF1A1205))),
               ),
@@ -1559,17 +1555,15 @@ class _PinCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(user.username,
-                      style: GoogleFonts.fraunces(
-                        fontSize: 17, fontWeight: FontWeight.w600,
-                        fontStyle: FontStyle.italic,
+                      style: GoogleFonts.inter(
+                        fontSize: 17, fontWeight: FontWeight.w700,
                         color: _kInk, letterSpacing: -0.3,
                       )),
                     const SizedBox(height: 3),
                     Row(
                       children: [
                         Text('${user.overallRating} ELO',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10, fontWeight: FontWeight.w700,
+                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w700,
                             color: _kAmber, letterSpacing: 0.3,
                           )),
                         const Text(' · ', style: TextStyle(color: _kInkMute, fontSize: 10)),
@@ -1642,10 +1636,18 @@ class _PinCard extends StatelessWidget {
                       ],
                     ),
                     alignment: Alignment.center,
-                    child: Text('⚔ ${'challenge'.tr()}',
-                      style: GoogleFonts.inter(
-                        fontSize: 12, fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1A1205))),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Icon(PhosphorIcons.sword(PhosphorIconsStyle.bold),
+                            size: 14, color: const Color(0xFF1A1205)),
+                        const SizedBox(width: 6),
+                        Text('challenge'.tr(),
+                            style: GoogleFonts.inter(
+                                fontSize: 12, fontWeight: FontWeight.w700,
+                                color: const Color(0xFF1A1205))),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -1682,9 +1684,9 @@ class _ChallengeSheetState extends State<_ChallengeSheet> {
   ];
 
   static const _sides = [
-    (glyph: '♔', label: 'White'),
-    (glyph: '⚂', label: 'Random'),
-    (glyph: '♚', label: 'Black'),
+    (glyph: 'white', label: 'White'),
+    (glyph: 'random', label: 'Random'),
+    (glyph: 'black', label: 'Black'),
   ];
 
   @override
@@ -1737,7 +1739,7 @@ class _ChallengeSheetState extends State<_ChallengeSheet> {
                 ),
                 alignment: Alignment.center,
                 child: Text(initial,
-                  style: GoogleFonts.fraunces(
+                  style: GoogleFonts.inter(
                     fontSize: 20, fontWeight: FontWeight.w700,
                     color: const Color(0xFF1A1205))),
               ),
@@ -1747,13 +1749,12 @@ class _ChallengeSheetState extends State<_ChallengeSheet> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text('CHALLENGING',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 9, fontWeight: FontWeight.w700,
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                         color: _kInkMute, letterSpacing: 0.6)),
                     Text('${widget.user.username} · ${widget.user.overallRating}',
-                      style: GoogleFonts.fraunces(
-                        fontSize: 17, fontWeight: FontWeight.w600,
-                        fontStyle: FontStyle.italic, color: _kInk)),
+                      style: GoogleFonts.inter(
+                        fontSize: 17, fontWeight: FontWeight.w700,
+                        color: _kInk)),
                   ],
                 ),
               ),
@@ -1770,8 +1771,7 @@ class _ChallengeSheetState extends State<_ChallengeSheet> {
           Align(
             alignment: Alignment.centerLeft,
             child: Text('TIME CONTROL',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9, fontWeight: FontWeight.w700,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                 color: _kInkMute, letterSpacing: 0.6)),
           ),
           const SizedBox(height: 8),
@@ -1805,8 +1805,7 @@ class _ChallengeSheetState extends State<_ChallengeSheet> {
                     mainAxisAlignment: MainAxisAlignment.center,
                     children: [
                       Text(t.label,
-                        style: GoogleFonts.jetBrainsMono(
-                          fontSize: 13, fontWeight: FontWeight.w700,
+                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13, fontWeight: FontWeight.w700,
                           color: _kInk, letterSpacing: 0.2)),
                       Text(t.sub,
                         style: GoogleFonts.inter(
@@ -1824,8 +1823,7 @@ class _ChallengeSheetState extends State<_ChallengeSheet> {
           Align(
             alignment: Alignment.centerLeft,
             child: Text('YOU PLAY AS',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9, fontWeight: FontWeight.w700,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                 color: _kInkMute, letterSpacing: 0.6)),
           ),
           const SizedBox(height: 8),
@@ -1849,8 +1847,18 @@ class _ChallengeSheetState extends State<_ChallengeSheet> {
                     ),
                     child: Column(
                       children: [
-                        Text(s.glyph,
-                          style: GoogleFonts.fraunces(fontSize: 20, color: sel ? _kAmber : _kInkDim)),
+                        SizedBox(
+                          height: 26,
+                          child: Center(
+                            child: s.glyph == 'random'
+                                ? Icon(PhosphorIcons.shuffle(PhosphorIconsStyle.bold),
+                                    size: 20, color: sel ? _kAmber : _kInkDim)
+                                : SideToken(
+                                    type: GameType.chess,
+                                    light: s.glyph == 'white',
+                                    size: 26),
+                          ),
+                        ),
                         const SizedBox(height: 4),
                         Text(s.label,
                           style: GoogleFonts.inter(
@@ -1928,10 +1936,21 @@ class _ChallengeSheetState extends State<_ChallengeSheet> {
                 ],
               ),
               alignment: Alignment.center,
-              child: Text('⚔  Send challenge · $selectedTimeLabel $selectedTimeSub',
-                style: GoogleFonts.inter(
-                  fontSize: 15, fontWeight: FontWeight.w700,
-                  color: const Color(0xFF1A1205))),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(PhosphorIcons.sword(PhosphorIconsStyle.bold),
+                      size: 16, color: const Color(0xFF1A1205)),
+                  const SizedBox(width: 8),
+                  Flexible(
+                    child: Text('Send challenge · $selectedTimeLabel $selectedTimeSub',
+                      overflow: TextOverflow.ellipsis,
+                      style: GoogleFonts.inter(
+                        fontSize: 15, fontWeight: FontWeight.w700,
+                        color: const Color(0xFF1A1205))),
+                  ),
+                ],
+              ),
             ),
           ),
         ],
@@ -1991,9 +2010,9 @@ class _FiltersSheetState extends State<_FiltersSheet> {
           Row(
             children: [
               Text('filters'.tr(),
-                style: GoogleFonts.fraunces(
-                  fontSize: 20, fontWeight: FontWeight.w600,
-                  fontStyle: FontStyle.italic, color: _kInk)),
+                style: GoogleFonts.inter(
+                  fontSize: 20, fontWeight: FontWeight.w700,
+                  color: _kInk)),
               const Spacer(),
               GestureDetector(
                 onTap: () => setState(() {
@@ -2014,13 +2033,11 @@ class _FiltersSheetState extends State<_FiltersSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('RATING RANGE',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 9, fontWeight: FontWeight.w700,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                   color: _kInkMute, letterSpacing: 0.6)),
               Text(
                 '${_ratingRange.start.round()} – ${_ratingRange.end.round()}',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11, fontWeight: FontWeight.w700, color: _kAmber)),
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w700, color: _kAmber)),
             ],
           ),
           SliderTheme(
@@ -2048,12 +2065,10 @@ class _FiltersSheetState extends State<_FiltersSheet> {
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
               Text('MAX DISTANCE',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 9, fontWeight: FontWeight.w700,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                   color: _kInkMute, letterSpacing: 0.6)),
               Text('${_distanceKm.round()} km',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11, fontWeight: FontWeight.w700, color: _kAmber)),
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w700, color: _kAmber)),
             ],
           ),
           SliderTheme(
@@ -2224,7 +2239,8 @@ class _NotOnMapBanner extends StatelessWidget {
       ),
       child: Row(
         children: [
-          const Text('🗺️', style: TextStyle(fontSize: 22)),
+          Icon(PhosphorIcons.mapTrifold(PhosphorIconsStyle.fill),
+              size: 22, color: _kAmber),
           const SizedBox(width: 12),
           Expanded(
             child: Column(

@@ -113,8 +113,7 @@ class _ProfilePhotoPromptScreenState
                   if (username.isNotEmpty)
                     Text(
                       'photo_prompt_welcome'.tr(namedArgs: {'name': username}).toUpperCaseFor(context),
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: _kAmber,
                         letterSpacing: 1.4,
@@ -173,8 +172,7 @@ class _ProfilePhotoPromptScreenState
                                   username.isNotEmpty
                                       ? username[0].toUpperCase()
                                       : '?',
-                                  style: GoogleFonts.fraunces(
-                                    fontSize: 70,
+                                  style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 70,
                                     color: _kAmber.withValues(alpha: 0.85),
                                     height: 1.0,
                                   ),
@@ -216,10 +214,9 @@ class _ProfilePhotoPromptScreenState
 
                   Text(
                     'photo_prompt_title'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 30,
-                      fontWeight: FontWeight.w500,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w600,
                       color: _kInk,
                       letterSpacing: -0.8,
                       height: 1.05,

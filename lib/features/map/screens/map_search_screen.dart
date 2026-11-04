@@ -408,8 +408,7 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
             children: [
               Text(
                 'RESULTS',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 9, fontWeight: FontWeight.w700,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                   color: _kInkMute, letterSpacing: 0.6,
                 ),
               ),
@@ -426,8 +425,7 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
                 Text(
                   '· ${_playerResults.length} PLAYER'
                   '${_playerResults.length == 1 ? '' : 'S'}',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 9, fontWeight: FontWeight.w700,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                     color: _kInkMute, letterSpacing: 0.6,
                   ),
                 ),
@@ -466,8 +464,7 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
         if (_recent.isNotEmpty) ...[
           Text(
             'RECENT',
-            style: GoogleFonts.jetBrainsMono(
-              fontSize: 9, fontWeight: FontWeight.w700,
+            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
               color: _kInkMute, letterSpacing: 0.6,
             ),
           ),
@@ -516,8 +513,7 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
             child: Text(
               'CITIES · ${_cityMatches.length} RESULT'
               '${_cityMatches.length == 1 ? '' : 'S'}',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 9, fontWeight: FontWeight.w700,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                 color: _kInkMute, letterSpacing: 0.6,
               ),
             ),
@@ -604,8 +600,7 @@ class _TabPill extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 '$count',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 10,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                   color: (active ? _kAmber : _kInkDim).withValues(alpha: 0.7),
                 ),
               ),
@@ -667,7 +662,7 @@ class _PlayerRow extends StatelessWidget {
                           user.username.isNotEmpty
                               ? user.username[0].toUpperCase()
                               : '?',
-                          style: GoogleFonts.fraunces(
+                          style: GoogleFonts.inter(
                             fontSize: 18, fontWeight: FontWeight.w700,
                             color: const Color(0xFF1A1205),
                           ),
@@ -699,8 +694,7 @@ class _PlayerRow extends StatelessWidget {
                         children: [
                           Text(
                             '${user.overallRating}',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 10, fontWeight: FontWeight.w700,
+                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w700,
                               color: _kAmber,
                             ),
                           ),
@@ -727,8 +721,7 @@ class _PlayerRow extends StatelessWidget {
                               ),
                               child: Text(
                                 'NEAR',
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 8, fontWeight: FontWeight.w700,
+                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                                   color: _kAmber, letterSpacing: 0.4,
                                 ),
                               ),

@@ -114,8 +114,7 @@ class _MapChallengeSentScreenState
                         // "CHALLENGE SENT" label
                         Text(
                           'CHALLENGE SENT',
-                          style: GoogleFonts.jetBrainsMono(
-                            fontSize: 10,
+                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                             fontWeight: FontWeight.w700,
                             color: _kAmber,
                             letterSpacing: 1.4,
@@ -158,7 +157,7 @@ class _MapChallengeSentScreenState
                                 child: Center(
                                   child: Text(
                                     initial,
-                                    style: GoogleFonts.fraunces(
+                                    style: GoogleFonts.inter(
                                       fontSize: 56,
                                       fontWeight: FontWeight.w700,
                                       color: const Color(0xFF1A1205),
@@ -175,10 +174,9 @@ class _MapChallengeSentScreenState
 
                         Text(
                           'Waiting for ${widget.opponent.username}…',
-                          style: GoogleFonts.fraunces(
+                          style: GoogleFonts.inter(
                             fontSize: 26,
-                            fontWeight: FontWeight.w500,
-                            fontStyle: FontStyle.italic,
+                            fontWeight: FontWeight.w600,
                             color: _kInk,
                             letterSpacing: -0.5,
                           ),
@@ -223,21 +221,16 @@ class _MapChallengeSentScreenState
                               const SizedBox(width: 6),
                               Text(
                                 widget.timeControl,
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 11,
+                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   color: _kInk,
                                 ),
                               ),
                               _divider(),
                               // Color
-                              Text(
-                                '⚂',
-                                style: const TextStyle(
-                                  fontSize: 14,
-                                  color: _kAmber,
-                                ),
-                              ),
+                              // Colour choice (white / black / random)
+                              Icon(PhosphorIcons.circleHalf(PhosphorIconsStyle.fill),
+                                  size: 14, color: _kAmber),
                               const SizedBox(width: 6),
                               Text(
                                 widget.colorChoice,
@@ -273,8 +266,7 @@ class _MapChallengeSentScreenState
                         // Countdown
                         RichText(
                           text: TextSpan(
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 11,
+                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                               fontWeight: FontWeight.w600,
                               color: _kInkMute,
                               letterSpacing: 0.4,
@@ -283,8 +275,7 @@ class _MapChallengeSentScreenState
                               const TextSpan(text: 'Auto-cancels in '),
                               TextSpan(
                                 text: _countdown,
-                                style: GoogleFonts.jetBrainsMono(
-                                  fontSize: 11,
+                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: _kInk,
                                   letterSpacing: 0.4,

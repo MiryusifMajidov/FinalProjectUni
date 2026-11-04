@@ -2,71 +2,75 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
 
-/// Typography stack:
-///   Display / Headline  →  Fraunces (italic serif)
-///   Body / Label / UI   →  Inter (geometric sans)
-///   Numbers / Moves     →  JetBrains Mono
+/// Typography: one family, Inter, for everything.
+///
+/// The app used to mix three: Fraunces italic serif for every heading,
+/// JetBrains Mono for labels and numbers, Inter for the rest — a look that
+/// read as a template rather than a product. Inter covers every language we
+/// ship in the Latin and Cyrillic scripts (ə, ğ, ı, İ, ş, ₼, ё…), is bundled
+/// in assets/google_fonts so first launch never falls back to a system font,
+/// and has tabular figures for ratings, clocks and scores.
+///
+///   Display / Headline  →  Inter SemiBold–Bold, slightly tightened
+///   Title / Body / Label →  Inter Regular–SemiBold
+///   Numbers             →  Inter with tabular figures (columns line up)
 class AppTextStyles {
   AppTextStyles._();
 
-  // ─── Base font getters ────────────────────────────────────────────────────
+  /// Fixed-width digits so ratings, clocks and counters do not jitter.
+  static const tabularFigures = [FontFeature.tabularFigures()];
 
-  static TextStyle get _fraunces => GoogleFonts.fraunces().copyWith(
-        fontFamilyFallback: const ['Georgia', 'serif'],
-      );
+  // ─── Base font getters ────────────────────────────────────────────────────
 
   static TextStyle get _inter => GoogleFonts.inter().copyWith(
         fontFamilyFallback: const ['Roboto', 'sans-serif'],
       );
 
-  static TextStyle get _mono => GoogleFonts.jetBrainsMono().copyWith(
-        fontFamilyFallback: const ['Courier New', 'monospace'],
+  static TextStyle get _numeric => _inter.copyWith(
+        fontFeatures: tabularFigures,
       );
 
-  // ─── Display  (Fraunces italic) ───────────────────────────────────────────
+  // ─── Display ──────────────────────────────────────────────────────────────
 
-  static TextStyle get displayLarge => _fraunces.copyWith(
-        fontSize: 32,
+  static TextStyle get displayLarge => _inter.copyWith(
+        fontSize: 30,
         fontWeight: FontWeight.w700,
-        fontStyle: FontStyle.italic,
         color: AppColors.ink,
-        letterSpacing: -0.5,
-        height: 1.15,
-      );
-
-  static TextStyle get displayMedium => _fraunces.copyWith(
-        fontSize: 26,
-        fontWeight: FontWeight.w600,
-        fontStyle: FontStyle.italic,
-        color: AppColors.ink,
-        letterSpacing: -0.3,
+        letterSpacing: -0.6,
         height: 1.2,
       );
 
-  // ─── Headline  (Fraunces italic) ─────────────────────────────────────────
-
-  static TextStyle get headlineLarge => _fraunces.copyWith(
-        fontSize: 22,
+  static TextStyle get displayMedium => _inter.copyWith(
+        fontSize: 24,
         fontWeight: FontWeight.w700,
-        fontStyle: FontStyle.italic,
         color: AppColors.ink,
+        letterSpacing: -0.4,
+        height: 1.25,
       );
 
-  static TextStyle get headlineMedium => _fraunces.copyWith(
+  // ─── Headline ─────────────────────────────────────────────────────────────
+
+  static TextStyle get headlineLarge => _inter.copyWith(
+        fontSize: 21,
+        fontWeight: FontWeight.w700,
+        color: AppColors.ink,
+        letterSpacing: -0.3,
+      );
+
+  static TextStyle get headlineMedium => _inter.copyWith(
         fontSize: 18,
-        fontWeight: FontWeight.w600,
-        fontStyle: FontStyle.italic,
+        fontWeight: FontWeight.w700,
         color: AppColors.ink,
+        letterSpacing: -0.2,
       );
 
-  static TextStyle get headlineSmall => _fraunces.copyWith(
+  static TextStyle get headlineSmall => _inter.copyWith(
         fontSize: 15,
         fontWeight: FontWeight.w600,
-        fontStyle: FontStyle.italic,
         color: AppColors.ink,
       );
 
-  // ─── Title  (Inter semi-bold) ─────────────────────────────────────────────
+  // ─── Title ────────────────────────────────────────────────────────────────
 
   static TextStyle get titleLarge => _inter.copyWith(
         fontSize: 20,
@@ -88,7 +92,7 @@ class AppTextStyles {
         letterSpacing: 0.1,
       );
 
-  // ─── Body  (Inter regular) ────────────────────────────────────────────────
+  // ─── Body ─────────────────────────────────────────────────────────────────
 
   static TextStyle get bodyLarge => _inter.copyWith(
         fontSize: 16,
@@ -108,91 +112,89 @@ class AppTextStyles {
         color: AppColors.inkDim,
       );
 
-  // ─── Label  (Inter medium, uppercase-ready) ───────────────────────────────
+  // ─── Label ────────────────────────────────────────────────────────────────
 
   static TextStyle get labelLarge => _inter.copyWith(
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: AppColors.ink,
-        letterSpacing: 0.5,
+        letterSpacing: 0.2,
       );
 
   static TextStyle get labelMedium => _inter.copyWith(
         fontSize: 12,
         fontWeight: FontWeight.w500,
         color: AppColors.inkDim,
-        letterSpacing: 0.4,
+        letterSpacing: 0.2,
       );
 
   static TextStyle get labelSmall => _inter.copyWith(
-        fontSize: 10,
+        fontSize: 11,
         fontWeight: FontWeight.w500,
         color: AppColors.inkMute,
-        letterSpacing: 0.6,
+        letterSpacing: 0.4,
       );
 
-  // ─── Mono  (JetBrains Mono) ───────────────────────────────────────────────
+  // ─── Numbers ──────────────────────────────────────────────────────────────
 
-  /// Big rating number — e.g. "1 847"
-  static TextStyle get ratingLarge => _mono.copyWith(
+  /// Big rating number — e.g. "1847"
+  static TextStyle get ratingLarge => _numeric.copyWith(
         fontSize: 32,
         fontWeight: FontWeight.w700,
         color: AppColors.ink,
-        letterSpacing: -1,
+        letterSpacing: -0.8,
       );
 
-  static TextStyle get ratingMedium => _mono.copyWith(
+  static TextStyle get ratingMedium => _numeric.copyWith(
         fontSize: 22,
-        fontWeight: FontWeight.w600,
+        fontWeight: FontWeight.w700,
         color: AppColors.ink,
-        letterSpacing: -0.5,
+        letterSpacing: -0.4,
       );
 
-  static TextStyle get ratingSmall => _mono.copyWith(
+  static TextStyle get ratingSmall => _numeric.copyWith(
         fontSize: 18,
         fontWeight: FontWeight.w600,
         color: AppColors.ink,
       );
 
   /// Move list item — "e4", "Nf3", etc.
-  static TextStyle get monoMove => _mono.copyWith(
+  static TextStyle get monoMove => _numeric.copyWith(
         fontSize: 13,
         fontWeight: FontWeight.w500,
         color: AppColors.ink,
-        letterSpacing: 0.2,
       );
 
-  /// Smaller mono text — ELO badges, chip labels
-  static TextStyle get monoSmall => _mono.copyWith(
+  /// Small numeric text — ELO badges, chip labels
+  static TextStyle get monoSmall => _numeric.copyWith(
         fontSize: 11,
-        fontWeight: FontWeight.w400,
+        fontWeight: FontWeight.w500,
         color: AppColors.inkDim,
-        letterSpacing: 0.3,
       );
 
-  // ─── Buttons  (Inter semi-bold) ───────────────────────────────────────────
+  // ─── Buttons ──────────────────────────────────────────────────────────────
 
   static TextStyle get buttonLarge => _inter.copyWith(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: AppColors.ink,
-        letterSpacing: 0.3,
+        letterSpacing: 0.1,
       );
 
   static TextStyle get buttonMedium => _inter.copyWith(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppColors.ink,
-        letterSpacing: 0.2,
+        letterSpacing: 0.1,
       );
 
   // ─── Legacy aliases (keep old callers compiling) ─────────────────────────
 
   /// Equivalent of old chapterTitle
-  static TextStyle get chapterTitle => _fraunces.copyWith(
+  static TextStyle get chapterTitle => _inter.copyWith(
         fontSize: 20,
         fontWeight: FontWeight.w700,
-        fontStyle: FontStyle.italic,
         color: AppColors.ink,
+        letterSpacing: -0.3,
       );
 }

@@ -15,6 +15,7 @@ import '../../../core/widgets/user_avatar.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/realtime_game_service.dart';
 
+import '../../../core/widgets/game_icon.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kCard      = AppColors.card;
@@ -357,10 +358,9 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
 
             Text(
               _selected!.username,
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.inter(
                 fontSize: 20,
-                fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w700,
                 color: _kInk,
               ),
             ),
@@ -384,8 +384,7 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                 _gameType == GameType.domino
                     ? _rulesLabel
                     : '$_rulesLabel · You play ${_inviterIsWhite ? (_gameType == GameType.checkers ? 'Light' : 'White') : (_gameType == GameType.checkers ? 'Dark' : 'Black')}',
-                style: GoogleFonts.jetBrainsMono(
-                  fontSize: 11,
+                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                   fontWeight: FontWeight.w500,
                   color: _kAmber,
                 ),
@@ -479,10 +478,9 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                     const SizedBox(width: 14),
                     Text(
                       'play_with_friend'.tr(),
-                      style: GoogleFonts.fraunces(
+                      style: GoogleFonts.inter(
                         fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                        fontStyle: FontStyle.italic,
+                        fontWeight: FontWeight.w700,
                         color: _kInk,
                       ),
                     ),
@@ -647,7 +645,7 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                 _ColorCard(
                   value: 'white',
                   label: _gameType == GameType.checkers ? 'Light' : 'White',
-                  symbol: _gameType == GameType.checkers ? '⛀' : '♔',
+                  icon: SideToken(type: _gameType, light: true),
                   selected: _playerColor == 'white',
                   onTap: () => setState(() => _playerColor = 'white'),
                   accent: _gameType.accent,
@@ -656,7 +654,7 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                 _ColorCard(
                   value: 'random',
                   label: 'Random',
-                  symbol: '⇄',
+                  icon: Icon(PhosphorIcons.shuffle(PhosphorIconsStyle.bold), size: 24, color: _kInkDim),
                   selected: _playerColor == 'random',
                   onTap: () => setState(() => _playerColor = 'random'),
                   accent: _gameType.accent,
@@ -665,7 +663,7 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                 _ColorCard(
                   value: 'black',
                   label: _gameType == GameType.checkers ? 'Dark' : 'Black',
-                  symbol: _gameType == GameType.checkers ? '⛂' : '♚',
+                  icon: SideToken(type: _gameType, light: false),
                   selected: _playerColor == 'black',
                   onTap: () => setState(() => _playerColor = 'black'),
                   accent: _gameType.accent,
@@ -901,8 +899,7 @@ class _SearchResultTile extends StatelessWidget {
             // Rating
             Text(
               '${user.overallRating} rating',
-              style: GoogleFonts.jetBrainsMono(
-                fontSize: 11,
+              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                 color: _kInkMute,
               ),
             ),
@@ -974,8 +971,7 @@ class _SelectedPlayerCard extends StatelessWidget {
                 ),
                 Text(
                   '${user.overallRating} rating',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                     color: _kInkMute,
                   ),
                 ),
@@ -1014,7 +1010,7 @@ class _SelectedPlayerCard extends StatelessWidget {
 class _ColorCard extends StatelessWidget {
   final String value;
   final String label;
-  final String symbol;
+  final Widget icon;
   final bool selected;
   final VoidCallback onTap;
   final Color accent;
@@ -1022,7 +1018,7 @@ class _ColorCard extends StatelessWidget {
   const _ColorCard({
     required this.value,
     required this.label,
-    required this.symbol,
+    required this.icon,
     required this.selected,
     required this.onTap,
     this.accent = _kAmber,
@@ -1047,7 +1043,7 @@ class _ColorCard extends StatelessWidget {
           ),
           child: Column(
             children: [
-              Text(symbol, style: const TextStyle(fontSize: 24)),
+              SizedBox(height: 28, child: Center(child: icon)),
               const SizedBox(height: 6),
               Text(
                 label,

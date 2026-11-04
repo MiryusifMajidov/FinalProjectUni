@@ -6,6 +6,7 @@ import '../../../core/theme/app_theme_extension.dart';
 import '../../../core/models/game_model.dart';
 import '../../../core/models/game_type.dart';
 
+import '../../../core/widgets/game_icon.dart';
 class RecentGameTile extends StatelessWidget {
   final GameModel game;
   final String uid;
@@ -74,8 +75,8 @@ class RecentGameTile extends StatelessWidget {
             ),
           ),
           const SizedBox(width: 12),
-          // Mini board preview with the game-type glyph (♞ / ⛀ / 🁫)
-          _MiniBoardPreview(glyph: gt.glyph, accent: gt.accent),
+          // Game-type icon
+          _MiniBoardPreview(type: gt, accent: gt.accent),
           const SizedBox(width: 12),
           // Opponent + time control
           Expanded(
@@ -129,8 +130,7 @@ class RecentGameTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   change >= 0 ? '+$change' : '$change',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 11,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: change > 0
                         ? AppColors.win
@@ -166,9 +166,9 @@ class RecentGameTile extends StatelessWidget {
 
 // Small 4×4 abstract board watermark with the game-type glyph on top
 class _MiniBoardPreview extends StatelessWidget {
-  final String glyph;
+  final GameType type;
   final Color accent;
-  const _MiniBoardPreview({required this.glyph, required this.accent});
+  const _MiniBoardPreview({required this.type, required this.accent});
 
   @override
   Widget build(BuildContext context) {
@@ -176,59 +176,12 @@ class _MiniBoardPreview extends StatelessWidget {
       width: 36,
       height: 36,
       decoration: BoxDecoration(
-        borderRadius: BorderRadius.circular(6),
-        border: Border.all(color: AppColors.border, width: 1),
+        color: accent.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: accent.withValues(alpha: 0.25), width: 1),
       ),
-      child: ClipRRect(
-        borderRadius: BorderRadius.circular(5),
-        child: Stack(
-          fit: StackFit.expand,
-          children: [
-            CustomPaint(painter: _CheckerboardPainter()),
-            // Dim wash so the glyph stays readable on the checker pattern
-            Container(color: Colors.black.withValues(alpha: 0.35)),
-            Center(
-              child: Text(
-                glyph,
-                style: const TextStyle(
-                  fontSize: 18,
-                  height: 1.0,
-                  color: Color(0xFFF5F3EF),
-                  shadows: [
-                    Shadow(color: Colors.black54, blurRadius: 3),
-                  ],
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
+      child: Center(child: GameIcon(type: type, size: 18, color: accent)),
     );
   }
 }
 
-class _CheckerboardPainter extends CustomPainter {
-  static const _dark  = Color(0xFF3d2e1e);
-  static const _light = Color(0xFFd9c4a0);
-
-  @override
-  void paint(Canvas canvas, Size size) {
-    final darkPaint  = Paint()..color = _dark;
-    final lightPaint = Paint()..color = _light;
-    final cellW = size.width  / 4;
-    final cellH = size.height / 4;
-
-    for (int row = 0; row < 4; row++) {
-      for (int col = 0; col < 4; col++) {
-        final isDark = (row + col).isOdd;
-        canvas.drawRect(
-          Rect.fromLTWH(col * cellW, row * cellH, cellW, cellH),
-          isDark ? darkPaint : lightPaint,
-        );
-      }
-    }
-  }
-
-  @override
-  bool shouldRepaint(_CheckerboardPainter old) => false;
-}

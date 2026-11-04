@@ -113,10 +113,9 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(
             'Add Member',
-            style: GoogleFonts.fraunces(
+            style: GoogleFonts.inter(
               fontSize: 18,
-              fontWeight: FontWeight.w600,
-              fontStyle: FontStyle.italic,
+              fontWeight: FontWeight.w700,
               color: _kInk,
             ),
           ),
@@ -248,10 +247,9 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Leave Group?',
-          style: GoogleFonts.fraunces(
+          style: GoogleFonts.inter(
             fontSize: 18,
-            fontWeight: FontWeight.w600,
-            fontStyle: FontStyle.italic,
+            fontWeight: FontWeight.w700,
             color: _kInk,
           ),
         ),
@@ -296,10 +294,9 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Delete Group?',
-          style: GoogleFonts.fraunces(
+          style: GoogleFonts.inter(
             fontSize: 18,
-            fontWeight: FontWeight.w600,
-            fontStyle: FontStyle.italic,
+            fontWeight: FontWeight.w700,
             color: _kInk,
           ),
         ),
@@ -374,10 +371,9 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                       const SizedBox(width: 14),
                       Text(
                         'Group Settings',
-                        style: GoogleFonts.fraunces(
+                        style: GoogleFonts.inter(
                           fontSize: 22,
-                          fontWeight: FontWeight.w600,
-                          fontStyle: FontStyle.italic,
+                          fontWeight: FontWeight.w700,
                           color: _kInk,
                         ),
                       ),

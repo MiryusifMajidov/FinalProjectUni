@@ -11,6 +11,8 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/models/game_model.dart';
 import '../../../core/services/auth_service.dart';
 
+import '../../../core/widgets/game_icon.dart';
+import '../../../core/utils/text_case.dart';
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
 const _kBg            = AppColors.background;
@@ -18,12 +20,10 @@ const _kCard          = AppColors.card;
 const _kAmber         = AppColors.amber;
 const _kAmberDeep     = AppColors.amberDeep;
 const _kAmberGlow     = AppColors.amberGlow;
-const _kAmberSoft     = AppColors.amberSoft;
 const _kInk           = AppColors.ink;
 const _kInkDim        = AppColors.inkDim;
 const _kInkMute       = AppColors.inkMute;
 const _kBorder        = AppColors.border;
-const _kBoardDark     = Color(0x2E1A1205); // #1a1205 opacity 0.18
 
 // ── Level data ────────────────────────────────────────────────────────────────
 
@@ -32,18 +32,19 @@ class _BotLevel {
   final String description;
   final int elo;
   final double strength;
+  /// Piece letter in the cburnett set: P, B, N, R, Q, K (pawn → king).
   final String piece;
   final int tier;
   const _BotLevel(this.name, this.description, this.elo, this.strength, this.piece, this.tier);
 }
 
 const _kLevels = [
-  _BotLevel('Beginner',     'Perfect for learning the basics',     400,  0.07, '♟', 1),
-  _BotLevel('Casual',       'Good for relaxed play',               800,  0.22, '♝', 2),
-  _BotLevel('Intermediate', 'A real challenge for most players',   1400, 0.42, '♞', 3),
-  _BotLevel('Advanced',     'Tactical and strategic strength',     1800, 0.62, '♜', 4),
-  _BotLevel('Expert',       'Near tournament-level play',          2400, 0.83, '♛', 5),
-  _BotLevel('Master',       'World-class engine strength',         3000, 1.00, '♚', 6),
+  _BotLevel('Beginner',     'Perfect for learning the basics',     400,  0.07, 'P', 1),
+  _BotLevel('Casual',       'Good for relaxed play',               800,  0.22, 'B', 2),
+  _BotLevel('Intermediate', 'A real challenge for most players',   1400, 0.42, 'N', 3),
+  _BotLevel('Advanced',     'Tactical and strategic strength',     1800, 0.62, 'R', 4),
+  _BotLevel('Expert',       'Near tournament-level play',          2400, 0.83, 'Q', 5),
+  _BotLevel('Master',       'World-class engine strength',         3000, 1.00, 'K', 6),
 ];
 
 // ── Screen ────────────────────────────────────────────────────────────────────
@@ -92,10 +93,9 @@ class _BotSetupScreenState extends ConsumerState<BotSetupScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'play_vs_bot'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -141,7 +141,7 @@ class _BotSetupScreenState extends ConsumerState<BotSetupScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _SectionLabel('PLAY AS'),
+                      _SectionLabel('play_as'.tr()),
                       const SizedBox(height: 10),
                       _ColorRow(
                         selected: _playerColor,
@@ -157,7 +157,7 @@ class _BotSetupScreenState extends ConsumerState<BotSetupScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _SectionLabel('choose_time_control'.tr()),
+                      _SectionLabel('time_control'.tr()),
                       const SizedBox(height: 10),
                       _TimeGrid(
                         selected: _timeControl,
@@ -217,8 +217,10 @@ class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
 
   @override
+  // One style for every section heading (they were a mix of "Difficulty",
+  // "PLAY AS" and "Choose Time Control").
   Widget build(BuildContext context) => Text(
-        text,
+        text.toUpperCaseFor(context),
         style: GoogleFonts.inter(
           fontSize: 11,
           fontWeight: FontWeight.w700,
@@ -306,10 +308,6 @@ class _HeroCard extends StatelessWidget {
       ),
       child: Stack(
         children: [
-          // Chessboard pattern background
-          Positioned.fill(
-            child: _ChessboardPattern(),
-          ),
           // Content overlay
           Padding(
             padding: const EdgeInsets.all(18),
@@ -319,8 +317,7 @@ class _HeroCard extends StatelessWidget {
               children: [
                 Text(
                   'SELECTED · TIER ${level.tier}',
-                  style: GoogleFonts.jetBrainsMono(
-                    fontSize: 10,
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                     fontWeight: FontWeight.w700,
                     letterSpacing: 0.6,
                     color: const Color(0xFF1A1205).withOpacity(0.7),
@@ -332,10 +329,9 @@ class _HeroCard extends StatelessWidget {
                   child: Text(
                     level.name,
                     key: ValueKey(level.name),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 32,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: const Color(0xFF1A1205),
                       height: 1.0,
                     ),
@@ -343,9 +339,15 @@ class _HeroCard extends StatelessWidget {
                 ),
                 const SizedBox(height: 4),
                 SizedBox(
-                  width: 220,
+                  width: 260,
                   child: AnimatedSwitcher(
                     duration: const Duration(milliseconds: 300),
+                    // Default layout centres the child, which indented the
+                    // line relative to the title above it.
+                    layoutBuilder: (current, previous) => Stack(
+                      alignment: Alignment.centerLeft,
+                      children: [...previous, if (current != null) current],
+                    ),
                     child: Text(
                       level.description,
                       key: ValueKey(level.description),
@@ -361,18 +363,17 @@ class _HeroCard extends StatelessWidget {
                 Row(
                   children: [
                     Text(
-                      '1,${level.elo}',
-                      style: GoogleFonts.fraunces(
+                      '${level.elo}',
+                      style: GoogleFonts.inter(
                         fontSize: 22,
-                        fontWeight: FontWeight.w600,
+                        fontWeight: FontWeight.w700,
                         color: const Color(0xFF1A1205),
                       ),
                     ),
                     const SizedBox(width: 6),
                     Text(
                       'ELO',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: const Color(0xFF1A1205).withOpacity(0.6),
                         letterSpacing: 0.4,
@@ -385,29 +386,6 @@ class _HeroCard extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-// ── Chessboard pattern ────────────────────────────────────────────────────────
-
-class _ChessboardPattern extends StatelessWidget {
-  @override
-  Widget build(BuildContext context) {
-    return GridView.builder(
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 8,
-      ),
-      itemCount: 64,
-      itemBuilder: (_, index) {
-        final row = index ~/ 8;
-        final col = index % 8;
-        final isDark = (row + col).isEven;
-        return Container(
-          color: isDark ? _kBoardDark : Colors.transparent,
-        );
-      },
     );
   }
 }
@@ -450,12 +428,10 @@ class _LevelGrid extends StatelessWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Text(
-                    level.piece,
-                    style: GoogleFonts.fraunces(
-                      fontSize: 22,
-                      color: selected ? _kAmber : _kInkDim,
-                    ),
+                  PieceIcon(
+                    'b${level.piece}',
+                    size: 26,
+                    color: selected ? _kAmber : _kInkDim,
                   ),
                   const SizedBox(height: 4),
                   Text(
@@ -470,8 +446,7 @@ class _LevelGrid extends StatelessWidget {
                   const SizedBox(height: 2),
                   Text(
                     '${level.elo} ELO',
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 9,
+                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                       color: _kInkMute,
                     ),
                   ),
@@ -570,7 +545,6 @@ class _PieceAvatar extends StatelessWidget {
   const _PieceAvatar({required this.value});
 
   static const _whiteBase = Color(0xFFECECF2);
-  static const _darkBase  = Color(0xFF252530);
 
   @override
   Widget build(BuildContext context) {
@@ -588,7 +562,8 @@ class _PieceAvatar extends StatelessWidget {
       height: 36,
       decoration: BoxDecoration(
         shape: BoxShape.circle,
-        color: isWhite ? _whiteBase : _darkBase,
+        // Both kings sit on a light disc so the black one stays visible.
+        color: isWhite ? _whiteBase : const Color(0xFFB8B4AC),
         border: Border.all(
           color: isWhite
               ? Colors.white.withOpacity(0.3)
@@ -596,16 +571,7 @@ class _PieceAvatar extends StatelessWidget {
           width: 1.5,
         ),
       ),
-      child: Center(
-        child: Text(
-          isWhite ? 'W' : 'B',
-          style: GoogleFonts.inter(
-            fontSize: 12,
-            fontWeight: FontWeight.w600,
-            color: isWhite ? _darkBase : _whiteBase,
-          ),
-        ),
-      ),
+      child: Center(child: PieceIcon(isWhite ? 'wK' : 'bK', size: 24)),
     );
   }
 }
@@ -647,27 +613,27 @@ class _TimeGrid extends StatelessWidget {
     return Column(
       children: [
         _TimeRow(
-          icon: Icons.bolt_rounded,
+          icon: PhosphorIcons.lightning(PhosphorIconsStyle.fill),
           label: 'bullet'.tr(),
-          labelColor: AppColors.loss,
+          labelColor: AppColors.bullet,
           controls: TimeControls.allBullet,
           selected: selected,
           onSelect: onSelect,
         ),
         const SizedBox(height: 10),
         _TimeRow(
-          icon: Icons.local_fire_department_rounded,
+          icon: PhosphorIcons.fire(PhosphorIconsStyle.fill),
           label: 'blitz'.tr(),
-          labelColor: _kAmber,
+          labelColor: AppColors.blitz,
           controls: TimeControls.allBlitz,
           selected: selected,
           onSelect: onSelect,
         ),
         const SizedBox(height: 10),
         _TimeRow(
-          icon: Icons.timer_outlined,
+          icon: PhosphorIcons.timer(PhosphorIconsStyle.fill),
           label: 'rapid'.tr(),
-          labelColor: AppColors.win,
+          labelColor: AppColors.rapid,
           controls: TimeControls.allRapid,
           selected: selected,
           onSelect: onSelect,
@@ -739,8 +705,7 @@ class _TimeRow extends StatelessWidget {
                   ),
                   child: Text(
                     tc.label,
-                    style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11,
+                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: sel ? _kAmber : _kInkDim,
                     ),

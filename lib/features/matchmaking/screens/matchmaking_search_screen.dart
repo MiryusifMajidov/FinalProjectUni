@@ -9,6 +9,7 @@ import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/services/auth_service.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/widgets/game_icon.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kCard      = AppColors.card;
@@ -110,10 +111,9 @@ class _MatchmakingSearchScreenState
                   const SizedBox(width: 14),
                   Text(
                     'matchmaking'.tr(),
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 22,
-                      fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic,
+                      fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
                   ),
@@ -179,20 +179,7 @@ class _MatchmakingSearchScreenState
                             ],
                           ),
                           child: Center(
-                            child: Text(
-                              '♟',
-                              style: TextStyle(
-                                fontSize: 48,
-                                color: const Color(0xFFFAF7F0),
-                                shadows: [
-                                  Shadow(
-                                    color: Colors.black
-                                        .withValues(alpha: 0.4),
-                                    blurRadius: 6,
-                                  ),
-                                ],
-                              ),
-                            ),
+                            child: PieceIcon('bP', size: 44, color: const Color(0xFFFAF7F0)),
                           ),
                         ),
                       ],
@@ -217,12 +204,11 @@ class _MatchmakingSearchScreenState
                   // Elapsed timer
                   Text(
                     _formattedTime,
-                    style: GoogleFonts.fraunces(
+                    style: GoogleFonts.inter(
                       fontSize: 56,
-                      fontWeight: FontWeight.w500,
+                      fontWeight: FontWeight.w600,
                       color: _kAmber,
                       letterSpacing: -2,
-                      fontStyle: FontStyle.italic,
                     ),
                   ),
 
@@ -241,8 +227,7 @@ class _MatchmakingSearchScreenState
                       'ELO ${widget.minElo} – ${widget.maxElo}'
                       ' · ${widget.timeLabel}'
                       ' · ${widget.isRated ? 'RATED' : 'CASUAL'}',
-                      style: GoogleFonts.jetBrainsMono(
-                        fontSize: 10,
+                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                         color: _kInkDim,
                         letterSpacing: 0.4,
                         fontWeight: FontWeight.w600,
@@ -368,8 +353,7 @@ class _StatItem extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.jetBrainsMono(
-            fontSize: 9,
+          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
             color: _kInkMute,
             letterSpacing: 0.5,
             fontWeight: FontWeight.w700,
@@ -378,11 +362,10 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 4),
         Text(
           value,
-          style: GoogleFonts.fraunces(
+          style: GoogleFonts.inter(
             fontSize: 18,
-            fontWeight: FontWeight.w500,
+            fontWeight: FontWeight.w600,
             color: valueColor,
-            fontStyle: FontStyle.italic,
           ),
         ),
       ],

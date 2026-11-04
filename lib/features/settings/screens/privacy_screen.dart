@@ -91,9 +91,9 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'privacy'.tr(),
-                    style: GoogleFonts.fraunces(
-                      fontSize: 22, fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic, color: _kInk,
+                    style: GoogleFonts.inter(
+                      fontSize: 22, fontWeight: FontWeight.w700,
+                      color: _kInk,
                     ),
                   ),
                 ],
@@ -337,9 +337,9 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
             const SizedBox(height: 16),
             Text(
               'Your data',
-              style: GoogleFonts.fraunces(
-                fontSize: 18, fontWeight: FontWeight.w600,
-                fontStyle: FontStyle.italic, color: _kInk,
+              style: GoogleFonts.inter(
+                fontSize: 18, fontWeight: FontWeight.w700,
+                color: _kInk,
               ),
             ),
             const SizedBox(height: 12),
@@ -356,8 +356,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                 padding: const EdgeInsets.all(14),
                 child: Text(
                   text,
-                  style: GoogleFonts.jetBrainsMono(
-                      fontSize: 11, color: _kInkDim, height: 1.6),
+                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: _kInkDim, height: 1.6),
                 ),
               ),
             ),
@@ -426,9 +425,9 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   const SizedBox(height: 12),
                   Text(
                     'Privacy Policy',
-                    style: GoogleFonts.fraunces(
-                      fontSize: 18, fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic, color: _kInk,
+                    style: GoogleFonts.inter(
+                      fontSize: 18, fontWeight: FontWeight.w700,
+                      color: _kInk,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -492,9 +491,9 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'who_can_message'.tr(),
-                    style: GoogleFonts.fraunces(
-                      fontSize: 18, fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic, color: _kInk,
+                    style: GoogleFonts.inter(
+                      fontSize: 18, fontWeight: FontWeight.w700,
+                      color: _kInk,
                     ),
                   ),
                 ),
@@ -612,9 +611,9 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     title,
-                    style: GoogleFonts.fraunces(
-                      fontSize: 18, fontWeight: FontWeight.w600,
-                      fontStyle: FontStyle.italic, color: _kInk,
+                    style: GoogleFonts.inter(
+                      fontSize: 18, fontWeight: FontWeight.w700,
+                      color: _kInk,
                     ),
                   ),
                 ),

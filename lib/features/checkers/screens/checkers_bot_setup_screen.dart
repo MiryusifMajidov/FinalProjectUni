@@ -60,13 +60,11 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
         title: Row(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('⛀ ', style: TextStyle(fontSize: 18)),
             Text(
               'Play vs Bot',
-              style: GoogleFonts.fraunces(
+              style: GoogleFonts.inter(
                 fontSize: 20,
-                fontWeight: FontWeight.w500,
-                fontStyle: FontStyle.italic,
+                fontWeight: FontWeight.w600,
                 color: AppColors.ink,
               ),
             ),
@@ -149,8 +147,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
                           const Spacer(),
                           Text(
                             '~$elo',
-                            style: GoogleFonts.jetBrainsMono(
-                              fontSize: 12,
+                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
                               fontWeight: FontWeight.w500,
                               color: selected ? _accent : AppColors.inkDim,
                             ),
