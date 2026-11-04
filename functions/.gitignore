@@ -1,1 +1,3 @@
 node_modules/
+# Local emulator secrets (firebase functions:secrets for the emulator)
+*.local
