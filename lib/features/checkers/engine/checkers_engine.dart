@@ -713,7 +713,9 @@ class CheckersEngine {
   int _boardHash() {
     int hash = turn == CheckersPlayer.white ? 17 : 31;
     for (int i = 0; i < board.length; i++) {
-      hash = (hash * 31 + board[i].index) & 0x3FFFFFFFFFFFFF;
+      // 2^53 - 1: the widest mask JavaScript can represent exactly. The old
+      // 2^54 - 1 literal stopped the whole app compiling for the web.
+      hash = (hash * 31 + board[i].index) & 0x1FFFFFFFFFFFFF;
     }
     return hash;
   }
