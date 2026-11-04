@@ -599,5 +599,13 @@
   "waiting_host_start": "Waiting for the host to start…",
   "you": "You",
   "your_team": "Your team",
-  "bot": "Bot"
+  "bot": "Bot",
+  "privacy_intro": "Choose who can see your activity and contact you.",
+  "mute_chat": "Mute notifications",
+  "unmute_chat": "Unmute notifications",
+  "chat_muted": "Notifications for this chat are off.",
+  "chat_unmuted": "Notifications for this chat are on.",
+  "challenge_send_failed": "Couldn't send the challenge. Please try again.",
+  "friend_request_sent_to": "Friend request sent to {}",
+  "remove_friend_confirm": "Remove {} from your friends?"
 }

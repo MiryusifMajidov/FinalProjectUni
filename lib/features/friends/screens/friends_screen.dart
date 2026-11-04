@@ -372,9 +372,17 @@ class _FriendTile extends ConsumerWidget {
               ),
             ),
             const SizedBox(width: 8),
-            // Quick-play button
+            // Quick-play button: invite this friend to a game. (It opened
+            // '/home/invite-friend', a route that does not exist.)
             GestureDetector(
-              onTap: () => context.push('/home/invite-friend'),
+              onTap: () async {
+                final user = await ref
+                    .read(userOnceProvider(friend.uid).future)
+                    .catchError((_) => null);
+                if (context.mounted) {
+                  context.push('/home/invite', extra: user);
+                }
+              },
               child: Container(
                 width: 36, height: 36,
                 decoration: BoxDecoration(
@@ -716,7 +724,7 @@ class _SuggestionTile extends ConsumerWidget {
                 if (context.mounted) {
                   ScaffoldMessenger.of(context).showSnackBar(
                     SnackBar(
-                      content: Text('Request sent to ${user.username}'),
+                      content: Text('friend_request_sent_to'.tr(args: [user.username])),
                       backgroundColor: _kCard,
                     ),
                   );

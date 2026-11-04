@@ -597,5 +597,13 @@
   "your_team": "Takımın",
   "left_end": "Sol",
   "right_end": "Sağ",
-  "bot": "Bot"
+  "bot": "Bot",
+  "privacy_intro": "Etkinliğini kimin görebileceğini ve seninle kimin iletişime geçebileceğini seç.",
+  "mute_chat": "Bildirimleri sessize al",
+  "unmute_chat": "Bildirimlerin sesini aç",
+  "chat_muted": "Bu sohbet için bildirimler kapatıldı.",
+  "chat_unmuted": "Bu sohbet için bildirimler açıldı.",
+  "challenge_send_failed": "Meydan okuma gönderilemedi. Tekrar dene.",
+  "friend_request_sent_to": "{} adlı oyuncuya arkadaşlık isteği gönderildi",
+  "remove_friend_confirm": "{} arkadaş listenden çıkarılsın mı?"
 }

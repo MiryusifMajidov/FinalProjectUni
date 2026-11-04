@@ -19,8 +19,10 @@ class NotificationService {
   final _messaging = FirebaseMessaging.instance;
   final _local = FlutterLocalNotificationsPlugin();
 
+  // The id stays as it was (Android keeps channels by id); the name is what
+  // the phone's notification settings show, and it still said "Grandmaster".
   static const _channelId = 'grandmaster_main';
-  static const _channelName = 'Grandmaster';
+  static const _channelName = 'CheckMate';
 
   /// Set by InviteListener to persist a refreshed FCM token to Firestore.
   void Function(String token)? _onTokenRefreshedCallback;
@@ -51,7 +53,7 @@ class NotificationService {
     const androidChannel = AndroidNotificationChannel(
       _channelId,
       _channelName,
-      description: 'Chess app notifications',
+      description: 'Game invites, messages and friend requests',
       importance: Importance.high,
     );
     final androidPlugin = _local.resolvePlatformSpecificImplementation<
@@ -142,7 +144,7 @@ class NotificationService {
 
     final n = message.notification;
     if (n == null) return;
-    showLocal(id: message.hashCode, title: n.title ?? 'Grandmaster', body: n.body ?? '');
+    showLocal(id: message.hashCode, title: n.title ?? 'CheckMate', body: n.body ?? '');
   }
 
   /// Maps an FCM data `type` value → [SharedPreferences] key for the matching

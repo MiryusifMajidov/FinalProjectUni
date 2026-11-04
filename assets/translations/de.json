@@ -585,5 +585,13 @@
   "message_blocked_filter": "Deine Nachricht enthält unangemessene Sprache.",
   "checkers": "Dame",
   "domino": "Domino",
-  "bot": "Bot"
+  "bot": "Bot",
+  "privacy_intro": "Lege fest, wer deine Aktivität sieht und dich kontaktieren darf.",
+  "mute_chat": "Benachrichtigungen stummschalten",
+  "unmute_chat": "Benachrichtigungen einschalten",
+  "chat_muted": "Benachrichtigungen für diesen Chat sind aus.",
+  "chat_unmuted": "Benachrichtigungen für diesen Chat sind an.",
+  "challenge_send_failed": "Herausforderung konnte nicht gesendet werden. Bitte erneut versuchen.",
+  "friend_request_sent_to": "Freundschaftsanfrage an {} gesendet",
+  "remove_friend_confirm": "{} aus deinen Freunden entfernen?"
 }

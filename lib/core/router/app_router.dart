@@ -43,8 +43,6 @@ import '../../features/settings/screens/two_factor_screen.dart';
 import '../../features/settings/screens/active_sessions_screen.dart';
 import '../../features/settings/screens/blocked_users_screen.dart';
 import '../../features/auth/screens/two_factor_verify_screen.dart';
-import '../../features/matchmaking/screens/invite_friend_config_screen.dart';
-import '../../features/matchmaking/screens/matchmaking_search_screen.dart';
 import '../../features/map/screens/map_challenge_sent_screen.dart';
 import '../../features/map/screens/map_search_screen.dart';
 import '../../features/checkers/screens/checkers_bot_setup_screen.dart';
@@ -285,15 +283,6 @@ final routerProvider = Provider<GoRouter>((ref) {
             ),
           ),
           GoRoute(
-            path: 'invite-config',
-            pageBuilder: (_, state) => _slideTransition(
-              state.pageKey,
-              InviteFriendConfigScreen(
-                opponent: state.extra as UserModel,
-              ),
-            ),
-          ),
-          GoRoute(
             path: 'map',
             pageBuilder: (_, state) => _slideTransition(
               state.pageKey,
@@ -469,22 +458,6 @@ final routerProvider = Provider<GoRouter>((ref) {
               state.pageKey,
               const DominoTableSetupScreen(),
             ),
-          ),
-          GoRoute(
-            path: 'matchmaking-search',
-            pageBuilder: (_, state) {
-              final extra =
-                  state.extra as Map<String, dynamic>? ?? {};
-              return _slideTransition(
-                state.pageKey,
-                MatchmakingSearchScreen(
-                  timeLabel: extra['timeLabel'] as String? ?? '5 MIN',
-                  isRated: extra['isRated'] as bool? ?? true,
-                  minElo: extra['minElo'] as int? ?? 1000,
-                  maxElo: extra['maxElo'] as int? ?? 1400,
-                ),
-              );
-            },
           ),
         ],
       ),

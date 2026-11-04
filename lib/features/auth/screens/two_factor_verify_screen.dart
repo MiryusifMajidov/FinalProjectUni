@@ -146,6 +146,9 @@ class _TwoFactorVerifyScreenState
                       ),
                       decoration: const InputDecoration(
                         border: InputBorder.none,
+                        enabledBorder: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        filled: false,
                         counterText: '',
                       ),
                       inputFormatters: [FilteringTextInputFormatter.digitsOnly],

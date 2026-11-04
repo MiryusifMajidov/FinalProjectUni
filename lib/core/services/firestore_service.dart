@@ -287,12 +287,19 @@ class FirestoreService {
   /// Updates only coordinates + lastSeen — does NOT change showOnMap flag.
   Future<void> updateLocationOnly(String uid, double lat, double lng) =>
       _users.doc(uid).update({
-        'latitude': lat,
-        'longitude': lng,
+        'latitude': _approx(lat),
+        'longitude': _approx(lng),
         'lastSeen': FieldValue.serverTimestamp(),
       });
 
-  /// Updates the user's map location and opt-in flag.
+  /// Coordinates are stored rounded to two decimals (about 1 km): the user
+  /// document is readable by every signed-in player, and the map only needs
+  /// to show roughly where people are.
+  static double _approx(double v) => (v * 100).roundToDouble() / 100;
+
+  /// Updates the user's map location and opt-in flag. Opting out deletes the
+  /// stored coordinates — they used to stay in the profile, readable by
+  /// anyone signed in, after the player had left the map.
   Future<void> updateMapSettings(
     String uid, {
     required bool showOnMap,
@@ -301,8 +308,13 @@ class FirestoreService {
   }) =>
       _users.doc(uid).update({
         'showOnMap': showOnMap,
-        if (latitude != null) 'latitude': latitude,
-        if (longitude != null) 'longitude': longitude,
+        if (!showOnMap) ...{
+          'latitude': FieldValue.delete(),
+          'longitude': FieldValue.delete(),
+        } else ...{
+          if (latitude != null) 'latitude': _approx(latitude),
+          if (longitude != null) 'longitude': _approx(longitude),
+        },
         'lastSeen': FieldValue.serverTimestamp(),
       });
 

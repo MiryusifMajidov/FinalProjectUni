@@ -148,9 +148,10 @@ class _Header extends ConsumerWidget {
             ],
           ),
           const Spacer(),
+          // Find someone to message (this button did nothing before).
           _IconBtn(
             icon: PhosphorIcons.magnifyingGlass(PhosphorIconsStyle.regular),
-            onTap: () {},
+            onTap: () => context.push('/home/friends/search'),
           ),
           const SizedBox(width: 8),
           _IconBtn(

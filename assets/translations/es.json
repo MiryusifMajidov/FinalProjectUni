@@ -585,5 +585,13 @@
   "message_blocked_filter": "Tu mensaje contiene lenguaje inapropiado.",
   "checkers": "Damas",
   "domino": "Dominó",
-  "bot": "Bot"
+  "bot": "Bot",
+  "privacy_intro": "Elige quién puede ver tu actividad y contactarte.",
+  "mute_chat": "Silenciar notificaciones",
+  "unmute_chat": "Activar notificaciones",
+  "chat_muted": "Notificaciones de este chat desactivadas.",
+  "chat_unmuted": "Notificaciones de este chat activadas.",
+  "challenge_send_failed": "No se pudo enviar el desafío. Inténtalo de nuevo.",
+  "friend_request_sent_to": "Solicitud de amistad enviada a {}",
+  "remove_friend_confirm": "¿Eliminar a {} de tus amigos?"
 }

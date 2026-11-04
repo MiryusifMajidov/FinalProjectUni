@@ -58,11 +58,11 @@ final _globalRankProvider =
 
 /// Sums rating changes from online rated games in the last 30 days.
 /// Returns null when no qualifying games are found (badge hidden in that case).
-/// Cached (no autoDispose) — reuses the already-cached _recentGamesProvider.
+/// Cached (no autoDispose) — reuses _recentGamesProvider, and updates with it.
 final _monthlyRatingChangeProvider =
     FutureProvider.family<int?, String>((ref, uid) async {
   try {
-    final games = await ref.read(_recentGamesProvider(uid).future);
+    final games = await ref.watch(_recentGamesProvider(uid).future);
     final cutoff = DateTime.now().subtract(const Duration(days: 30));
     int total = 0;
     bool found = false;
@@ -1974,6 +1974,8 @@ class _RecentGames extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final gamesAsync = ref.watch(_recentGamesProvider(uid));
     return gamesAsync.when(
+      // After a game the list reloads; keep showing the old one meanwhile.
+      skipLoadingOnReload: true,
       loading: () => const ShimmerList(count: 3, itemHeight: 70),
       error: (_, __) => const SizedBox.shrink(),
       data: (games) {
@@ -2024,71 +2026,13 @@ class _RecentGames extends ConsumerWidget {
 
 final _recentGamesProvider =
     FutureProvider.family<List<GameModel>, String>((ref, uid) {
+  // Fetched once and reused — but again whenever a finished game is recorded
+  // (it is appended to the profile's recentGameIds). Without this the list
+  // and the monthly rating badge kept showing the state from app launch.
+  ref.watch(currentUserProvider
+      .select((u) => u.valueOrNull?.recentGameIds.lastOrNull));
   return ref.read(firestoreServiceProvider).getRecentGames(uid);
 });
-
-// ── Option Tile (Play with friend sheet) ──────────────────────────────────────
-
-class _OptionTile extends StatelessWidget {
-  final IconData icon;
-  final String title;
-  final String subtitle;
-  final VoidCallback onTap;
-
-  const _OptionTile({
-    required this.icon,
-    required this.title,
-    required this.subtitle,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.all(16),
-        decoration: BoxDecoration(
-          color: AppColors.card,
-          borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: AppColors.border, width: 1),
-        ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: AppColors.amberGlow,
-                borderRadius: BorderRadius.circular(12),
-              ),
-              child: Center(
-                child: Icon(icon, color: AppColors.amber, size: 22),
-              ),
-            ),
-            const SizedBox(width: 14),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: AppTextStyles.titleSmall),
-                  Text(subtitle,
-                      style: AppTextStyles.bodySmall
-                          .copyWith(color: AppColors.inkDim)),
-                ],
-              ),
-            ),
-            Icon(
-              PhosphorIcons.caretRight(PhosphorIconsStyle.regular),
-              color: AppColors.inkMute,
-              size: 16,
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
 
 // ── Complete profile (signed in, but no users/{uid} document) ────────────────
 

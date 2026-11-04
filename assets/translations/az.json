@@ -599,5 +599,13 @@
   "waiting_host_start": "Ev sahibinin başlatması gözlənilir…",
   "you": "Sən",
   "your_team": "Sənin komandan",
-  "bot": "Bot"
+  "bot": "Bot",
+  "privacy_intro": "Fəaliyyətini kimin görə biləcəyini və sənə kimin yaza biləcəyini seç.",
+  "mute_chat": "Bildirişləri söndür",
+  "unmute_chat": "Bildirişləri aç",
+  "chat_muted": "Bu söhbət üçün bildirişlər söndürüldü.",
+  "chat_unmuted": "Bu söhbət üçün bildirişlər açıldı.",
+  "challenge_send_failed": "Çağırışı göndərmək olmadı. Yenidən cəhd et.",
+  "friend_request_sent_to": "{} adlı oyunçuya dostluq sorğusu göndərildi",
+  "remove_friend_confirm": "{} dost siyahından silinsin?"
 }

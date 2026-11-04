@@ -2402,7 +2402,7 @@ class _OtherProfileActionsState extends ConsumerState<_OtherProfileActions> {
         setState(() => _waitingChallenge = false);
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Failed to send challenge: $e'),
+            content: Text('challenge_send_failed'.tr()),
             backgroundColor: AppColors.error,
           ),
         );
@@ -2445,7 +2445,7 @@ class _OtherProfileActionsState extends ConsumerState<_OtherProfileActions> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Friend request sent to ${widget.user.username}'),
+            content: Text('friend_request_sent_to'.tr(args: [widget.user.username])),
             backgroundColor: AppColors.success,
           ),
         );
@@ -2474,7 +2474,7 @@ class _OtherProfileActionsState extends ConsumerState<_OtherProfileActions> {
       builder: (_) => AlertDialog(
         backgroundColor: AppColors.surface,
         title: Text('remove_friend'.tr(), style: AppTextStyles.titleMedium),
-        content: Text('Remove ${widget.user.username} from friends?',
+        content: Text('remove_friend_confirm'.tr(args: [widget.user.username]),
             style: AppTextStyles.bodyMedium),
         actions: [
           TextButton(
@@ -2485,7 +2485,7 @@ class _OtherProfileActionsState extends ConsumerState<_OtherProfileActions> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
-            child: Text('Remove',
+            child: Text('remove_friend'.tr(),
                 style: AppTextStyles.labelMedium
                     .copyWith(color: AppColors.error)),
           ),

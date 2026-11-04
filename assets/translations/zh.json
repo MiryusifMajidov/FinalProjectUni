@@ -585,5 +585,13 @@
   "message_blocked_filter": "你的消息包含不当用语。",
   "checkers": "跳棋",
   "domino": "多米诺",
-  "bot": "机器人"
+  "bot": "机器人",
+  "privacy_intro": "选择谁可以查看你的动态并联系你。",
+  "mute_chat": "关闭通知",
+  "unmute_chat": "开启通知",
+  "chat_muted": "已关闭此聊天的通知。",
+  "chat_unmuted": "已开启此聊天的通知。",
+  "challenge_send_failed": "无法发送挑战，请重试。",
+  "friend_request_sent_to": "已向 {} 发送好友请求",
+  "remove_friend_confirm": "将 {} 从好友中移除？"
 }

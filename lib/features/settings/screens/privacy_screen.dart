@@ -106,7 +106,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   Padding(
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
                     child: Text(
-                      'Control who can see your activity and contact you on Grandmaster.',
+                      'privacy_intro'.tr(),
                       style: GoogleFonts.inter(
                           fontSize: 12, color: _kInkMute, height: 1.5),
                     ),
@@ -287,7 +287,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
 
   void _showDataSheet(dynamic user) {
     final lines = <String>[
-      '══ Your Grandmaster Data ══',
+      '══ Your CheckMate data ══',
       '',
       if (user != null) ...[
         'Username    : ${user.username}',

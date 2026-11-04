@@ -569,6 +569,9 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                           )
                         : null,
                 border: InputBorder.none,
+                enabledBorder: InputBorder.none,
+                focusedBorder: InputBorder.none,
+                filled: false,
                 contentPadding: const EdgeInsets.symmetric(vertical: 16),
               ),
             ),

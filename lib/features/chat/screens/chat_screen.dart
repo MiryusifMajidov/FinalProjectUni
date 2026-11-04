@@ -223,14 +223,14 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
       await svc.unmuteChat(_chatId, _myUid);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Chat unmuted'), duration: Duration(seconds: 2)),
+          SnackBar(content: Text('chat_unmuted'.tr()), duration: const Duration(seconds: 2)),
         );
       }
     } else {
       await svc.muteChat(_chatId, _myUid);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Chat muted'), duration: Duration(seconds: 2)),
+          SnackBar(content: Text('chat_muted'.tr()), duration: const Duration(seconds: 2)),
         );
       }
     }
@@ -366,6 +366,25 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               margin: const EdgeInsets.symmetric(vertical: 12),
               decoration: BoxDecoration(
                   color: _kInkMute, borderRadius: BorderRadius.circular(2)),
+            ),
+            // The server already skips push for muted chats; this is the
+            // switch for it (the handler existed but nothing called it).
+            ListTile(
+              leading: Icon(
+                _isMuted
+                    ? PhosphorIcons.bell(PhosphorIconsStyle.regular)
+                    : PhosphorIcons.bellSlash(PhosphorIconsStyle.regular),
+                color: _kInk,
+              ),
+              title: Text(
+                (_isMuted ? 'unmute_chat' : 'mute_chat').tr(),
+                style: GoogleFonts.inter(
+                    fontSize: 14, fontWeight: FontWeight.w500, color: _kInk),
+              ),
+              onTap: () {
+                Navigator.pop(ctx);
+                _toggleMute();
+              },
             ),
             ListTile(
               leading: Icon(
