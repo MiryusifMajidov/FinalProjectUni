@@ -7,7 +7,9 @@ seams, so the store shows a continuous table when you scroll.
 
 | File | Size | Upload to |
 |---|---|---|
-| `out/appstore-6.9in/01–08.png` | 1290×2796 | App Store Connect → iPhone 6.9″ display. Smaller iPhone sizes are generated from it. |
+| `out/appstore-iphone-6.9in-1320x2868/iphone69-01–08.png` | 1320×2868 | App Store Connect → iPhone 6.9″ display. Smaller iPhone sizes are generated from it. |
+| `out/appstore-iphone-6.5in-1284x2778/iphone65-01–08.png` | 1284×2778 | App Store Connect → iPhone 6.5″ display, if that slot is the one shown. |
+| `out/appstore-6.9in/01–08.png` | 1290×2796 | The first 6.9″ set. Superseded by the 1320×2868 set above. |
 | `out/googleplay/01–08.png` | 1080×1920 | Play Console → Phone screenshots |
 | `out/googleplay/feature-graphic.png` | 1024×500 | Play Console → Feature graphic |
 
@@ -33,7 +35,8 @@ Every phone shows a real screen of the app:
 ## Remake them
 
 ```bash
-node render.mjs --w 1290 --h 2796 --out out/appstore-6.9in
+node render.mjs --w 1320 --h 2868 --out out/appstore-iphone-6.9in-1320x2868
+node render.mjs --w 1284 --h 2778 --out out/appstore-iphone-6.5in-1284x2778
 node render.mjs --w 1080 --h 1920 --out out/googleplay
 node render.mjs --page feature.html --w 1024 --h 500 --n 1 --out out/googleplay --name feature-graphic
 ```

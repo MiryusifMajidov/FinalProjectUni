@@ -131,7 +131,6 @@ flutter:
     - assets/data/bots.json
     - assets/pieces/cburnett/
     - assets/pieces/merida/
-    - assets/pieces/alpha/
 
   # Geologica, the app's one typeface (see lib/core/theme/app_fonts.dart).
   # Static instances cut from the variable font at wght 400–800, CRSV 0,

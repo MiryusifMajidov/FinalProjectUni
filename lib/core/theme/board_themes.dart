@@ -56,13 +56,12 @@ extension BoardThemeExt on BoardTheme {
   }
 }
 
-enum PieceSet { cburnett, merida, alpha }
+enum PieceSet { cburnett, merida }
 
 extension PieceSetExt on PieceSet {
   String get displayName => switch (this) {
         PieceSet.cburnett => 'CBurnett',
         PieceSet.merida => 'Merida',
-        PieceSet.alpha => 'Alpha',
       };
 
   /// Asset folder name under assets/pieces/

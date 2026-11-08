@@ -109,7 +109,6 @@ class _GameSettingsScreenState extends ConsumerState<GameSettingsScreen> {
   static const _pieceSets = [
     (id: 'cburnett', label: 'CBurnett'),
     (id: 'merida',   label: 'Merida'),
-    (id: 'alpha',    label: 'Alpha'),
   ];
 
   @override
@@ -651,7 +650,7 @@ class _BoardThemeSwatch extends StatelessWidget {
 // ── Piece Set Swatch ──────────────────────────────────────────────────────────
 
 class _PieceSetSwatch extends StatelessWidget {
-  final String id;         // 'cburnett' | 'merida' | 'alpha'
+  final String id;         // 'cburnett' | 'merida'
   final String label;
   final Color lightColor;
   final Color darkColor;

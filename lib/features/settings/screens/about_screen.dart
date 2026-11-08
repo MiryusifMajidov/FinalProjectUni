@@ -682,29 +682,15 @@ void _registerBundledAssetLicences() {
       'Used under the Creative Commons Attribution-ShareAlike 3.0 Unported '
       'licence (CC BY-SA 3.0): https://creativecommons.org/licenses/by-sa/3.0/\n'
       'Attribution is required and modified versions must be shared under the '
-      'same licence. The Commons originals are multi-licensed (GFDL and a '
-      'BSD-style licence are also offered); verify upstream terms before '
-      'relying on a licence other than CC BY-SA 3.0.',
+      'same licence.',
     );
 
     yield const LicenseEntryWithLineBreaks(
       ['CheckMate assets: merida piece set'],
       'Chess piece set "merida" by Armando Hernandez Marroquin.\n'
-      'Distributed with Lichess (lichess-org/lila).\n\n'
-      'The set is widely redistributed as free software, commonly stated as '
-      'GPL-licensed. The exact licence text is not bundled here — verify '
-      'upstream terms at https://github.com/lichess-org/lila before '
-      'redistribution.',
-    );
-
-    yield const LicenseEntryWithLineBreaks(
-      ['CheckMate assets: alpha piece set'],
-      'Chess piece set "alpha" by Eric Bentzen.\n'
-      'Distributed with Lichess (lichess-org/lila).\n\n'
-      'Eric Bentzen\'s chess fonts have historically been published as free '
-      'for personal, non-commercial use, which may not cover distribution '
-      'inside a commercial app. Verify upstream terms and obtain permission, '
-      'or remove this set, before relying on it.',
+      'Distributed with Lichess (lichess-org/lila), which lists it under the '
+      'GNU General Public License, version 2 or later: '
+      'https://www.gnu.org/licenses/gpl-2.0.txt',
     );
 
     yield const LicenseEntryWithLineBreaks(
