@@ -171,14 +171,14 @@ class SideToken extends StatelessWidget {
         child: PieceIcon(
           'bK',
           size: size * 0.64,
-          color: light ? const Color(0xFF1A1A1E) : _lightFill,
+          color: light ? const Color(0xFF1D2923) : _lightFill,
         ),
       );
     }
     return GameIcon(
       type: type,
       size: size,
-      color: light ? _lightFill : const Color(0xFF8A847A),
+      color: light ? _lightFill : const Color(0xFF8D9993),
     );
   }
 }

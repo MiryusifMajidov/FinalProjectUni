@@ -4,7 +4,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/auth_service.dart';
@@ -13,14 +12,13 @@ import '../../../core/models/game_type.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../../core/widgets/game_switch.dart';
 
-import '../../../core/utils/text_case.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg           = AppColors.background;
 const _kSurface      = AppColors.surface;
 const _kCard         = AppColors.card;
-const _kAmber        = AppColors.amber;
-const _kAmberDeep    = AppColors.amberDeep;
-const _kAmberGlow    = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk          = AppColors.ink;
 const _kInkDim       = AppColors.inkDim;
 const _kInkMute      = AppColors.inkMute;
@@ -109,7 +107,6 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -121,7 +118,7 @@ class _LeaderboardScreenState extends ConsumerState<LeaderboardScreen>
                   const SizedBox(width: 14),
                   Text(
                     'leaderboard'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 24,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -209,7 +206,7 @@ class _Tab extends StatelessWidget {
   final int index;
   final TabController ctrl;
   final Color accent;
-  const _Tab({required this.label, required this.index, required this.ctrl, this.accent = _kAmber});
+  _Tab({required this.label, required this.index, required this.ctrl, Color? accent}) : accent = accent ?? _kAmber;
 
   @override
   Widget build(BuildContext context) {
@@ -229,7 +226,7 @@ class _Tab extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 14,
             fontWeight: FontWeight.w600,
             color: selected ? accent : _kInkMute,
@@ -248,22 +245,22 @@ class _LeaderboardTab extends ConsumerWidget {
   final int Function(UserModel) ratingGetter;
   final Color accent;
 
-  const _LeaderboardTab({
+  _LeaderboardTab({
     required this.provider,
     required this.myUid,
     required this.ratingGetter,
-    this.accent = _kAmber,
-  });
+    Color? accent,
+  }) : accent = accent ?? _kAmber;
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final async = ref.watch(provider);
     return async.when(
-      loading: () => const Center(child: CircularProgressIndicator(color: _kAmber)),
+      loading: () => Center(child: CircularProgressIndicator(color: _kAmber)),
       error: (e, _) => Center(
         child: Text(
           'Error loading leaderboard',
-          style: GoogleFonts.inter(fontSize: 14, color: AppColors.error),
+          style: AppFonts.ui(fontSize: 14, color: AppColors.error),
         ),
       ),
       data: (users) {
@@ -271,7 +268,7 @@ class _LeaderboardTab extends ConsumerWidget {
           return Center(
             child: Text(
               'No players yet',
-              style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 18,
+              style: AppFonts.ui(fontWeight: FontWeight.w600, fontSize: 18,
                 color: _kInkMute,
               ),
             ),
@@ -450,7 +447,7 @@ class _PodiumSlot extends StatelessWidget {
                   shape: BoxShape.circle,
                   gradient: LinearGradient(
                     colors: rank == 1
-                        ? [_kAmber, _kAmberDeep]
+                        ? [_kAmber, _kAmber]
                         : [medalColor.withValues(alpha:0.6), medalColor.withValues(alpha:0.3)],
                     begin: Alignment.topLeft,
                     end: Alignment.bottomRight,
@@ -472,7 +469,7 @@ class _PodiumSlot extends StatelessWidget {
           // Username
           Text(
             user!.username,
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
               fontSize: rank == 1 ? 12 : 11,
               fontWeight: FontWeight.w600,
               color: rank == 1 ? _kInk : _kInkDim,
@@ -487,7 +484,7 @@ class _PodiumSlot extends StatelessWidget {
           // Rating
           Text(
             '$rating',
-            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: rank == 1 ? 13 : 11,
+            style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: rank == 1 ? 13 : 11,
               fontWeight: FontWeight.w700,
               color: rank == 1 ? _kAmber : medalColor,
             ),
@@ -532,7 +529,7 @@ class _PodiumSlot extends StatelessWidget {
                 child: Center(
                   child: Text(
                     medalLabel,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: medalColor,
@@ -586,7 +583,7 @@ class _LeaderboardRow extends StatelessWidget {
               width: 32,
               child: Text(
                 '$rank',
-                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13,
+                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: isMe ? _kAmber : _kInkMute,
                 ),
@@ -617,7 +614,7 @@ class _LeaderboardRow extends StatelessWidget {
                   Flexible(
                     child: Text(
                       user.username,
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                         fontSize: 14,
                         fontWeight: isMe ? FontWeight.w700 : FontWeight.w500,
                         color: isMe ? _kInk : _kInkDim,
@@ -632,7 +629,7 @@ class _LeaderboardRow extends StatelessWidget {
             // Rating
             Text(
               '$rating',
-              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 14,
+              style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 14,
                 fontWeight: FontWeight.w700,
                 color: isMe ? _kAmber : _kInk,
               ),
@@ -678,12 +675,12 @@ class _StickyOwnRank extends StatelessWidget {
         children: [
           // "YOUR RANK" label
           Text(
-            'your_rank'.tr().toUpperCaseFor(context),
-            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
-              fontWeight: FontWeight.w600,
-              color: _kInkMute,
-              letterSpacing: 0.6,
-            ),
+            'your_rank'.tr(),
+            style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
           ),
           const SizedBox(width: 10),
 
@@ -697,7 +694,7 @@ class _StickyOwnRank extends StatelessWidget {
             ),
             child: Text(
               '#$rank',
-              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
+              style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
                 fontWeight: FontWeight.w700,
                 color: _kAmber,
               ),
@@ -727,7 +724,7 @@ class _StickyOwnRank extends StatelessWidget {
                 Flexible(
                   child: Text(
                     user.username,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -742,7 +739,7 @@ class _StickyOwnRank extends StatelessWidget {
           // Rating
           Text(
             '$rating',
-            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 14,
+            style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 14,
               fontWeight: FontWeight.w700,
               color: _kAmber,
             ),

@@ -5,24 +5,23 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:uuid/uuid.dart';
+import '../../../core/widgets/bot_badge.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/game_model.dart';
 import '../../../core/models/game_type.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/notification_service.dart';
 import '../../../core/services/bot_pool.dart';
 import '../../../core/services/realtime_game_service.dart';
-import '../../../core/utils/text_case.dart';
-import '../../../core/widgets/bot_badge.dart';
 import '../../../core/widgets/game_icon.dart';
+import '../../../core/theme/app_fonts.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kCard      = AppColors.card;
-const _kCardElev  = AppColors.cardElevated;
 const _kInk       = AppColors.ink;
 const _kInkDim    = AppColors.inkDim;
 const _kInkMute   = AppColors.inkMute;
@@ -44,8 +43,9 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
   StreamSubscription? _queueSub;
   StreamSubscription? _myEntrySub;
   bool _matched = false;
-  bool _matchFound = false;   // brief "Playing a bot" banner state
+  bool _matchFound = false;   // brief "Match found" card before a stand-in game
   String _matchFoundName = '';
+  bool _matchFoundBot = false; // a labelled bot: Bot badge on the card
 
   String? _uid;
   int _myRating = 1200;
@@ -113,6 +113,9 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
 
   Future<void> _startSearch() async {
     if (_searching) return; // re-entry guard: prevents double-tap from starting two searches
+    // The moment a notification is worth something: "opponent found",
+    // invites, your turn. Asked once per run, never on the first screen.
+    unawaited(NotificationService().requestPermission());
     final user = await ref.read(currentUserProvider.future);
     if (user == null) return;
 
@@ -141,9 +144,9 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
       }
       if (_isDomino4P) {
         // 4P domino: at the 30 s deadline the host starts the table with
-        // however many real players showed up — empty seats get bots (with
-        // a BOT badge). If nobody claimed us by 40 s (e.g. a stale host
-        // entry), fall back to a table of bots.
+        // however many real players showed up — empty seats get stand-ins
+        // under player names. If nobody claimed us by 40 s (e.g. a stale
+        // host entry), fall back to a table of stand-ins.
         if (_searchSeconds == 30 && !_matched) {
           _try4PHostClaim(force: true);
         }
@@ -151,7 +154,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
           _matchWithBot();
         }
       } else {
-        // After 30 s with no real match, play a bot (shown as one, unrated)
+        // After 30 s with no real match, play a stand-in (unrated)
         if (_searchSeconds == 30 && !_matched) {
           _matchWithBot();
         }
@@ -343,7 +346,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
         return; // everyone got claimed elsewhere — keep waiting
       }
 
-      // Fill the empty seats with bots (shown with a BOT badge).
+      // Fill the empty seats with stand-ins under player names.
       final botNames = (await BotPool.some(3 - claimed.length))
           .map((b) => b.username)
           .toList();
@@ -389,12 +392,11 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     }
   }
 
-  // ── Bot fallback after 30 s ───────────────────────────────────────────────
+  // ── Stand-in after 30 s ───────────────────────────────────────────────────
   //
-  // Nobody free: play one of the app's bots, near your rating. It is shown
-  // as a bot (its name, flag and a BOT badge) and the game is unrated. It
-  // used to be passed off as a person and rated, which was neither honest
-  // nor a fair way to move anyone's rating.
+  // Nobody free: play one of the app's bots near your rating, under its
+  // player name and flag, at a person's pace (see HumanPace). The game stays
+  // unrated, as the search screen says, so no rating moves against a bot.
 
   Future<void> _matchWithBot() async {
     if (_matched) return;
@@ -412,10 +414,11 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
     if (!mounted) return;
     final botRating = bot.ratingFor(_gameType);
 
-    // A short "Playing a bot" card before the board opens.
+    // A short "Match found" card before the board opens.
     setState(() {
       _matchFound = true;
       _matchFoundName = _isDomino4P ? tableBots.join(' · ') : bot.username;
+      _matchFoundBot = !_isDomino4P && bot.labelled;
     });
 
     Future.delayed(const Duration(milliseconds: 1800), () {
@@ -432,6 +435,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
         'opponentCountryCode': bot.countryCode,
         'opponentRating': botRating,
         'opponentIsBot': true,
+        'opponentBotUid': bot.uid,
         'botRating': botRating,
         // Checkers/domino bots take a search depth instead of a rating.
         'botDepth': (1 + (botRating - 150) ~/ 110).clamp(1, 6),
@@ -498,7 +502,6 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
                           decoration: BoxDecoration(
                             color: _kCard,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: _kBorder),
                           ),
                           child: Icon(
                             PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -509,7 +512,7 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
                       const SizedBox(width: 14),
                       Text(
                         'find_opponent'.tr(),
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
                           color: _kInk,
@@ -554,7 +557,11 @@ class _MatchmakingScreenState extends ConsumerState<MatchmakingScreen> {
 
           // ── "Opponent found!" overlay ────────────────────────────────────
           if (_matchFound)
-            _MatchFoundOverlay(opponentName: _matchFoundName, gameType: _gameType),
+            _MatchFoundOverlay(
+              opponentName: _matchFoundName,
+              gameType: _gameType,
+              isBot: _matchFoundBot,
+            ),
         ],
       ),
     );
@@ -593,7 +600,6 @@ class _SetupView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final accent = gameType.accent;
-    final accentDeep = Color.lerp(accent, Colors.black, 0.25)!;
 
     return Column(
       children: [
@@ -611,18 +617,17 @@ class _SetupView extends StatelessWidget {
                 // ── Per-game option selection ──────────────────────────────
                 if (gameType == GameType.chess) ...[
                   Text(
-                    'time_control'.tr().toUpperCaseFor(context),
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _kInkMute,
-                      letterSpacing: 1.0,
-                    ),
+                    'time_control'.tr(),
+                    style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
                   ),
                   const SizedBox(height: 14),
                   _TimeSection(
                     icon: PhosphorIcons.lightning(PhosphorIconsStyle.fill),
-                    iconColor: const Color(0xFFFF6B6B),
+                    iconColor: const Color(0xFFFF6F61),
                     label: 'bullet'.tr(),
                     controls: TimeControls.allBullet,
                     selected: timeControl,
@@ -648,13 +653,12 @@ class _SetupView extends StatelessWidget {
                   ),
                 ] else if (gameType == GameType.checkers) ...[
                   Text(
-                    'arena_variant'.tr().toUpperCaseFor(context),
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _kInkMute,
-                      letterSpacing: 1.0,
-                    ),
+                    'arena_variant'.tr(),
+                    style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
                   ),
                   const SizedBox(height: 14),
                   _OptionChips(
@@ -665,13 +669,12 @@ class _SetupView extends StatelessWidget {
                   ),
                 ] else if (gameType == GameType.domino) ...[
                   Text(
-                    'mm_player_count'.tr().toUpperCaseFor(context),
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _kInkMute,
-                      letterSpacing: 1.0,
-                    ),
+                    'mm_player_count'.tr(),
+                    style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
                   ),
                   const SizedBox(height: 14),
                   _OptionChips(
@@ -682,13 +685,12 @@ class _SetupView extends StatelessWidget {
                   ),
                   const SizedBox(height: 20),
                   Text(
-                    'arena_rules'.tr().toUpperCaseFor(context),
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: _kInkMute,
-                      letterSpacing: 1.0,
-                    ),
+                    'arena_rules'.tr(),
+                    style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
                   ),
                   const SizedBox(height: 14),
                   _OptionChips(
@@ -722,12 +724,12 @@ class _SetupView extends StatelessWidget {
                     gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [accent, accentDeep],
+                      colors: [accent, accent],
                     ),
                     borderRadius: BorderRadius.circular(14),
                     boxShadow: [
                       BoxShadow(
-                        color: accent.withOpacity(0.28),
+                        color: Colors.black.withValues(alpha: 0.28),
                         blurRadius: 18,
                         offset: const Offset(0, 4),
                       ),
@@ -740,15 +742,15 @@ class _SetupView extends StatelessWidget {
                         Icon(
                           PhosphorIcons.sword(PhosphorIconsStyle.fill),
                           size: 18,
-                          color: const Color(0xFF1A1205),
+                          color: const Color(0xFF241703),
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'find_opponent'.tr(),
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 15,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1A1205),
+                            color: const Color(0xFF241703),
                           ),
                         ),
                       ],
@@ -760,7 +762,7 @@ class _SetupView extends StatelessWidget {
               Text(
                 'mm_rated_note'.tr(),
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(fontSize: 12, color: _kInkMute),
+                style: AppFonts.ui(fontSize: 12, color: _kInkMute),
               ),
             ],
           ),
@@ -808,7 +810,7 @@ class _OptionChips extends StatelessWidget {
             ),
             child: Text(
               opt.$2,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 14,
                 fontWeight: isSel ? FontWeight.w700 : FontWeight.w400,
                 color: isSel ? accent : _kInkDim,
@@ -839,10 +841,9 @@ class _HeroCard extends StatelessWidget {
         gradient: LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [_kCardElev, _kCard],
+          colors: [_kCard, _kCard],
         ),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: _kBorder),
       ),
       child: ClipRRect(
         borderRadius: BorderRadius.circular(18),
@@ -874,12 +875,12 @@ class _HeroCard extends StatelessWidget {
                       borderRadius: BorderRadius.circular(6),
                     ),
                     child: Text(
-                      'mm_badge'.tr().toUpperCaseFor(context),
-                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: _kInkMute,
-                        letterSpacing: 0.8,
-                      ),
+                      'mm_badge'.tr(),
+                      style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
                     ),
                   ),
                   const SizedBox(height: 10),
@@ -887,7 +888,7 @@ class _HeroCard extends StatelessWidget {
                   // Heading
                   Text(
                     'mm_title'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 26,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -899,7 +900,7 @@ class _HeroCard extends StatelessWidget {
                   // Subtitle — per game
                   Text(
                     (isPoints ? 'mm_subtitle_points' : 'mm_subtitle_rating').tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 13,
                       color: _kInkMute,
                       height: 1.45,
@@ -916,18 +917,17 @@ class _HeroCard extends StatelessWidget {
                           Text(
                             (isPoints ? 'mm_your_points' : 'mm_your_rating')
                                 .tr()
-                                .toUpperCaseFor(context),
-                            style: GoogleFonts.inter(
-                              fontSize: 10,
-                              fontWeight: FontWeight.w600,
-                              color: _kInkMute,
-                              letterSpacing: 0.8,
-                            ),
+                                ,
+                            style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
                           ),
                           const SizedBox(height: 2),
                           Text(
                             '$myRating',
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 18,
                               fontWeight: FontWeight.w700,
                               color: accent,
@@ -946,7 +946,7 @@ class _HeroCard extends StatelessWidget {
                           ),
                           child: Text(
                             '±200',
-                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
+                            style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: accent,
                             ),
@@ -995,7 +995,7 @@ class _TimeSection extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: iconColor,
@@ -1008,7 +1008,7 @@ class _TimeSection extends StatelessWidget {
                 height: 1,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [iconColor.withOpacity(0.35), Colors.transparent],
+                    colors: [Colors.transparent, Colors.transparent],
                   ),
                 ),
               ),
@@ -1038,7 +1038,7 @@ class _TimeSection extends StatelessWidget {
                 ),
                 child: Text(
                   tc.label,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 13,
                     fontWeight: isSel ? FontWeight.w700 : FontWeight.w400,
                     color: isSel ? iconColor : _kInkDim,
@@ -1109,7 +1109,7 @@ class _SearchingView extends StatelessWidget {
           // Dynamic status label
           Text(
             label,
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
               fontSize: 13,
               color: _kInkMute,
               letterSpacing: 0.2,
@@ -1125,7 +1125,7 @@ class _SearchingView extends StatelessWidget {
           // Large timer
           Text(
             timeStr,
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
               fontSize: 48,
               fontWeight: FontWeight.w700,
               color: accent,
@@ -1144,11 +1144,10 @@ class _SearchingView extends StatelessWidget {
               decoration: BoxDecoration(
                 color: _kCard,
                 borderRadius: BorderRadius.circular(20),
-                border: Border.all(color: _kBorder),
               ),
               child: Text(
                 _statusPillLabel,
-                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                   fontWeight: FontWeight.w500,
                   color: _kInkDim,
                   letterSpacing: 0.4,
@@ -1187,12 +1186,11 @@ class _SearchingView extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: _kCard,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _kBorder),
                 ),
                 child: Center(
                   child: Text(
                     'cancel'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: _kInkDim,
@@ -1225,7 +1223,7 @@ class _StatItem extends StatelessWidget {
       children: [
         Text(
           value,
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: valueColor,
@@ -1234,7 +1232,7 @@ class _StatItem extends StatelessWidget {
         const SizedBox(height: 2),
         Text(
           label,
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 11,
             color: _kInkMute,
           ),
@@ -1256,18 +1254,22 @@ class _StatDivider extends StatelessWidget {
   }
 }
 
-// ── Bot-found overlay ─────────────────────────────────────────────────────────
-// Shown for ~1.8 s when nobody was free and a bot takes the game.
+// ── Match-found overlay ───────────────────────────────────────────────────────
+// Shown for ~1.8 s before a stand-in game opens.
 
 class _MatchFoundOverlay extends StatelessWidget {
   final String opponentName;
   final GameType gameType;
-  const _MatchFoundOverlay({required this.opponentName, required this.gameType});
+  final bool isBot;
+  const _MatchFoundOverlay({
+    required this.opponentName,
+    required this.gameType,
+    this.isBot = false,
+  });
 
   @override
   Widget build(BuildContext context) {
     final accent = gameType.accent;
-    final accentDeep = Color.lerp(accent, Colors.black, 0.25)!;
     return Container(
       color: _kBg.withOpacity(0.92),
       child: Center(
@@ -1283,18 +1285,18 @@ class _MatchFoundOverlay extends StatelessWidget {
                 gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [accent, accentDeep],
+                  colors: [accent, accent],
                 ),
                 boxShadow: [
                   BoxShadow(
-                    color: accent.withOpacity(0.45),
+                    color: Colors.black.withValues(alpha: 0.28),
                     blurRadius: 32,
                     offset: const Offset(0, 6),
                   ),
                 ],
               ),
               child: Center(
-                child: GameIcon(type: gameType, size: 44, color: const Color(0xFF1A1205)),
+                child: GameIcon(type: gameType, size: 44, color: const Color(0xFF241703)),
               ),
             )
                 .animate(onPlay: (c) => c.repeat(reverse: true))
@@ -1308,8 +1310,8 @@ class _MatchFoundOverlay extends StatelessWidget {
             const SizedBox(height: 28),
 
             Text(
-              'mm_bot_found'.tr(),
-              style: GoogleFonts.inter(
+              'found_match'.tr(),
+              style: AppFonts.ui(
                 fontSize: 26,
                 fontWeight: FontWeight.w700,
                 color: _kInk,
@@ -1322,44 +1324,34 @@ class _MatchFoundOverlay extends StatelessWidget {
 
             const SizedBox(height: 10),
 
-            Row(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Flexible(
-                  child: Text(
-                    opponentName,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
-                      fontSize: 16,
-                      fontWeight: FontWeight.w600,
-                      color: accent,
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 32),
+              child: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Flexible(
+                    child: Text(
+                      opponentName,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.ui(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: accent,
+                      ),
                     ),
                   ),
-                ),
-                const SizedBox(width: 8),
-                const BotBadge(fontSize: 10),
-              ],
+                  if (isBot) ...[
+                    const SizedBox(width: 8),
+                    const BotBadge(),
+                  ],
+                ],
+              ),
             )
                 .animate(delay: 150.ms)
                 .fadeIn(duration: 250.ms),
 
-            const SizedBox(height: 8),
 
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 32),
-              child: Text(
-                'mm_bot_found_note'.tr(),
-                textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  color: _kInkMute,
-                  height: 1.4,
-                ),
-              ),
-            )
-                .animate(delay: 300.ms)
-                .fadeIn(duration: 250.ms),
           ],
         ),
       ),
@@ -1376,7 +1368,6 @@ class _PulsingOrb extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final accentDeep = Color.lerp(accent, Colors.black, 0.25)!;
     return SizedBox(
       width: 160,
       height: 160,
@@ -1410,12 +1401,12 @@ class _PulsingOrb extends StatelessWidget {
             decoration: BoxDecoration(
               gradient: LinearGradient(
                 begin: Alignment.topLeft, end: Alignment.bottomRight,
-                colors: [accent, accentDeep],
+                colors: [accent, accent],
               ),
               shape: BoxShape.circle,
-              boxShadow: [BoxShadow(color: accent.withOpacity(0.35), blurRadius: 24, offset: const Offset(0, 6))],
+              boxShadow: [BoxShadow(color: Colors.black.withValues(alpha: 0.28), blurRadius: 24, offset: const Offset(0, 6))],
             ),
-            child: Center(child: GameIcon(type: gameType, size: 38, color: const Color(0xFF1A1205))),
+            child: Center(child: GameIcon(type: gameType, size: 38, color: const Color(0xFF241703))),
           ),
         ],
       ),

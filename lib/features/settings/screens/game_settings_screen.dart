@@ -4,7 +4,6 @@ import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/models/game_type.dart';
 import '../../../core/services/cache_service.dart';
@@ -15,11 +14,12 @@ import 'settings_screen.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/game_icon.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg           = AppColors.background;
 const _kSurface      = AppColors.surface;
 const _kCard         = AppColors.card;
-const _kAmber        = AppColors.amber;
+Color get _kAmber => AppColors.accent;
 const _kInk          = AppColors.ink;
 const _kInkDim       = AppColors.inkDim;
 const _kInkMute      = AppColors.inkMute;
@@ -137,7 +137,6 @@ class _GameSettingsScreenState extends ConsumerState<GameSettingsScreen> {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -149,7 +148,7 @@ class _GameSettingsScreenState extends ConsumerState<GameSettingsScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'game_settings'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -453,11 +452,10 @@ class _GameSettingsScreenState extends ConsumerState<GameSettingsScreen> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: Text(
         label,
-        style: GoogleFonts.inter(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: _kInkMute,
-          letterSpacing: 1.2,
+        style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
         ),
       ),
     );
@@ -594,14 +592,14 @@ class _BoardThemeSwatch extends StatelessWidget {
   final Color accent;
   final VoidCallback onTap;
 
-  const _BoardThemeSwatch({
+  _BoardThemeSwatch({
     required this.label,
     required this.lightColor,
     required this.darkColor,
     required this.selected,
     required this.onTap,
-    this.accent = _kAmber,
-  });
+    Color? accent,
+  }) : accent = accent ?? _kAmber;
 
   @override
   Widget build(BuildContext context) {
@@ -638,7 +636,7 @@ class _BoardThemeSwatch extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             label,
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
               fontSize: 11,
               color: selected ? accent : _kInkDim,
               fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
@@ -714,7 +712,7 @@ class _PieceSetSwatch extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             label,
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
               fontSize: 11,
               color: selected ? _kAmber : _kInkDim,
               fontWeight: selected ? FontWeight.w600 : FontWeight.normal,
@@ -762,7 +760,6 @@ class _SettingsGroup extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(children: children),
@@ -779,15 +776,15 @@ class _SettingsRow extends StatelessWidget {
   final bool isLast;
   final Color accent;
 
-  const _SettingsRow({
+  _SettingsRow({
     required this.icon,
     required this.label,
     this.sub,
     this.right,
     this.onTap,
     this.isLast = false,
-    this.accent = _kAmber,
-  });
+    Color? accent,
+  }) : accent = accent ?? _kAmber;
 
   @override
   Widget build(BuildContext context) {
@@ -805,7 +802,6 @@ class _SettingsRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: _kSurface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _kBorder),
                   ),
                   child: Center(
                     child: Icon(icon, color: accent, size: 16),
@@ -819,7 +815,7 @@ class _SettingsRow extends StatelessWidget {
                     children: [
                       Text(
                         label,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           color: _kInk,
@@ -829,7 +825,7 @@ class _SettingsRow extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           sub!,
-                          style: GoogleFonts.inter(fontSize: 11, color: _kInkMute),
+                          style: AppFonts.ui(fontSize: 11, color: _kInkMute),
                         ),
                       ],
                     ],
@@ -860,7 +856,7 @@ class _DesignToggle extends StatelessWidget {
   final VoidCallback onToggle;
   final Color accent;
 
-  const _DesignToggle({required this.on, required this.onToggle, this.accent = _kAmber});
+  _DesignToggle({required this.on, required this.onToggle, Color? accent}) : accent = accent ?? _kAmber;
 
   @override
   Widget build(BuildContext context) {
@@ -884,7 +880,7 @@ class _DesignToggle extends StatelessWidget {
               width: 18,
               height: 18,
               decoration: BoxDecoration(
-                color: on ? const Color(0xFF1A1205) : _kInk,
+                color: on ? const Color(0xFF241703) : _kInk,
                 shape: BoxShape.circle,
               ),
             ),
@@ -901,12 +897,12 @@ class _SegmentedControl extends StatelessWidget {
   final ValueChanged<int> onChanged;
   final Color accent;
 
-  const _SegmentedControl({
+  _SegmentedControl({
     required this.options,
     required this.selected,
     required this.onChanged,
-    this.accent = _kAmber,
-  });
+    Color? accent,
+  }) : accent = accent ?? _kAmber;
 
   @override
   Widget build(BuildContext context) {
@@ -915,7 +911,6 @@ class _SegmentedControl extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kSurface,
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: _kBorder),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
@@ -934,10 +929,10 @@ class _SegmentedControl extends StatelessWidget {
               child: Center(
                 child: Text(
                   options[i],
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 11,
                     fontWeight: FontWeight.w600,
-                    color: isSelected ? const Color(0xFF1A1205) : _kInkMute,
+                    color: isSelected ? const Color(0xFF241703) : _kInkMute,
                   ),
                 ),
               ),

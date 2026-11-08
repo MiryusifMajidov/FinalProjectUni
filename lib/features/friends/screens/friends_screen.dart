@@ -2,7 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/auth_service.dart';
@@ -11,18 +10,17 @@ import '../../../core/models/user_model.dart';
 import '../../../core/models/friend_request_model.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../../core/widgets/keyed_stream_builder.dart';
+import '../../../core/theme/app_fonts.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg      = AppColors.background;
 const _kCard    = AppColors.card;
 const _kSurface = AppColors.surface;
-const _kAmber   = AppColors.amber;
-const _kAmberDeep = AppColors.amberDeep;
-const _kAmberGlow = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk     = AppColors.ink;
 const _kInkDim  = AppColors.inkDim;
 const _kInkMute = AppColors.inkMute;
-const _kBorder  = AppColors.border;
 const _kWin     = AppColors.win;
 const _kWinSoft = AppColors.winSoft;
 const _kLoss    = AppColors.loss;
@@ -42,7 +40,7 @@ class FriendsScreen extends ConsumerWidget {
     final myUid = ref.watch(currentUserProvider).valueOrNull?.uid;
 
     if (myUid == null) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: _kBg,
         body: Center(child: CircularProgressIndicator(color: _kAmber)),
       );
@@ -67,7 +65,6 @@ class FriendsScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: _kCard,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: _kBorder),
                         ),
                         child: Icon(
                           PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -79,7 +76,7 @@ class FriendsScreen extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         'friends'.tr(),
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
                           color: _kInk,
@@ -116,23 +113,22 @@ class FriendsScreen extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: _kCard,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _kBorder),
                   ),
                   child: TabBar(
                     indicator: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [_kAmber, _kAmberDeep],
+                      gradient: LinearGradient(
+                        colors: [_kAmber, _kAmber],
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     indicatorSize: TabBarIndicatorSize.tab,
-                    labelColor: const Color(0xFF1A1205),
+                    labelColor: const Color(0xFF241703),
                     unselectedLabelColor: _kInkMute,
-                    labelStyle: GoogleFonts.inter(
+                    labelStyle: AppFonts.ui(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
-                    unselectedLabelStyle: GoogleFonts.inter(
+                    unselectedLabelStyle: AppFonts.ui(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
@@ -191,7 +187,7 @@ class _RequestsTabLabel extends ConsumerWidget {
                 ),
                 child: Text(
                   '$count',
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     color: Colors.white,
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
@@ -219,7 +215,7 @@ class _FriendsTab extends ConsumerWidget {
       create: () => ref.read(friendsServiceProvider).watchFriends(myUid),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: CircularProgressIndicator(color: _kAmber),
           );
         }
@@ -243,7 +239,7 @@ class _FriendsTab extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(
                   'no_friends_yet'.tr(),
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: _kInk,
@@ -252,7 +248,7 @@ class _FriendsTab extends ConsumerWidget {
                 const SizedBox(height: 6),
                 Text(
                   'search_players'.tr(),
-                  style: GoogleFonts.inter(fontSize: 13, color: _kInkMute),
+                  style: AppFonts.ui(fontSize: 13, color: _kInkMute),
                 ),
               ],
             ),
@@ -300,7 +296,6 @@ class _FriendTile extends ConsumerWidget {
         decoration: BoxDecoration(
           color: _kCard,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _kBorder),
         ),
         child: Row(
           children: [
@@ -333,7 +328,7 @@ class _FriendTile extends ConsumerWidget {
                 children: [
                   Text(
                     friend.username,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 14,
                       fontWeight: FontWeight.w600,
                       color: _kInk,
@@ -344,7 +339,7 @@ class _FriendTile extends ConsumerWidget {
                     friend.isOnline
                         ? '${'online'.tr()} · ${friend.rating} ELO'
                         : '${friend.rating} ELO · ${'offline'.tr()}',
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 12,
                       color: friend.isOnline ? _kWin : _kInkMute,
                       fontWeight: friend.isOnline
@@ -388,7 +383,6 @@ class _FriendTile extends ConsumerWidget {
                 decoration: BoxDecoration(
                   color: _kCard,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _kBorder),
                 ),
                 child: Icon(
                   PhosphorIcons.lightning(PhosphorIconsStyle.regular),
@@ -410,7 +404,7 @@ class _FriendTile extends ConsumerWidget {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'remove_friend'.tr(),
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: _kInk,
@@ -418,21 +412,21 @@ class _FriendTile extends ConsumerWidget {
         ),
         content: Text(
           'Remove ${friend.username} from your friends list?',
-          style: GoogleFonts.inter(fontSize: 14, color: _kInkDim),
+          style: AppFonts.ui(fontSize: 14, color: _kInkDim),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(ctx, false),
             child: Text(
               'cancel'.tr(),
-              style: GoogleFonts.inter(fontSize: 14, color: _kInkMute),
+              style: AppFonts.ui(fontSize: 14, color: _kInkMute),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
             child: Text(
               'Remove',
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: _kLoss,
@@ -461,7 +455,7 @@ class _RequestsTab extends ConsumerWidget {
       create: () => ref.read(friendsServiceProvider).watchIncomingRequests(myUid),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: CircularProgressIndicator(color: _kAmber),
           );
         }
@@ -476,7 +470,6 @@ class _RequestsTab extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: _kCard,
                     borderRadius: BorderRadius.circular(18),
-                    border: Border.all(color: _kBorder),
                   ),
                   child: Icon(
                     PhosphorIcons.bellSimple(PhosphorIconsStyle.regular),
@@ -486,7 +479,7 @@ class _RequestsTab extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(
                   'No pending requests',
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: _kInk,
@@ -522,7 +515,6 @@ class _RequestTile extends ConsumerWidget {
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
       ),
       child: Row(
         children: [
@@ -531,7 +523,6 @@ class _RequestTile extends ConsumerWidget {
             decoration: BoxDecoration(
               color: _kSurface,
               shape: BoxShape.circle,
-              border: Border.all(color: _kBorder),
             ),
             child: Icon(
               PhosphorIcons.user(PhosphorIconsStyle.regular),
@@ -545,7 +536,7 @@ class _RequestTile extends ConsumerWidget {
               children: [
                 Text(
                   request.fromUsername,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: _kInk,
@@ -554,7 +545,7 @@ class _RequestTile extends ConsumerWidget {
                 const SizedBox(height: 2),
                 Text(
                   'Wants to be your friend',
-                  style: GoogleFonts.inter(fontSize: 12, color: _kInkMute),
+                  style: AppFonts.ui(fontSize: 12, color: _kInkMute),
                 ),
               ],
             ),
@@ -652,12 +643,11 @@ class _SuggestionsSection extends ConsumerWidget {
               padding: const EdgeInsets.fromLTRB(16, 16, 16, 8),
               child: Text(
                 'SUGGESTIONS',
-                style: GoogleFonts.inter(
-                  fontSize: 10,
-                  fontWeight: FontWeight.w700,
-                  color: _kInkMute,
-                  letterSpacing: 1.2,
-                ),
+                style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
               ),
             ),
             ...suggestions.asMap().entries.map((e) {
@@ -697,7 +687,7 @@ class _SuggestionTile extends ConsumerWidget {
               children: [
                 Text(
                   user.username,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 13.5,
                     fontWeight: FontWeight.w600,
                     color: _kInk,
@@ -705,7 +695,7 @@ class _SuggestionTile extends ConsumerWidget {
                 ),
                 Text(
                   '${user.overallRating} ELO · $reason',
-                  style: GoogleFonts.inter(fontSize: 11, color: _kInkMute),
+                  style: AppFonts.ui(fontSize: 11, color: _kInkMute),
                 ),
               ],
             ),
@@ -740,7 +730,7 @@ class _SuggestionTile extends ConsumerWidget {
               ),
               child: Text(
                 '+ Add',
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 11,
                   fontWeight: FontWeight.w700,
                   color: _kAmber,

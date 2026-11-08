@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../core/widgets/hint_arrow.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/board_themes.dart';
@@ -26,6 +27,10 @@ class ChessBoardWidget extends StatefulWidget {
   final String? premoveTo;
   final Duration animationDuration;
 
+  /// A suggested move (the Hint button), drawn as an arrow on the board.
+  final String? hintFrom;
+  final String? hintTo;
+
   const ChessBoardWidget({
     super.key,
     required this.engine,
@@ -40,6 +45,8 @@ class ChessBoardWidget extends StatefulWidget {
     this.premoveFrom,
     this.premoveTo,
     this.animationDuration = const Duration(milliseconds: 220),
+    this.hintFrom,
+    this.hintTo,
   });
 
   @override
@@ -124,6 +131,24 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget>
                 ),
               ),
 
+              // Hint origin, tinted under the piece that should move.
+              if (widget.hintFrom != null)
+                Builder(builder: (_) {
+                  final o = _squareOffset(
+                      widget.hintFrom!, sqSize, widget.flipped);
+                  return Positioned(
+                    left: o.dx,
+                    top: o.dy,
+                    width: sqSize,
+                    height: sqSize,
+                    child: IgnorePointer(
+                      child: ColoredBox(
+                        color: AppColors.hint.withValues(alpha: 0.45),
+                      ),
+                    ),
+                  );
+                }),
+
               // ── Layer 2: Pieces with slide animation ──────────────────────
               ...board.entries.map((entry) {
                 final sq = entry.key;
@@ -168,6 +193,20 @@ class _ChessBoardWidgetState extends State<ChessBoardWidget>
                   child: pw,
                 );
               }),
+
+              // ── Layer 2b: Hint arrow, above the pieces, under the taps ──────
+              if (widget.hintFrom != null && widget.hintTo != null)
+                Positioned.fill(
+                  child: HintArrow(
+                    cell: sqSize,
+                    points: [
+                      _squareOffset(widget.hintFrom!, sqSize, widget.flipped) +
+                          Offset(sqSize / 2, sqSize / 2),
+                      _squareOffset(widget.hintTo!, sqSize, widget.flipped) +
+                          Offset(sqSize / 2, sqSize / 2),
+                    ],
+                  ),
+                ),
 
               // ── Layer 3: Tap targets ─────────────────────────────────────────
               Positioned.fill(

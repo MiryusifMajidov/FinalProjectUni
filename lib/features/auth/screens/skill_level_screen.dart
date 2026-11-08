@@ -1,10 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/game_icon.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kCard      = AppColors.card;
@@ -35,7 +35,7 @@ class _Level {
 const _levels = [
   _Level(label: 'Beginner',     copy: 'Just learning the moves', elo: 400,  glyph: 'P', color: Color(0xFFA8C8E8)),
   _Level(label: 'Casual',       copy: 'Plays with friends',       elo: 800,  glyph: 'N', color: Color(0xFFA8E8C8)),
-  _Level(label: 'Intermediate', copy: 'Knows openings',           elo: 1200, glyph: 'B', color: Color(0xFFE8B960)),
+  _Level(label: 'Intermediate', copy: 'Knows openings',           elo: 1200, glyph: 'B', color: Color(0xFFF0A93B)),
   _Level(label: 'Advanced',     copy: 'Studies tactics daily',    elo: 1600, glyph: 'R', color: Color(0xFFE8B0A8)),
   _Level(label: 'Expert',       copy: 'Tournament player',        elo: 2000, glyph: 'Q', color: Color(0xFFC8A8E8)),
   _Level(label: 'Master',       copy: 'Title-caliber play',       elo: 2400, glyph: 'K', color: Color(0xFFE8C8A0)),
@@ -72,7 +72,7 @@ class _SkillLevelScreenState extends State<SkillLevelScreen> {
                         const SizedBox(height: 8),
                         Text(
                           "What's your level?",
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 30,
                             fontWeight: FontWeight.w600,
                             color: _kInk,
@@ -83,7 +83,7 @@ class _SkillLevelScreenState extends State<SkillLevelScreen> {
                         const SizedBox(height: 6),
                         Text(
                           "We'll set your starting ELO. You can always change it later.",
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 13,
                             color: _kInkDim,
                             height: 1.5,
@@ -147,7 +147,7 @@ class _SkillLevelScreenState extends State<SkillLevelScreen> {
                       borderRadius: BorderRadius.circular(14),
                       boxShadow: [
                         BoxShadow(
-                          color: _kAmber.withValues(alpha: 0.35),
+                          color: Colors.black.withValues(alpha: 0.28),
                           blurRadius: 20,
                           offset: const Offset(0, 8),
                         ),
@@ -156,10 +156,10 @@ class _SkillLevelScreenState extends State<SkillLevelScreen> {
                     alignment: Alignment.center,
                     child: Text(
                       'Create my account',
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                         fontSize: 15,
                         fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1A1205),
+                        color: const Color(0xFF241703),
                       ),
                     ),
                   ),
@@ -203,7 +203,7 @@ class _LevelCard extends StatelessWidget {
           boxShadow: selected
               ? [
                   BoxShadow(
-                    color: _kAmber.withValues(alpha: 0.18),
+                    color: Colors.black.withValues(alpha: 0.28),
                     blurRadius: 22,
                     offset: const Offset(0, 8),
                   )
@@ -232,7 +232,7 @@ class _LevelCard extends StatelessWidget {
                 const SizedBox(height: 10),
                 Text(
                   level.label,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: _kInk,
@@ -242,7 +242,7 @@ class _LevelCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   level.copy,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 10,
                     color: _kInkMute,
                     height: 1.4,
@@ -251,7 +251,7 @@ class _LevelCard extends StatelessWidget {
                 const SizedBox(height: 8),
                 Text(
                   '${level.elo} ELO',
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                  style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: selected ? _kAmber : _kInkDim,
                     letterSpacing: 0.4,
@@ -274,7 +274,7 @@ class _LevelCard extends StatelessWidget {
                   child: Icon(
                     PhosphorIcons.check(PhosphorIconsStyle.bold),
                     size: 12,
-                    color: const Color(0xFF1A1205),
+                    color: const Color(0xFF241703),
                   ),
                 ),
               ),
@@ -312,7 +312,6 @@ class _AuthHeader extends StatelessWidget {
               decoration: BoxDecoration(
                 color: _kCard,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _kBorder),
               ),
               child: Icon(
                 PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -325,7 +324,7 @@ class _AuthHeader extends StatelessWidget {
           Expanded(
             child: Text(
               title,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 17,
                 fontWeight: FontWeight.w600,
                 color: _kInk,

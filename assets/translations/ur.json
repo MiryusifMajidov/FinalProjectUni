@@ -555,6 +555,7 @@
   "yesterday": "کل",
   "user_not_found": "کھلاڑی نہیں ملا۔",
   "variant_brazilian": "برازیلی",
+  "variant_german": "جرمن",
   "variant_international": "بین الاقوامی",
   "variant_russian": "روسی",
   "variant_standard": "اسٹینڈرڈ",
@@ -637,5 +638,16 @@
   "replay_previous": "پچھلی چال",
   "replay_next": "اگلی چال",
   "replay_last": "آخری چال",
-  "game_not_found": "یہ گیم نہیں ملا۔"
+  "game_not_found": "یہ گیم نہیں ملا۔",
+  "play_offline": "آف لائن کھیلیں",
+  "offline_caption": "نہ اکاؤنٹ، نہ انٹرنیٹ۔ بوٹ سے یا اسی فون پر دوست کے ساتھ کھیلیں۔",
+  "offline_not_saved": "آف لائن گیمز ریٹنگ میں شمار نہیں ہوتیں اور محفوظ نہیں ہوتیں۔",
+  "offline_two_players": "دو کھلاڑی، ایک فون",
+  "offline_sign_in_cta": "آن لائن کھیلنے کے لیے سائن ان کریں",
+  "offline_sign_in_sub": "ریٹنگ، دوست، ایرینا اور چیٹ۔",
+  "bot_level_selected": "لیول {}",
+  "friend_sheet_sub": "شروع کرنے کے دو طریقے، کوئی قطار نہیں",
+  "domino_table_2v2": "2 بمقابلہ 2 میز",
+  "domino_table_2v2_sub": "دوستوں کو بلائیں؛ ساتھی آمنے سامنے بیٹھتے ہیں",
+  "online_now_n": "{count} آن لائن"
 }

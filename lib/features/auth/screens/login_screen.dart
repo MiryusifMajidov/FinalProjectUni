@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/legal/legal_consent.dart';
 import '../../../core/utils/email_validator.dart';
@@ -16,12 +15,13 @@ import '../widgets/apple_sign_in_button.dart';
 import '../widgets/google_sign_in_button.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/text_case.dart';
 import '../../../core/widgets/app_logo.dart';
+import '../../../core/widgets/table_pieces.dart';
+import '../../../core/theme/moulded.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
 const _kBg        = AppColors.background;
-const _kField     = AppColors.surface;
 const _kAmber     = AppColors.amber;
 const _kAmberGlow = AppColors.amberGlow;
 const _kInk       = AppColors.ink;
@@ -29,7 +29,7 @@ const _kInkDim    = AppColors.inkDim;
 const _kInkMute   = AppColors.inkMute;
 const _kBorderStr = AppColors.borderStrong;
 const _kLoss      = AppColors.loss;
-const _kDark      = Color(0xFF1A1205);
+const _kDark      = Color(0xFF241703);
 
 /// The first screen a signed-out person sees.
 ///
@@ -200,101 +200,50 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Widget _buildTabletLayout(BuildContext context) {
     return Row(
       children: [
-        // Left decorative panel
         Expanded(
           flex: 5,
           child: Container(
-            decoration: const BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.bottomRight,
-                colors: [Color(0xFF0F0F0A), Color(0xFF1A150A)],
-              ),
-            ),
-            child: Stack(
-              children: [
-                Positioned(
-                  top: -60,
-                  left: -60,
-                  child: _glow(300, 0.15),
-                ),
-                Positioned(
-                  bottom: -80,
-                  right: -40,
-                  child: _glow(250, 0.08),
-                ),
-                Center(
-                  child: Padding(
-                    padding: const EdgeInsets.all(48),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        _logoMark(72),
-                        const SizedBox(height: 32),
-                        Text(
-                          'CheckMate',
-                          style: GoogleFonts.inter(
-                            fontSize: 48,
-                            fontWeight: FontWeight.w700,
-                            color: _kInk,
-                            letterSpacing: -1.5,
-                            height: 1.0,
-                          ),
-                        ).animate(delay: 100.ms).fadeIn().slideY(begin: 0.2),
-                        const SizedBox(height: 12),
-                        Text(
-                          'welcome_tagline'.tr(),
-                          style: GoogleFonts.inter(
-                            fontSize: 16,
-                            color: _kInkDim,
-                            height: 1.5,
-                          ),
-                        ).animate(delay: 200.ms).fadeIn(),
-                        const SizedBox(height: 40),
-                        Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            (PhosphorIcons.gameController(PhosphorIconsStyle.regular), 'feature_online_offline'.tr()),
-                            (PhosphorIcons.trophy(PhosphorIconsStyle.regular), 'feature_hourly_arenas'.tr()),
-                            (PhosphorIcons.robot(PhosphorIconsStyle.regular), 'feature_bot'.tr()),
-                            (PhosphorIcons.translate(PhosphorIconsStyle.regular), 'feature_languages'.tr()),
-                          ].map((item) => Padding(
-                            padding: const EdgeInsets.only(bottom: 14),
-                            child: Row(
-                              children: [
-                                Icon(item.$1, size: 18, color: _kAmber),
-                                const SizedBox(width: 12),
-                                Text(
-                                  item.$2,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 14,
-                                    color: _kInkDim,
-                                  ),
-                                ),
-                              ],
-                            ),
-                          )).toList(),
-                        ).animate(delay: 300.ms).fadeIn(),
-                      ],
+            color: AppColors.surface,
+            padding: const EdgeInsets.all(48),
+            child: Center(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const TablePieces(height: 220),
+                  const SizedBox(height: 40),
+                  Text(
+                    'CheckMate',
+                    style: AppFonts.ui(
+                      fontSize: 48,
+                      fontWeight: FontWeight.w800,
+                      color: _kInk,
+                      letterSpacing: -1.2,
+                      height: 1.0,
                     ),
                   ),
-                ),
-              ],
+                  const SizedBox(height: 12),
+                  ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 420),
+                    child: Text(
+                      'welcome_tagline'.tr(),
+                      style: AppFonts.ui(
+                          fontSize: 18, color: _kInkDim, height: 1.45),
+                    ),
+                  ),
+                ],
+              ),
             ),
           ),
         ),
-        Container(width: 1, color: const Color(0x1AFFFFFF)),
         Expanded(
           flex: 4,
-          child: Container(
-            color: _kBg,
-            child: SafeArea(
-              child: Center(
-                child: SingleChildScrollView(
-                  padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
-                  child: _buildForm(context),
-                ),
+          child: SafeArea(
+            child: Center(
+              child: SingleChildScrollView(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 40, vertical: 32),
+                child: _buildForm(context),
               ),
             ),
           ),
@@ -306,49 +255,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // ── Phone: centered narrow column ──────────────────────────────────────────
 
   Widget _buildPhoneLayout(BuildContext context) {
-    return Stack(
-      children: [
-        // Amber glow behind the logo. Outside the SafeArea so the gradient is
-        // not cut off in a hard line under the status bar.
-        Positioned(
-          top: -140,
-          right: -110,
-          child: IgnorePointer(child: _glow(320, 0.12)),
-        ),
-        SafeArea(
-          child: Center(
-            child: ConstrainedBox(
-              constraints: const BoxConstraints(maxWidth: 420),
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
-                child: _buildForm(context, showLogo: true),
-              ),
-            ),
+    return SafeArea(
+      child: Center(
+        child: ConstrainedBox(
+          constraints: const BoxConstraints(maxWidth: 440),
+          child: SingleChildScrollView(
+            padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+            child: _buildForm(context, showLogo: true),
           ),
         ),
-      ],
+      ),
     );
   }
-
-  Widget _glow(double size, double alpha) => Container(
-        width: size,
-        height: size,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          gradient: RadialGradient(
-            colors: [
-              _kAmber.withValues(alpha: alpha),
-              _kAmber.withValues(alpha: 0.0),
-            ],
-          ),
-        ),
-      );
-
-  Widget _logoMark(double size) => AppLogo(size: size).animate().scale(
-        begin: const Offset(0.8, 0.8),
-        duration: 400.ms,
-        curve: Curves.easeOutBack,
-      );
 
   // ── Shared column ──────────────────────────────────────────────────────────
 
@@ -356,36 +274,49 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SizedBox(height: 32),
-
         if (showLogo) ...[
-          _logoMark(56),
-          const SizedBox(height: 24),
-          Text(
-            'CheckMate',
-            style: GoogleFonts.inter(
-              fontSize: 40,
-              fontWeight: FontWeight.w700,
-              color: _kInk,
-              letterSpacing: -1.2,
-              height: 1.0,
-            ),
-          ).animate(delay: 80.ms).fadeIn(duration: 400.ms).slideY(begin: 0.2),
-          const SizedBox(height: 10),
+          Row(
+            children: [
+              const AppLogo(size: 32),
+              const SizedBox(width: 10),
+              Text(
+                'CheckMate',
+                style: AppFonts.ui(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: _kInk,
+                  letterSpacing: -0.3,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 28),
+          const TablePieces(height: 150)
+              .animate()
+              .fadeIn(duration: 380.ms)
+              .slideY(begin: 0.06, curve: Curves.easeOutCubic),
+          const SizedBox(height: 28),
           Text(
             'welcome_tagline'.tr(),
-            style: GoogleFonts.inter(fontSize: 14, color: _kInkDim, height: 1.5),
-          ).animate(delay: 140.ms).fadeIn(duration: 400.ms),
-          const SizedBox(height: 32),
+            style: AppFonts.ui(
+              fontSize: 25,
+              fontWeight: FontWeight.w700,
+              color: _kInk,
+              letterSpacing: -0.4,
+              height: 1.22,
+            ),
+          ),
+          const SizedBox(height: 24),
         ] else ...[
+          const SizedBox(height: 32),
           Text(
             'login_headline'.tr(),
-            style: GoogleFonts.inter(
-              fontSize: 34,
-              fontWeight: FontWeight.w600,
+            style: AppFonts.ui(
+              fontSize: 32,
+              fontWeight: FontWeight.w800,
               color: _kInk,
-              letterSpacing: -1.0,
-              height: 1.05,
+              letterSpacing: -0.8,
+              height: 1.08,
             ),
           ),
           const SizedBox(height: 28),
@@ -397,28 +328,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           icon: PhosphorIcons.play(PhosphorIconsStyle.fill),
           loading: _guestLoading,
           onTap: _busy ? null : _playAsGuest,
-        ).animate(delay: 200.ms).fadeIn().slideY(begin: 0.15),
+        ),
         const SizedBox(height: 10),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.only(top: 1),
-              child: Icon(PhosphorIcons.info(PhosphorIconsStyle.regular),
-                  size: 14, color: _kInkMute),
-            ),
-            const SizedBox(width: 6),
-            Expanded(
-              child: Text(
-                'guest_caption'.tr(),
-                style: GoogleFonts.inter(
-                    fontSize: 12, color: _kInkMute, height: 1.45),
-              ),
-            ),
-          ],
-        ).animate(delay: 240.ms).fadeIn(),
+        Text(
+          'guest_caption'.tr(),
+          style: AppFonts.ui(fontSize: 13, color: _kInkMute, height: 1.45),
+        ),
+        const SizedBox(height: 14),
 
-        const SizedBox(height: 24),
+        // ── No account, no network: bot and same-phone games ─────────────
+        _OutlineButton(
+          label: 'play_offline'.tr(),
+          icon: PhosphorIcons.wifiSlash(PhosphorIconsStyle.bold),
+          onTap: _busy ? null : () => context.push('/offline'),
+        ),
+
+        const SizedBox(height: 28),
 
         // ── OR divider ────────────────────────────────────────────────────
         Row(
@@ -427,14 +352,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             Padding(
               padding: const EdgeInsets.symmetric(horizontal: 12),
               child: Text(
-                'or_sign_in'.tr().toUpperCaseFor(context),
-                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: _kInkMute, letterSpacing: 0.6,
-                ),
+                'or_sign_in'.tr(),
+                style: AppFonts.ui(fontSize: 13, color: _kInkMute),
               ),
             ),
             Expanded(child: Container(height: 1, color: _kBorderStr)),
           ],
-        ).animate(delay: 280.ms).fadeIn(),
+        ),
 
         const SizedBox(height: 16),
 
@@ -442,13 +366,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (appleSignInAvailable) ...[
           AppleSignInButton(
             onSuccess: () => context.go('/home'),
-          ).animate(delay: 300.ms).fadeIn(),
+          ),
           const SizedBox(height: 12),
         ],
 
         GoogleSignInButton(
           onSuccess: () => context.go('/home'),
-        ).animate(delay: 320.ms).fadeIn(),
+        ),
 
         const SizedBox(height: 12),
 
@@ -465,7 +389,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   onTap: _busy
                       ? null
                       : () => setState(() => _showEmailForm = true),
-                ).animate(delay: 340.ms).fadeIn(),
+                ),
         ),
 
         // Guest errors show here; e-mail errors show inside the form.
@@ -483,7 +407,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             children: [
               Text(
                 'new_here'.tr(),
-                style: GoogleFonts.inter(fontSize: 14, color: _kInkDim),
+                style: AppFonts.ui(fontSize: 14, color: _kInkDim),
               ),
               const SizedBox(width: 6),
               GestureDetector(
@@ -492,7 +416,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   padding: const EdgeInsets.symmetric(vertical: 8),
                   child: Text(
                     'create_account'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 14, fontWeight: FontWeight.w700, color: _kAmber,
                     ),
                   ),
@@ -500,13 +424,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
             ],
           ),
-        ).animate(delay: 380.ms).fadeIn(),
+        ),
 
         const SizedBox(height: 16),
 
         // Guideline 1.2: the terms have to be in front of the user before
         // they sign in, whichever method they use — guest included.
-        const LegalConsentNotice().animate(delay: 400.ms).fadeIn(),
+        const LegalConsentNotice(),
 
         const SizedBox(height: 24),
       ],
@@ -521,7 +445,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         children: [
           const SizedBox(height: 8),
           _DesignField(
-            label: 'email'.tr().toUpperCaseFor(context),
+            label: 'email'.tr(),
             hint: 'your@email.com',
             controller: _emailCtrl,
             focusNode: _emailFocus,
@@ -538,7 +462,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           ),
           const SizedBox(height: 16),
           _DesignField(
-            label: 'password'.tr().toUpperCaseFor(context),
+            label: 'password'.tr(),
             hint: '••••••••',
             controller: _passwordCtrl,
             focusNode: _passwordFocus,
@@ -576,7 +500,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               ),
               child: Text(
                 'forgot_password'.tr(),
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 13,
                   fontWeight: FontWeight.w600,
                   color: _kAmber,
@@ -630,51 +554,41 @@ class _PrimaryButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final enabled = onTap != null;
-    return Semantics(
-      button: true,
-      enabled: enabled,
-      label: label,
-      excludeSemantics: true,
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          height: 54,
-          decoration: BoxDecoration(
-            color: enabled || loading ? _kAmber : _kAmber.withValues(alpha: 0.5),
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: const [
-              BoxShadow(color: _kAmberGlow, blurRadius: 20, offset: Offset(0, 6)),
-            ],
-          ),
-          child: Center(
-            child: loading
-                ? const SizedBox(
-                    width: 20, height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2, color: _kDark),
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      if (icon != null) ...[
-                        Icon(icon, size: 18, color: _kDark),
-                        const SizedBox(width: 10),
-                      ],
-                      Flexible(
-                        child: Text(
-                          label,
-                          overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
-                            color: _kDark,
-                          ),
+    return SizedBox(
+      height: 58,
+      child: Moulded(
+        color: _kAmber,
+        radius: 14,
+        semanticLabel: label,
+        onTap: loading ? null : onTap,
+        child: Center(
+          child: loading
+              ? const SizedBox(
+                  width: 22,
+                  height: 22,
+                  child: CircularProgressIndicator(
+                      strokeWidth: 2.5, color: _kDark),
+                )
+              : Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    if (icon != null) ...[
+                      Icon(icon, size: 19, color: _kDark),
+                      const SizedBox(width: 10),
+                    ],
+                    Flexible(
+                      child: Text(
+                        label,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.ui(
+                          fontSize: 17,
+                          fontWeight: FontWeight.w800,
+                          color: _kDark,
                         ),
                       ),
-                    ],
-                  ),
-          ),
+                    ),
+                  ],
+                ),
         ),
       ),
     );
@@ -691,31 +605,31 @@ class _OutlineButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: double.infinity,
-      height: 52,
-      child: OutlinedButton(
-        onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: _kBorderStr),
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
-        ),
-        child: Row(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, size: 19, color: _kInk),
-            const SizedBox(width: 12),
-            Flexible(
-              child: Text(
-                label,
-                overflow: TextOverflow.ellipsis,
-                style: GoogleFonts.inter(
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  color: _kInk,
+      height: 54,
+      child: Moulded(
+        color: AppColors.cardElevated,
+        radius: 14,
+        semanticLabel: label,
+        onTap: onTap,
+        child: Center(
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 19, color: _kInk),
+              const SizedBox(width: 12),
+              Flexible(
+                child: Text(
+                  label,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.ui(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: _kInk,
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
@@ -732,9 +646,8 @@ class _ErrorBanner extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(12),
       decoration: BoxDecoration(
-        color: _kLoss.withValues(alpha: 0.10),
-        borderRadius: BorderRadius.circular(10),
-        border: Border.all(color: _kLoss.withValues(alpha: 0.3)),
+        color: AppColors.lossSoft,
+        borderRadius: BorderRadius.circular(12),
       ),
       child: Row(
         children: [
@@ -743,7 +656,7 @@ class _ErrorBanner extends StatelessWidget {
           Expanded(
             child: Text(
               message,
-              style: GoogleFonts.inter(fontSize: 13, color: _kLoss),
+              style: AppFonts.ui(fontSize: 13, color: _kLoss),
             ),
           ),
         ],
@@ -788,10 +701,10 @@ class _DesignField extends StatelessWidget {
       children: [
         Text(
           label,
-          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: _kInkMute,
-            letterSpacing: 0.6,
+          style: AppFonts.ui(
+            fontSize: 14,
+            fontWeight: FontWeight.w600,
+            color: _kInkDim,
           ),
         ),
         const SizedBox(height: 6),
@@ -808,21 +721,21 @@ class _DesignField extends StatelessWidget {
           autofillHints: autofillHints,
           autocorrect: false,
           enableSuggestions: !obscureText,
-          style: GoogleFonts.inter(fontSize: 15, color: _kInk),
+          style: AppFonts.ui(fontSize: 15, color: _kInk),
           decoration: InputDecoration(
             hintText: hint,
-            hintStyle: GoogleFonts.inter(fontSize: 15, color: _kInkMute),
+            hintStyle: AppFonts.ui(fontSize: 15, color: _kInkMute),
             filled: true,
-            fillColor: _kField,
+            fillColor: AppColors.card,
             contentPadding:
                 const EdgeInsets.symmetric(horizontal: 14, vertical: 15),
             enabledBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: _kBorderStr, width: 1.5),
+              borderSide: BorderSide.none,
             ),
             focusedBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
-              borderSide: const BorderSide(color: _kAmber, width: 1.5),
+              borderSide: const BorderSide(color: _kAmber, width: 2),
             ),
             errorBorder: OutlineInputBorder(
               borderRadius: BorderRadius.circular(12),
@@ -832,7 +745,7 @@ class _DesignField extends StatelessWidget {
               borderRadius: BorderRadius.circular(12),
               borderSide: const BorderSide(color: _kLoss, width: 1.5),
             ),
-            errorStyle: GoogleFonts.inter(fontSize: 12, color: _kLoss),
+            errorStyle: AppFonts.ui(fontSize: 12, color: _kLoss),
             suffixIcon: suffix,
           ),
         ),
@@ -909,7 +822,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
   Widget build(BuildContext context) {
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF131316),
+        color: Color(0xFF17211C),
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
       padding: EdgeInsets.only(
@@ -936,7 +849,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
         const SizedBox(height: 20),
         Text(
           'reset_password'.tr(),
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 24, fontWeight: FontWeight.w700,
             color: _kInk,
           ),
@@ -944,7 +857,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
         const SizedBox(height: 6),
         Text(
           'reset_link_subtitle'.tr(),
-          style: GoogleFonts.inter(fontSize: 13, color: _kInkDim, height: 1.5),
+          style: AppFonts.ui(fontSize: 13, color: _kInkDim, height: 1.5),
         ),
         const SizedBox(height: 20),
         TextField(
@@ -954,12 +867,12 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
           autofocus: widget.initialEmail.isEmpty,
           autocorrect: false,
           onSubmitted: (_) => _send(),
-          style: GoogleFonts.inter(fontSize: 15, color: _kInk),
+          style: AppFonts.ui(fontSize: 15, color: _kInk),
           decoration: InputDecoration(
             hintText: 'your@email.com',
-            hintStyle: GoogleFonts.inter(fontSize: 15, color: _kInkMute),
+            hintStyle: AppFonts.ui(fontSize: 15, color: _kInkMute),
             filled: true,
-            fillColor: const Color(0xFF1A1A1E),
+            fillColor: const Color(0xFF1D2923),
             prefixIcon: Icon(
               PhosphorIcons.envelopeSimple(PhosphorIconsStyle.regular),
               size: 18, color: _kInkMute,
@@ -1008,7 +921,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
         Text(
           'reset_link_sent_title'.tr(),
           textAlign: TextAlign.center,
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 22, fontWeight: FontWeight.w700,
             color: _kInk,
           ),
@@ -1017,7 +930,7 @@ class _ForgotPasswordSheetState extends State<_ForgotPasswordSheet> {
         Text(
           'reset_link_sent'.tr(namedArgs: {'email': _emailCtrl.text.trim()}),
           textAlign: TextAlign.center,
-          style: GoogleFonts.inter(fontSize: 13, color: _kInkDim, height: 1.5),
+          style: AppFonts.ui(fontSize: 13, color: _kInkDim, height: 1.5),
         ),
         const SizedBox(height: 24),
         _PrimaryButton(

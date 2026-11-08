@@ -1,13 +1,13 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
-import '../../../core/utils/text_case.dart';
+import '../../../core/services/bot_pool.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_theme_extension.dart';
 import '../../../core/models/game_model.dart';
 import '../../../core/models/game_type.dart';
 
 import '../../../core/widgets/game_icon.dart';
+import '../../../core/theme/app_fonts.dart';
 class RecentGameTile extends StatelessWidget {
   final GameModel game;
   final String uid;
@@ -62,7 +62,6 @@ class RecentGameTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.appColors.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border, width: 1),
       ),
       child: Row(
         children: [
@@ -86,7 +85,7 @@ class RecentGameTile extends StatelessWidget {
               children: [
                 Text(
                   _opponent,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.ink,
@@ -98,7 +97,7 @@ class RecentGameTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   '$detail · ${_modeLabel()} · ${_formatDate(game.createdAt)}',
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 11,
                     color: AppColors.inkMute,
                   ),
@@ -118,8 +117,8 @@ class RecentGameTile extends StatelessWidget {
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
-                  _resultLabel.toUpperCaseFor(context),
-                  style: GoogleFonts.inter(
+                  _resultLabel,
+                  style: AppFonts.ui(
                     fontSize: 10,
                     fontWeight: FontWeight.w700,
                     color: fg,
@@ -131,7 +130,7 @@ class RecentGameTile extends StatelessWidget {
                 const SizedBox(height: 4),
                 Text(
                   change >= 0 ? '+$change' : '$change',
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                  style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                     fontWeight: FontWeight.w600,
                     color: change > 0
                         ? AppColors.win
@@ -148,7 +147,12 @@ class RecentGameTile extends StatelessWidget {
     );
   }
 
+  /// Played against a stand-in (a `bot_…` opponent under a player name).
+  bool get _vsStandIn => [game.whiteUid, game.blackUid]
+      .any((u) => BotPool.isBotUid(u) && !BotPool.isLabelledUid(u));
+
   String _modeLabel() => switch (game.mode) {
+        GameMode.bot when _vsStandIn => 'online'.tr(),
         GameMode.bot => 'vs_bot'.tr(),
         GameMode.campaign => 'campaign'.tr(),
         GameMode.online => game.isRated ? 'rated_game'.tr() : 'online'.tr(),

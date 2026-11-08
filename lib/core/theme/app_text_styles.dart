@@ -1,19 +1,13 @@
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'app_colors.dart';
+import 'app_fonts.dart';
 
-/// Typography: one family, Inter, for everything.
+/// Typography: one family, Geologica (see app_fonts.dart), sentence case,
+/// no tracking on small text.
 ///
-/// The app used to mix three: Fraunces italic serif for every heading,
-/// JetBrains Mono for labels and numbers, Inter for the rest — a look that
-/// read as a template rather than a product. Inter covers every language we
-/// ship in the Latin and Cyrillic scripts (ə, ğ, ı, İ, ş, ₼, ё…), is bundled
-/// in assets/google_fonts so first launch never falls back to a system font,
-/// and has tabular figures for ratings, clocks and scores.
-///
-///   Display / Headline  →  Inter SemiBold–Bold, slightly tightened
-///   Title / Body / Label →  Inter Regular–SemiBold
-///   Numbers             →  Inter with tabular figures (columns line up)
+///   Display / Headline  →  Bold–ExtraBold, slightly tightened
+///   Title / Body / Label →  Regular–SemiBold
+///   Numbers             →  tabular figures, so clocks and ratings never jitter
 class AppTextStyles {
   AppTextStyles._();
 
@@ -22,17 +16,17 @@ class AppTextStyles {
 
   // ─── Base font getters ────────────────────────────────────────────────────
 
-  static TextStyle get _inter => GoogleFonts.inter().copyWith(
+  static TextStyle get _base => AppFonts.ui().copyWith(
         fontFamilyFallback: const ['Roboto', 'sans-serif'],
       );
 
-  static TextStyle get _numeric => _inter.copyWith(
+  static TextStyle get _numeric => _base.copyWith(
         fontFeatures: tabularFigures,
       );
 
   // ─── Display ──────────────────────────────────────────────────────────────
 
-  static TextStyle get displayLarge => _inter.copyWith(
+  static TextStyle get displayLarge => _base.copyWith(
         fontSize: 30,
         fontWeight: FontWeight.w700,
         color: AppColors.ink,
@@ -40,7 +34,7 @@ class AppTextStyles {
         height: 1.2,
       );
 
-  static TextStyle get displayMedium => _inter.copyWith(
+  static TextStyle get displayMedium => _base.copyWith(
         fontSize: 24,
         fontWeight: FontWeight.w700,
         color: AppColors.ink,
@@ -50,21 +44,21 @@ class AppTextStyles {
 
   // ─── Headline ─────────────────────────────────────────────────────────────
 
-  static TextStyle get headlineLarge => _inter.copyWith(
+  static TextStyle get headlineLarge => _base.copyWith(
         fontSize: 21,
         fontWeight: FontWeight.w700,
         color: AppColors.ink,
         letterSpacing: -0.3,
       );
 
-  static TextStyle get headlineMedium => _inter.copyWith(
+  static TextStyle get headlineMedium => _base.copyWith(
         fontSize: 18,
         fontWeight: FontWeight.w700,
         color: AppColors.ink,
         letterSpacing: -0.2,
       );
 
-  static TextStyle get headlineSmall => _inter.copyWith(
+  static TextStyle get headlineSmall => _base.copyWith(
         fontSize: 15,
         fontWeight: FontWeight.w600,
         color: AppColors.ink,
@@ -72,20 +66,20 @@ class AppTextStyles {
 
   // ─── Title ────────────────────────────────────────────────────────────────
 
-  static TextStyle get titleLarge => _inter.copyWith(
+  static TextStyle get titleLarge => _base.copyWith(
         fontSize: 20,
         fontWeight: FontWeight.w700,
         color: AppColors.ink,
         letterSpacing: -0.3,
       );
 
-  static TextStyle get titleMedium => _inter.copyWith(
+  static TextStyle get titleMedium => _base.copyWith(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: AppColors.ink,
       );
 
-  static TextStyle get titleSmall => _inter.copyWith(
+  static TextStyle get titleSmall => _base.copyWith(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppColors.ink,
@@ -94,19 +88,19 @@ class AppTextStyles {
 
   // ─── Body ─────────────────────────────────────────────────────────────────
 
-  static TextStyle get bodyLarge => _inter.copyWith(
+  static TextStyle get bodyLarge => _base.copyWith(
         fontSize: 16,
         fontWeight: FontWeight.w400,
         color: AppColors.ink,
       );
 
-  static TextStyle get bodyMedium => _inter.copyWith(
+  static TextStyle get bodyMedium => _base.copyWith(
         fontSize: 14,
         fontWeight: FontWeight.w400,
         color: AppColors.ink,
       );
 
-  static TextStyle get bodySmall => _inter.copyWith(
+  static TextStyle get bodySmall => _base.copyWith(
         fontSize: 12,
         fontWeight: FontWeight.w400,
         color: AppColors.inkDim,
@@ -114,25 +108,25 @@ class AppTextStyles {
 
   // ─── Label ────────────────────────────────────────────────────────────────
 
-  static TextStyle get labelLarge => _inter.copyWith(
+  static TextStyle get labelLarge => _base.copyWith(
         fontSize: 14,
         fontWeight: FontWeight.w500,
         color: AppColors.ink,
         letterSpacing: 0.2,
       );
 
-  static TextStyle get labelMedium => _inter.copyWith(
+  static TextStyle get labelMedium => _base.copyWith(
         fontSize: 12,
         fontWeight: FontWeight.w500,
         color: AppColors.inkDim,
         letterSpacing: 0.2,
       );
 
-  static TextStyle get labelSmall => _inter.copyWith(
+  static TextStyle get labelSmall => _base.copyWith(
         fontSize: 11,
         fontWeight: FontWeight.w500,
         color: AppColors.inkMute,
-        letterSpacing: 0.4,
+        letterSpacing: 0.1,
       );
 
   // ─── Numbers ──────────────────────────────────────────────────────────────
@@ -174,14 +168,14 @@ class AppTextStyles {
 
   // ─── Buttons ──────────────────────────────────────────────────────────────
 
-  static TextStyle get buttonLarge => _inter.copyWith(
+  static TextStyle get buttonLarge => _base.copyWith(
         fontSize: 16,
         fontWeight: FontWeight.w600,
         color: AppColors.ink,
         letterSpacing: 0.1,
       );
 
-  static TextStyle get buttonMedium => _inter.copyWith(
+  static TextStyle get buttonMedium => _base.copyWith(
         fontSize: 14,
         fontWeight: FontWeight.w600,
         color: AppColors.ink,
@@ -191,7 +185,7 @@ class AppTextStyles {
   // ─── Legacy aliases (keep old callers compiling) ─────────────────────────
 
   /// Equivalent of old chapterTitle
-  static TextStyle get chapterTitle => _inter.copyWith(
+  static TextStyle get chapterTitle => _base.copyWith(
         fontSize: 20,
         fontWeight: FontWeight.w700,
         color: AppColors.ink,

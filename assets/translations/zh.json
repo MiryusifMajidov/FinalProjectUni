@@ -555,6 +555,7 @@
   "yesterday": "昨天",
   "user_not_found": "未找到该玩家。",
   "variant_brazilian": "巴西式",
+  "variant_german": "德国式",
   "variant_international": "国际",
   "variant_russian": "俄式",
   "variant_standard": "标准",
@@ -637,5 +638,16 @@
   "replay_previous": "上一步",
   "replay_next": "下一步",
   "replay_last": "最后一步",
-  "game_not_found": "找不到这局对局。"
+  "game_not_found": "找不到这局对局。",
+  "play_offline": "离线游戏",
+  "offline_caption": "无需账号和网络。与机器人对战，或在同一部手机上和朋友对战。",
+  "offline_not_saved": "离线对局不计等级分，也不会保存。",
+  "offline_two_players": "双人同机",
+  "offline_sign_in_cta": "登录即可在线对战",
+  "offline_sign_in_sub": "等级分、好友、竞技场和聊天。",
+  "bot_level_selected": "第 {} 级",
+  "friend_sheet_sub": "两种开局方式，无需排队",
+  "domino_table_2v2": "2对2牌桌",
+  "domino_table_2v2_sub": "邀请好友；搭档相对而坐",
+  "online_now_n": "{count} 人在线"
 }

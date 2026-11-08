@@ -3,6 +3,7 @@ import 'package:chess_app/core/models/tournament_model.dart';
 import 'package:chess_app/core/models/user_model.dart';
 import 'package:chess_app/core/services/bot_pool.dart';
 import 'package:chess_app/core/utils/email_validator.dart';
+import 'package:chess_app/features/checkers/engine/checkers_engine.dart';
 import 'package:chess_app/features/tournaments/screens/tournament_list_screen.dart'
     show formatCountdown, sortArenas;
 import 'package:flutter_test/flutter_test.dart';
@@ -163,12 +164,12 @@ void main() {
   group('BotPool', () {
     TestWidgetsFlutterBinding.ensureInitialized();
 
-    test('loads the 2000 bots shared with the server', () async {
+    test('loads the 2500 bots shared with the server', () async {
       final bots = await BotPool.load();
-      expect(bots.length, 2000);
+      expect(bots.length, 2500);
       expect(bots.first.uid, 'bot_0001');
-      expect(bots.last.uid, 'bot_2000');
-      expect(bots.map((b) => b.username.toLowerCase()).toSet().length, 2000);
+      expect(bots.last.uid, 'bot_2500');
+      expect(bots.map((b) => b.username.toLowerCase()).toSet().length, 2500);
     });
 
     test('picks a bot near the player\'s rating', () async {
@@ -205,6 +206,50 @@ void main() {
         'upcoming-late',
         'finished',
       ]);
+    });
+  });
+
+  group('German draughts (Deutsche Dame)', () {
+    // An empty 8×8 board with only the pieces a test places.
+    CheckersEngine bare() {
+      final e = CheckersEngine(variant: CheckersVariant.german);
+      e.board = List.filled(64, CheckersPiece.empty);
+      return e;
+    }
+
+    test('starts like the 8×8 games: 12 men each, white to move', () {
+      final e = CheckersEngine(variant: CheckersVariant.german);
+      expect(e.board.where((p) => p == CheckersPiece.white).length, 12);
+      expect(e.board.where((p) => p == CheckersPiece.black).length, 12);
+      expect(e.turn, CheckersPlayer.white);
+    });
+
+    test('men do not capture backwards', () {
+      final e = bare();
+      e.board[e.idx(4, 3)] = CheckersPiece.white;
+      e.board[e.idx(5, 4)] = CheckersPiece.black; // behind the white man
+      final moves = e.legalMoves();
+      expect(moves.any((m) => m.isCapture), isFalse);
+    });
+
+    test('capturing is compulsory', () {
+      final e = bare();
+      e.board[e.idx(5, 2)] = CheckersPiece.white;
+      e.board[e.idx(4, 3)] = CheckersPiece.black;
+      e.board[e.idx(6, 7)] = CheckersPiece.white; // could step, must not
+      final moves = e.legalMoves();
+      expect(moves, isNotEmpty);
+      expect(moves.every((m) => m.isCapture), isTrue);
+    });
+
+    test('kings fly and capture from a distance', () {
+      final e = bare();
+      e.board[e.idx(7, 0)] = CheckersPiece.whiteKing;
+      e.board[e.idx(3, 4)] = CheckersPiece.black;
+      final moves = e.legalMoves();
+      expect(moves.every((m) => m.isCapture), isTrue);
+      expect(moves.map((m) => m.to).toSet(),
+          {e.idx(2, 5), e.idx(1, 6), e.idx(0, 7)});
     });
   });
 

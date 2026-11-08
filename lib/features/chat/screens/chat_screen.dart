@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
@@ -15,14 +14,14 @@ import '../../../core/models/chat_message_model.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/utils/content_filter.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../../core/theme/app_fonts.dart';
 
 // ── Design tokens (local) ──────────────────────────────────────────────────────
 const _kBg           = AppColors.background;
 const _kSurface      = AppColors.surface;
 const _kCard         = AppColors.card;
-const _kAmber        = AppColors.amber;
-const _kAmberDeep    = AppColors.amberDeep;
-const _kAmberGlow    = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kWin          = AppColors.win;
 const _kInk          = AppColors.ink;
 const _kInkDim       = AppColors.inkDim;
@@ -378,7 +377,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
               title: Text(
                 (_isMuted ? 'unmute_chat' : 'mute_chat').tr(),
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                     fontSize: 14, fontWeight: FontWeight.w500, color: _kInk),
               ),
               onTap: () {
@@ -395,7 +394,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 isBlocked
                     ? 'Unblock ${_otherUsername ?? 'user'}'
                     : 'Block ${_otherUsername ?? 'user'}',
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: AppColors.error),
@@ -425,7 +424,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
               title: Text(
                 'report_user'.tr(),
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                     fontSize: 14, fontWeight: FontWeight.w500, color: _kInk),
               ),
               onTap: () {
@@ -466,7 +465,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 children: [
                   Text(
                     'report_sheet_title'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                         fontSize: 15,
                         fontWeight: FontWeight.w600,
                         color: _kInk),
@@ -474,7 +473,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                   const SizedBox(height: 4),
                   Text(
                     'report_sheet_subtitle'.tr(),
-                    style: GoogleFonts.inter(fontSize: 12, color: _kInkMute),
+                    style: AppFonts.ui(fontSize: 12, color: _kInkMute),
                   ),
                 ],
               ),
@@ -483,7 +482,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ListTile(
                 title: Text(
                   entry.value.tr(),
-                  style: GoogleFonts.inter(fontSize: 14, color: _kInk),
+                  style: AppFonts.ui(fontSize: 14, color: _kInk),
                 ),
                 onTap: () {
                   Navigator.pop(ctx);
@@ -562,9 +561,9 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
               ),
             ),
             ListTile(
-              leading: const Icon(Icons.reply_rounded, color: _kAmber),
+              leading: Icon(Icons.reply_rounded, color: _kAmber),
               title: Text('reply'.tr(),
-                  style: GoogleFonts.inter(fontSize: 14, color: _kInk)),
+                  style: AppFonts.ui(fontSize: 14, color: _kInk)),
               onTap: () {
                 Navigator.pop(context);
                 _setReply(msg);
@@ -573,7 +572,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
             ListTile(
               leading: const Icon(Icons.copy_rounded, color: _kInkDim),
               title: Text('copy'.tr(),
-                  style: GoogleFonts.inter(fontSize: 14, color: _kInk)),
+                  style: AppFonts.ui(fontSize: 14, color: _kInk)),
               onTap: () {
                 Navigator.pop(context);
                 Clipboard.setData(ClipboardData(text: msg.text));
@@ -589,7 +588,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 leading: Icon(PhosphorIcons.flag(PhosphorIconsStyle.regular),
                     color: _kAmber),
                 title: Text('report_user'.tr(),
-                    style: GoogleFonts.inter(fontSize: 14, color: _kInk)),
+                    style: AppFonts.ui(fontSize: 14, color: _kInk)),
                 onTap: () {
                   Navigator.pop(context);
                   _showReportSheet(context, message: msg);
@@ -600,7 +599,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 leading:
                     const Icon(Icons.delete_outline_rounded, color: AppColors.error),
                 title: Text('delete'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                         fontSize: 14, color: AppColors.error)),
                 onTap: () {
                   Navigator.pop(context);
@@ -677,7 +676,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                 stream: _messagesStream,
                 builder: (context, snap) {
                   if (snap.connectionState == ConnectionState.waiting) {
-                    return const Center(
+                    return Center(
                         child: CircularProgressIndicator(color: _kAmber));
                   }
                   final streamMsgs = snap.data ?? [];
@@ -710,7 +709,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                     return Center(
                       child: Text(
                         'no_messages_yet'.tr(),
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                             fontSize: 14, color: _kInkMute),
                       ),
                     );
@@ -732,7 +731,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                       // Load-more indicator / end-of-history at the top
                       if (i == messages.length) {
                         if (_loadingMore) {
-                          return const Padding(
+                          return Padding(
                             padding: EdgeInsets.symmetric(vertical: 16),
                             child: Center(
                               child: SizedBox(
@@ -750,7 +749,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                             child: Center(
                               child: Text(
                                 'Beginning of conversation',
-                                style: GoogleFonts.inter(
+                                style: AppFonts.ui(
                                     fontSize: 11, color: _kInkMute),
                               ),
                             ),
@@ -801,7 +800,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen>
                               alignment: Alignment.centerLeft,
                               padding: const EdgeInsets.only(left: 16),
                               color: _kAmberGlow,
-                              child: const Icon(Icons.reply_rounded,
+                              child: Icon(Icons.reply_rounded,
                                   color: _kAmber),
                             ),
                             child: GestureDetector(
@@ -938,7 +937,7 @@ class _ChatHeader extends StatelessWidget {
                           children: [
                             Text(
                               username,
-                              style: GoogleFonts.inter(
+                              style: AppFonts.ui(
                                 fontSize: 15,
                                 fontWeight: FontWeight.w600,
                                 color: _kInk,
@@ -949,7 +948,7 @@ class _ChatHeader extends StatelessWidget {
                             if (typing)
                               Text(
                                 'typing…',
-                                style: GoogleFonts.inter(
+                                style: AppFonts.ui(
                                     fontSize: 11, color: _kAmber),
                               )
                             else
@@ -959,7 +958,7 @@ class _ChatHeader extends StatelessWidget {
                                     : elo != null
                                         ? '$elo ELO'
                                         : '',
-                                style: GoogleFonts.inter(
+                                style: AppFonts.ui(
                                   fontSize: 11,
                                   color: isOnline ? _kWin : _kInkMute,
                                 ),
@@ -999,7 +998,7 @@ class _ChatHeader extends StatelessWidget {
                       const SizedBox(width: 4),
                       Text(
                         'Invite',
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 12,
                           fontWeight: FontWeight.w600,
                           color: _kAmber,
@@ -1064,7 +1063,7 @@ class _DateSeparator extends StatelessWidget {
           ),
           child: Text(
             label,
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
               fontSize: 10,
               fontWeight: FontWeight.w600,
               color: _kInkMute,
@@ -1095,10 +1094,7 @@ class _ReplyBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: const BoxDecoration(
         color: _kSurface,
-        border: Border(
-          left: BorderSide(color: _kAmber, width: 3),
-          top: BorderSide(color: _kBorder),
-        ),
+        border: Border(top: BorderSide(color: _kBorder)),
       ),
       child: Row(
         children: [
@@ -1109,7 +1105,7 @@ class _ReplyBar extends StatelessWidget {
               children: [
                 Text(
                   senderLabel,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: _kAmber,
@@ -1120,7 +1116,7 @@ class _ReplyBar extends StatelessWidget {
                   replyTo.text,
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(fontSize: 12, color: _kInkDim),
+                  style: AppFonts.ui(fontSize: 12, color: _kInkDim),
                 ),
               ],
             ),
@@ -1179,10 +1175,10 @@ class _MessageBubble extends StatelessWidget {
                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
                 decoration: BoxDecoration(
                   gradient: isMe
-                      ? const LinearGradient(
+                      ? LinearGradient(
                           begin: Alignment(0.0, -1.0),
                           end: Alignment(1.0, 1.0),
-                          colors: [_kAmber, _kAmberDeep],
+                          colors: [_kAmber, _kAmber],
                         )
                       : null,
                   color: isMe ? null : _kCard,
@@ -1223,7 +1219,7 @@ class _MessageBubble extends StatelessWidget {
                             children: [
                               Text(
                                 message.replyToSenderName ?? '',
-                                style: GoogleFonts.inter(
+                                style: AppFonts.ui(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   color: isMe ? Colors.black54 : _kAmber,
@@ -1234,7 +1230,7 @@ class _MessageBubble extends StatelessWidget {
                                 message.replyToText ?? '',
                                 maxLines: 2,
                                 overflow: TextOverflow.ellipsis,
-                                style: GoogleFonts.inter(
+                                style: AppFonts.ui(
                                   fontSize: 12,
                                   color: isMe ? Colors.black45 : _kInkDim,
                                 ),
@@ -1252,7 +1248,7 @@ class _MessageBubble extends StatelessWidget {
                         Flexible(
                           child: Text(
                             message.text,
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 14,
                               color: isMe ? _kBg : _kInk,
                             ),
@@ -1264,7 +1260,7 @@ class _MessageBubble extends StatelessWidget {
                           children: [
                             Text(
                               DateFormat('HH:mm').format(message.createdAt),
-                              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
+                              style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                                 color: isMe
                                     ? _kBg.withValues(alpha: 0.6)
                                     : _kInkMute,
@@ -1302,7 +1298,7 @@ class _TickWidget extends StatelessWidget {
             size: 13,
             color: isMe ? _kBg.withValues(alpha: 0.5) : _kInkMute);
       case _TickStatus.read:
-        return const Icon(Icons.done_all_rounded, size: 13, color: _kAmber);
+        return Icon(Icons.done_all_rounded, size: 13, color: _kAmber);
     }
   }
 }
@@ -1366,7 +1362,6 @@ class _InputBarState extends State<_InputBar> {
               decoration: BoxDecoration(
                 color: _kCard,
                 borderRadius: BorderRadius.circular(8),
-                border: Border.all(color: _kBorder),
               ),
               child: const Icon(Icons.add_rounded, color: _kInkDim, size: 18),
             ),
@@ -1377,7 +1372,7 @@ class _InputBarState extends State<_InputBar> {
                 height: 36,
                 child: TextField(
                   controller: widget.ctrl,
-                  style: GoogleFonts.inter(fontSize: 13, color: _kInk),
+                  style: AppFonts.ui(fontSize: 13, color: _kInk),
                   onChanged: widget.onChanged,
                   maxLines: 1,
                   keyboardType: TextInputType.text,
@@ -1386,7 +1381,7 @@ class _InputBarState extends State<_InputBar> {
                   decoration: InputDecoration(
                     hintText: 'message_placeholder'.tr(),
                     hintStyle:
-                        GoogleFonts.inter(fontSize: 13, color: _kInkMute),
+                        AppFonts.ui(fontSize: 13, color: _kInkMute),
                     filled: true,
                     fillColor: _kCard,
                     isDense: true,
@@ -1426,7 +1421,7 @@ class _InputBarState extends State<_InputBar> {
                   boxShadow: (_hasText && !widget.isSending)
                       ? [
                           BoxShadow(
-                            color: _kAmber.withValues(alpha: 0.30),
+                            color: Colors.black.withValues(alpha: 0.28),
                             blurRadius: 8,
                             offset: const Offset(0, 2),
                           ),
@@ -1434,7 +1429,7 @@ class _InputBarState extends State<_InputBar> {
                       : null,
                 ),
                 child: widget.isSending
-                    ? const Padding(
+                    ? Padding(
                         padding: EdgeInsets.all(10),
                         child: CircularProgressIndicator(
                           color: _kAmber, strokeWidth: 2),

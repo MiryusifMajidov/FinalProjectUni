@@ -4,7 +4,6 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/realtime_game_service.dart';
@@ -12,6 +11,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/cache_service.dart';
 import '../engine/chess_engine.dart';
 import '../widgets/chess_board_widget.dart';
+import '../../../core/theme/app_fonts.dart';
 
 class SpectatorScreen extends ConsumerStatefulWidget {
   final String gameId;
@@ -131,7 +131,6 @@ class _SpectatorScreenState extends ConsumerState<SpectatorScreen> {
                     decoration: BoxDecoration(
                       color: AppColors.card,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: AppColors.border),
                     ),
                     child: Icon(
                       PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -142,7 +141,7 @@ class _SpectatorScreenState extends ConsumerState<SpectatorScreen> {
                 const SizedBox(width: 14),
                 Text(
                   'spectating'.tr(),
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
                     color: AppColors.ink,
@@ -178,7 +177,7 @@ class _SpectatorScreenState extends ConsumerState<SpectatorScreen> {
                 ],
                 Text(
                   _statusText,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 13,
                     fontWeight: FontWeight.w600,
                     color: _gameOver ? AppColors.error : AppColors.primary,
@@ -257,7 +256,7 @@ class _PlayerChip extends StatelessWidget {
         const SizedBox(width: 6),
         Text(
           name,
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 13,
             fontWeight: FontWeight.w600,
             color: AppColors.ink,

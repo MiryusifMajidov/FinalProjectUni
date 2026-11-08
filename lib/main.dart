@@ -7,12 +7,13 @@ import 'package:flutter/foundation.dart'
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
+import 'core/models/game_type.dart';
 import 'core/router/app_router.dart';
 import 'core/services/auth_service.dart';
 import 'core/services/cache_service.dart';
 import 'core/services/log_service.dart';
 import 'core/services/notification_service.dart';
+import 'core/theme/app_colors.dart';
 import 'core/theme/app_theme.dart';
 import 'firebase_options.dart';
 
@@ -21,27 +22,12 @@ void main() async {
   await EasyLocalization.ensureInitialized();
 
   // The bundled font is SIL OFL 1.1 — the licence travels with the app and
-  // shows up under Settings → About → Licenses.
+  // shows up under Settings → About → Licenses. Fonts declared in pubspec
+  // load from the asset bundle with the first frame; no network involved.
   LicenseRegistry.addLicense(() async* {
-    final license = await rootBundle.loadString('assets/google_fonts/OFL.txt');
-    yield LicenseEntryWithLineBreaks(['google_fonts', 'Inter'], license);
+    final license = await rootBundle.loadString('assets/fonts/OFL.txt');
+    yield LicenseEntryWithLineBreaks(['Geologica'], license);
   });
-
-  // Pre-load fonts before the first frame so glyphs are always ready.
-  // Impeller is disabled in AndroidManifest.xml (EnableImpeller=false) to avoid
-  // Vulkan driver bugs that corrupt font texture atlases on certain Android GPUs.
-  try {
-    // Inter is bundled (assets/google_fonts), so this only waits for the
-    // asset loads — no network needed, even on the very first launch.
-    await GoogleFonts.pendingFonts([
-      GoogleFonts.inter(),
-      GoogleFonts.inter(fontWeight: FontWeight.w500),
-      GoogleFonts.inter(fontWeight: FontWeight.w600),
-      GoogleFonts.inter(fontWeight: FontWeight.w700),
-    ]).timeout(const Duration(seconds: 5));
-  } catch (_) {
-    // Fonts will fall back to cached / system fonts — acceptable on slow networks.
-  }
 
   // Lock to portrait on phones; tablets can use landscape too.
   // We set orientations later inside the app once we know the device type.
@@ -53,12 +39,19 @@ void main() async {
   ]);
 
   // Transparent status bar
+  // Android 15 draws apps edge to edge and lays a light scrim behind the
+  // three-button navigation bar unless told otherwise — that was the grey
+  // strip under every screen. The app paints that area itself (see the
+  // builder below).
   SystemChrome.setSystemUIOverlayStyle(
     const SystemUiOverlayStyle(
       statusBarColor: Colors.transparent,
       statusBarIconBrightness: Brightness.light,
-      systemNavigationBarColor: Color(0xFF0A0A0B),
+      statusBarBrightness: Brightness.dark,
+      systemNavigationBarColor: AppColors.background,
+      systemNavigationBarDividerColor: AppColors.background,
       systemNavigationBarIconBrightness: Brightness.light,
+      systemNavigationBarContrastEnforced: false,
     ),
   );
 
@@ -269,6 +262,9 @@ class _ChessAppState extends ConsumerState<ChessApp>
       }
     });
     final router = ref.watch(routerProvider);
+    // The screens around the games wear the selected game's colour.
+    final accent = ref.watch(activeGameProvider).accent;
+    AppColors.accent = accent;
 
     return MaterialApp.router(
       // key forces full widget-tree rebuild when locale changes,
@@ -276,8 +272,8 @@ class _ChessAppState extends ConsumerState<ChessApp>
       key: ValueKey(context.locale.languageCode),
       title: 'CheckMate',
       debugShowCheckedModeBanner: false,
-      theme: AppTheme.dark,
-      darkTheme: AppTheme.dark,
+      theme: AppTheme.forAccent(accent),
+      darkTheme: AppTheme.forAccent(accent),
       themeMode: ThemeMode.dark,
       routerConfig: router,
       localizationsDelegates: context.localizationDelegates,
@@ -290,11 +286,14 @@ class _ChessAppState extends ConsumerState<ChessApp>
         // left/right: false → no unwanted side insets on normal phones.
         // Inner SafeArea widgets won't double-count because Flutter's
         // SafeArea removes its padding from the descendant MediaQuery.
-        final Widget safeChild = SafeArea(
-          top: false,
-          left: false,
-          right: false,
-          child: child ?? const SizedBox.shrink(),
+        final Widget safeChild = ColoredBox(
+          color: AppColors.background,
+          child: SafeArea(
+            top: false,
+            left: false,
+            right: false,
+            child: child ?? const SizedBox.shrink(),
+          ),
         );
 
         // Orientation: lock portrait on phones, allow landscape on tablets.
@@ -321,7 +320,7 @@ class _ChessAppState extends ConsumerState<ChessApp>
 
         final isDark = Theme.of(context).brightness == Brightness.dark;
         return ColoredBox(
-          color: isDark ? const Color(0xFF070709) : const Color(0xFFE8E8F0),
+          color: isDark ? const Color(0xFF0B110E) : const Color(0xFFE8E8F0),
           child: Center(
             child: ConstrainedBox(
               constraints: const BoxConstraints(maxWidth: 520),

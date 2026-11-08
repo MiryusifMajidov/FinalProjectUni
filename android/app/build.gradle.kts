@@ -51,7 +51,7 @@ android {
         applicationId = if (testBuild) "com.chessapp.chess_app" else "com.ludodo.checkmate"
         manifestPlaceholders["appLabel"] =
             if (testBuild) "CheckMate Test" else "Chess Draughts Dominoes"
-        minSdk        = 23
+        minSdk = flutter.minSdkVersion
         targetSdk     = 36
         versionCode   = flutter.versionCode
         versionName   = flutter.versionName

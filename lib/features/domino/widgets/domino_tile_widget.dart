@@ -1,7 +1,7 @@
 import 'dart:math' as math;
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../engine/domino_engine.dart';
+import '../../../core/theme/app_fonts.dart';
 
 /// Renders a single domino tile with pip dots, matching the design's DominoTile
 /// component with felt-style aesthetics.
@@ -31,7 +31,7 @@ class DominoTileWidget extends StatelessWidget {
   static const _boneBorder = Color(0xFFD4C5A9);
   static const _pipColor = Color(0xFF1A1712);
   static const _dividerColor = Color(0xFFD4C5A9);
-  static const _selectedBorder = Color(0xFF5FD4A3);
+  static const _selectedBorder = Color(0xFF4CBF95);
   static const _faceDownColor = Color(0xFF2A2017);
 
   double get _width => size * 0.5;
@@ -254,7 +254,7 @@ class DominoSnakeBoard extends StatelessWidget {
     this.highlightTile,
   });
 
-  static const _accent = Color(0xFF5FD4A3);
+  static const _accent = Color(0xFF4CBF95);
 
   /// Walks the chain from the left open end, assigning each tile a concrete
   /// (incoming, outgoing) orientation so consecutive halves line up.
@@ -493,7 +493,7 @@ class DominoSnakeBoard extends StatelessWidget {
                   ? Center(
                       child: Text(
                         '$endValue',
-                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 16,
+                        style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 16,
                           fontWeight: FontWeight.w700,
                           color: _accent,
                         ),

@@ -555,6 +555,7 @@
   "yesterday": "कल",
   "user_not_found": "खिलाड़ी नहीं मिला।",
   "variant_brazilian": "ब्राज़ीलियाई",
+  "variant_german": "जर्मन",
   "variant_international": "अंतरराष्ट्रीय",
   "variant_russian": "रूसी",
   "variant_standard": "स्टैंडर्ड",
@@ -637,5 +638,16 @@
   "replay_previous": "पिछली चाल",
   "replay_next": "अगली चाल",
   "replay_last": "आखिरी चाल",
-  "game_not_found": "यह गेम नहीं मिला।"
+  "game_not_found": "यह गेम नहीं मिला।",
+  "play_offline": "ऑफ़लाइन खेलें",
+  "offline_caption": "बिना खाते और इंटरनेट के। बॉट से या इसी फ़ोन पर दोस्त के साथ खेलें।",
+  "offline_not_saved": "ऑफ़लाइन गेम रेटिंग में नहीं गिने जाते और सहेजे नहीं जाते।",
+  "offline_two_players": "दो खिलाड़ी, एक फ़ोन",
+  "offline_sign_in_cta": "ऑनलाइन खेलने के लिए साइन इन करें",
+  "offline_sign_in_sub": "रेटिंग, दोस्त, एरीना और चैट।",
+  "bot_level_selected": "स्तर {}",
+  "friend_sheet_sub": "शुरू करने के दो तरीके, कोई कतार नहीं",
+  "domino_table_2v2": "2 बनाम 2 टेबल",
+  "domino_table_2v2_sub": "दोस्तों को बुलाएँ; साथी आमने-सामने बैठते हैं",
+  "online_now_n": "{count} ऑनलाइन"
 }

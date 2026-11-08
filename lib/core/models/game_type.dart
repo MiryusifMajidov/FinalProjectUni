@@ -37,27 +37,28 @@ const Map<GameType, GameIdentity> kGameIdentities = {
   GameType.chess: GameIdentity(
     type: GameType.chess,
     name: 'Chess',
-    accent: AppColors.amber,                   // #E8B960
-    accentSoft: Color(0x24E8B960),
-    gradientColors: [Color(0xFF1f1709), Color(0xFF3d2410)],
+    accent: AppColors.amber,                   // butterscotch
+    accentSoft: AppColors.amberGlow,
+    // Flat: the house style has no gradients; kept as a pair for old callers.
+    gradientColors: [Color(0xFF2B2214), Color(0xFF2B2214)],
     questTitle: 'Grandmaster Path',
     questChapters: 100,
   ),
   GameType.checkers: GameIdentity(
     type: GameType.checkers,
     name: 'Checkers',
-    accent: Color(0xFF6FB4E0),                 // #6FB4E0
-    accentSoft: Color(0x246FB4E0),
-    gradientColors: [Color(0xFF0a1620), Color(0xFF102a3d)],
+    accent: AppColors.checkers,                // cherry
+    accentSoft: AppColors.checkersSoft,
+    gradientColors: [Color(0xFF2C1719), Color(0xFF2C1719)],
     questTitle: 'Diagonal Road',
     questChapters: 60,
   ),
   GameType.domino: GameIdentity(
     type: GameType.domino,
     name: 'Domino',
-    accent: Color(0xFF5FD4A3),                 // #5FD4A3
-    accentSoft: Color(0x245FD4A3),
-    gradientColors: [Color(0xFF0a1f16), Color(0xFF0f3329)],
+    accent: AppColors.domino,                  // jade
+    accentSoft: AppColors.dominoSoft,
+    gradientColors: [Color(0xFF11291F), Color(0xFF11291F)],
     questTitle: 'Bones Trail',
     questChapters: 40,
   ),
@@ -128,6 +129,7 @@ extension GameTypeX on GameType {
     ('international', 'International (10×10)'),
     ('turkish', 'Turkish'),
     ('brazilian', 'Brazilian'),
+    ('german', 'German (8×8)'),
   ];
 
   /// Domino player count options for matchmaking.

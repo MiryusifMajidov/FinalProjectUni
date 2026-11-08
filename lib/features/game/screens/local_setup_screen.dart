@@ -2,7 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/theme/app_colors.dart';
@@ -11,6 +10,7 @@ import '../../../core/models/game_type.dart';
 import '../../../core/services/auth_service.dart';
 
 import '../../../core/widgets/game_icon.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kCard      = AppColors.card;
@@ -52,7 +52,7 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
   }
 
   Future<void> _startGame() async {
-    final user = await ref.read(currentUserProvider.future);
+    final user = await readUserQuickly(ref);
     final p1 = _player1Ctrl.text.trim().isEmpty
         ? (user?.username ?? 'Player 1')
         : _player1Ctrl.text.trim();
@@ -101,7 +101,6 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -112,7 +111,7 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'play_with_friend'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -134,7 +133,7 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                       padding: const EdgeInsets.only(top: 4, bottom: 24),
                       child: Text(
                         'same_device_subtitle'.tr(),
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 13,
                           color: _kInkMute,
                         ),
@@ -165,17 +164,16 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                     if (_gameType == GameType.chess) ...[
                       Text(
                         'choose_time_control'.tr(),
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _kInkMute,
-                          letterSpacing: 1.0,
-                        ),
+                        style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
                       ),
                       const SizedBox(height: 14),
                       _TimeSection(
                         icon: PhosphorIcons.lightning(PhosphorIconsStyle.fill),
-                        iconColor: const Color(0xFFFF6B6B),
+                        iconColor: const Color(0xFFFF6F61),
                         label: 'bullet'.tr(),
                         controls: TimeControls.allBullet,
                         selected: _timeControl,
@@ -202,12 +200,11 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                     ] else if (_gameType == GameType.checkers) ...[
                       Text(
                         'GAME VARIANT',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _kInkMute,
-                          letterSpacing: 1.0,
-                        ),
+                        style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
                       ),
                       const SizedBox(height: 14),
                       _OptionChips(
@@ -220,12 +217,11 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                     ] else if (_gameType == GameType.domino) ...[
                       Text(
                         'RULESET',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _kInkMute,
-                          letterSpacing: 1.0,
-                        ),
+                        style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
                       ),
                       const SizedBox(height: 14),
                       _OptionChips(
@@ -237,12 +233,11 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                       const SizedBox(height: 20),
                       Text(
                         'MATCH TO',
-                        style: GoogleFonts.inter(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: _kInkMute,
-                          letterSpacing: 1.0,
-                        ),
+                        style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
                       ),
                       const SizedBox(height: 14),
                       _OptionChips(
@@ -276,7 +271,7 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: _gameType.accent.withValues(alpha: 0.28),
+                              color: Colors.black.withValues(alpha: 0.28),
                               blurRadius: 18,
                               offset: const Offset(0, 4),
                             ),
@@ -289,15 +284,15 @@ class _LocalSetupScreenState extends ConsumerState<LocalSetupScreen> {
                               Icon(
                                 PhosphorIcons.users(PhosphorIconsStyle.fill),
                                 size: 18,
-                                color: const Color(0xFF0A0A0B),
+                                color: const Color(0xFF111915),
                               ),
                               const SizedBox(width: 8),
                               Text(
                                 'Start Pass & Play',
-                                style: GoogleFonts.inter(
+                                style: AppFonts.ui(
                                   fontSize: 15,
                                   fontWeight: FontWeight.w700,
-                                  color: const Color(0xFF0A0A0B),
+                                  color: const Color(0xFF111915),
                                 ),
                               ),
                             ],
@@ -392,20 +387,20 @@ class _PlayerFieldState extends State<_PlayerField> {
               children: [
                 Text(
                   'PLAYER · ${widget.colorLabel}',
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
-                    fontWeight: FontWeight.w600,
-                    color: _kInkMute,
-                    letterSpacing: 0.8,
-                  ),
+                  style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
                 ),
                 const SizedBox(height: 2),
                 TextField(
                   controller: widget.controller,
                   focusNode: _focusNode,
-                  style: GoogleFonts.inter(fontSize: 14, color: _kInk),
+                  style: AppFonts.ui(fontSize: 14, color: _kInk),
                   decoration: InputDecoration(
                     hintText: widget.hint,
-                    hintStyle: GoogleFonts.inter(fontSize: 14, color: _kInkMute),
+                    hintStyle: AppFonts.ui(fontSize: 14, color: _kInkMute),
                     // Explicitly disable EVERY border variant — the global
                     // input theme defines enabled/focused outlines that would
                     // otherwise draw a second pill outline inside the card.
@@ -477,7 +472,7 @@ class _OptionChips extends StatelessWidget {
             ),
             child: Text(
               opt.$2,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 13,
                 fontWeight: isSel ? FontWeight.w700 : FontWeight.w400,
                 color: isSel ? accent : _kInkDim,
@@ -521,7 +516,7 @@ class _TimeSection extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: iconColor,
@@ -534,7 +529,7 @@ class _TimeSection extends StatelessWidget {
                 height: 1,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [iconColor.withOpacity(0.35), Colors.transparent],
+                    colors: [Colors.transparent, Colors.transparent],
                   ),
                 ),
               ),
@@ -564,7 +559,7 @@ class _TimeSection extends StatelessWidget {
                 ),
                 child: Text(
                   tc.label,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 13,
                     fontWeight: isSel ? FontWeight.w700 : FontWeight.w400,
                     color: isSel ? iconColor : _kInkDim,

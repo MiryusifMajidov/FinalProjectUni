@@ -2,19 +2,18 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/models/user_model.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
-const _kBg          = Color(0xFF0D1014);
+const _kBg          = Color(0xFF111915);
 const _kCard        = AppColors.card;
-const _kAmber       = AppColors.amber;
-const _kAmberDeep   = AppColors.amberDeep;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberDeep => AppColors.accentDeep;
 const _kInk         = AppColors.ink;
 const _kInkDim      = AppColors.inkDim;
-const _kInkMute     = AppColors.inkMute;
 const _kBorder      = AppColors.border;
 const _kBorderStrong = AppColors.borderStrong;
 const _kWin         = AppColors.win;
@@ -114,7 +113,7 @@ class _MapChallengeSentScreenState
                         // "CHALLENGE SENT" label
                         Text(
                           'CHALLENGE SENT',
-                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                          style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                             fontWeight: FontWeight.w700,
                             color: _kAmber,
                             letterSpacing: 1.4,
@@ -141,7 +140,7 @@ class _MapChallengeSentScreenState
                               Container(
                                 width: 132, // 180 - 2*24
                                 height: 132,
-                                decoration: const BoxDecoration(
+                                decoration: BoxDecoration(
                                   shape: BoxShape.circle,
                                   gradient: RadialGradient(
                                     center: Alignment(-0.4, -0.5),
@@ -157,10 +156,10 @@ class _MapChallengeSentScreenState
                                 child: Center(
                                   child: Text(
                                     initial,
-                                    style: GoogleFonts.inter(
+                                    style: AppFonts.ui(
                                       fontSize: 56,
                                       fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF1A1205),
+                                      color: const Color(0xFF241703),
                                       height: 1.0,
                                     ),
                                   ),
@@ -174,7 +173,7 @@ class _MapChallengeSentScreenState
 
                         Text(
                           'Waiting for ${widget.opponent.username}…',
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 26,
                             fontWeight: FontWeight.w600,
                             color: _kInk,
@@ -189,7 +188,7 @@ class _MapChallengeSentScreenState
                           child: Text(
                             "They'll get a notification. We'll start the game the moment they accept.",
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 14,
                               color: _kInkDim,
                               height: 1.5,
@@ -206,7 +205,6 @@ class _MapChallengeSentScreenState
                           decoration: BoxDecoration(
                             color: _kCard,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: _kBorder),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
@@ -221,7 +219,7 @@ class _MapChallengeSentScreenState
                               const SizedBox(width: 6),
                               Text(
                                 widget.timeControl,
-                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   color: _kInk,
                                 ),
@@ -234,7 +232,7 @@ class _MapChallengeSentScreenState
                               const SizedBox(width: 6),
                               Text(
                                 widget.colorChoice,
-                                style: GoogleFonts.inter(
+                                style: AppFonts.ui(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: _kInk,
@@ -251,7 +249,7 @@ class _MapChallengeSentScreenState
                               const SizedBox(width: 6),
                               Text(
                                 'Rated',
-                                style: GoogleFonts.inter(
+                                style: AppFonts.ui(
                                   fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: _kInk,
@@ -266,16 +264,16 @@ class _MapChallengeSentScreenState
                         // Countdown
                         RichText(
                           text: TextSpan(
-                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: _kInkMute,
-                              letterSpacing: 0.4,
-                            ),
+                            style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
                             children: [
                               const TextSpan(text: 'Auto-cancels in '),
                               TextSpan(
                                 text: _countdown,
-                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                                   fontWeight: FontWeight.w600,
                                   color: _kInk,
                                   letterSpacing: 0.4,
@@ -308,7 +306,7 @@ class _MapChallengeSentScreenState
                       alignment: Alignment.center,
                       child: Text(
                         'Cancel challenge',
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: _kInkDim,

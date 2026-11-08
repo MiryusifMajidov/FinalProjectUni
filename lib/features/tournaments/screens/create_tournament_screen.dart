@@ -2,7 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/auth_service.dart';
@@ -11,8 +10,8 @@ import '../../../core/models/tournament_model.dart';
 import '../../../core/models/game_model.dart' show TimeControl;
 import '../../../core/models/game_type.dart';
 
-import '../../../core/utils/text_case.dart';
 import 'arena_lobby_screen.dart' show arenaRatingFor;
+import '../../../core/theme/app_fonts.dart';
 class CreateTournamentScreen extends ConsumerStatefulWidget {
   const CreateTournamentScreen({super.key});
 
@@ -154,10 +153,10 @@ class _CreateTournamentScreenState
             ),
             child: Text(
               opt.$2,
-              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13,
+              style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color:
-                    isSel ? const Color(0xFF1A1205) : AppColors.inkDim,
+                    isSel ? const Color(0xFF241703) : AppColors.inkDim,
               ),
             ),
           ),
@@ -186,7 +185,6 @@ class _CreateTournamentScreenState
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -198,7 +196,7 @@ class _CreateTournamentScreenState
                   const SizedBox(width: 14),
                   Text(
                     'create_arena'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: AppColors.ink,
@@ -222,17 +220,17 @@ class _CreateTournamentScreenState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'arena_name_label'.tr().toUpperCaseFor(context),
-                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.inkMute,
-                              letterSpacing: 0.8,
-                            ),
+                            'arena_name_label'.tr(),
+                            style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
                           ),
                           const SizedBox(height: 10),
                           TextField(
                             controller: _nameCtrl,
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 16,
                               fontWeight: FontWeight.w500,
                               color: AppColors.ink,
@@ -241,7 +239,7 @@ class _CreateTournamentScreenState
                               hintText: _gameType == GameType.chess
                                   ? 'arena_name_hint_chess'.tr()
                                   : 'arena_name_hint'.tr(),
-                              hintStyle: GoogleFonts.inter(
+                              hintStyle: AppFonts.ui(
                                 fontSize: 15,
                                 color: AppColors.inkMute,
                               ),
@@ -271,24 +269,24 @@ class _CreateTournamentScreenState
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           Text(
-                            'arena_description_label'.tr().toUpperCaseFor(context),
-                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-                              fontWeight: FontWeight.w600,
-                              color: AppColors.inkMute,
-                              letterSpacing: 0.8,
-                            ),
+                            'arena_description_label'.tr(),
+                            style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
                           ),
                           const SizedBox(height: 10),
                           TextField(
                             controller: _descCtrl,
                             maxLines: 2,
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 14,
                               color: AppColors.ink,
                             ),
                             decoration: InputDecoration(
                               hintText: 'arena_description_hint'.tr(),
-                              hintStyle: GoogleFonts.inter(
+                              hintStyle: AppFonts.ui(
                                 fontSize: 14,
                                 color: AppColors.inkMute,
                               ),
@@ -313,7 +311,7 @@ class _CreateTournamentScreenState
                     // Chess arenas pick a clock; checkers/domino arenas pick
                     // their ruleset instead (those games use per-move timers).
                     if (_gameType == GameType.chess) ...[
-                      _SectionLabel(label: 'arena_time_control'.tr().toUpperCaseFor(context)),
+                      _SectionLabel(label: 'arena_time_control'.tr()),
                       const SizedBox(height: 10),
                       _choiceChips(
                         options: [for (final tc in _timeControls) (tc, tc)],
@@ -321,7 +319,7 @@ class _CreateTournamentScreenState
                         onSelect: (v) => setState(() => _timeControl = v),
                       ),
                     ] else if (_gameType == GameType.checkers) ...[
-                      _SectionLabel(label: 'arena_variant'.tr().toUpperCaseFor(context)),
+                      _SectionLabel(label: 'arena_variant'.tr()),
                       const SizedBox(height: 10),
                       _choiceChips(
                         options: GameTypeX.checkersVariants,
@@ -329,7 +327,7 @@ class _CreateTournamentScreenState
                         onSelect: (v) => setState(() => _checkersVariant = v),
                       ),
                     ] else ...[
-                      _SectionLabel(label: 'arena_rules'.tr().toUpperCaseFor(context)),
+                      _SectionLabel(label: 'arena_rules'.tr()),
                       const SizedBox(height: 10),
                       _choiceChips(
                         options: GameTypeX.dominoVariants,
@@ -341,7 +339,7 @@ class _CreateTournamentScreenState
                     const SizedBox(height: 24),
 
                     // ── Tournament Duration ──────────────────────────────
-                    _SectionLabel(label: 'arena_duration'.tr().toUpperCaseFor(context)),
+                    _SectionLabel(label: 'arena_duration'.tr()),
                     const SizedBox(height: 10),
                     Row(
                       children: _durations.map((d) {
@@ -367,10 +365,10 @@ class _CreateTournamentScreenState
                               ),
                               child: Text(
                                 'arena_minutes_short'.tr(namedArgs: {'minutes': '$d'}),
-                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13,
+                                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: selected
-                                      ? const Color(0xFF1A1205)
+                                      ? const Color(0xFF241703)
                                       : AppColors.inkDim,
                                 ),
                               ),
@@ -383,7 +381,7 @@ class _CreateTournamentScreenState
                     const SizedBox(height: 24),
 
                     // ── Max Players ──────────────────────────────────────
-                    _SectionLabel(label: 'arena_max_players'.tr().toUpperCaseFor(context)),
+                    _SectionLabel(label: 'arena_max_players'.tr()),
                     const SizedBox(height: 10),
                     Row(
                       children: _maxPlayerOptions.map((n) {
@@ -408,10 +406,10 @@ class _CreateTournamentScreenState
                               ),
                               child: Text(
                                 '$n',
-                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13,
+                                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: selected
-                                      ? const Color(0xFF1A1205)
+                                      ? const Color(0xFF241703)
                                       : AppColors.inkDim,
                                 ),
                               ),
@@ -445,7 +443,7 @@ class _CreateTournamentScreenState
                             Expanded(
                               child: Text(
                                 _error!,
-                                style: GoogleFonts.inter(
+                                style: AppFonts.ui(
                                   fontSize: 13,
                                   color: AppColors.loss,
                                 ),
@@ -468,7 +466,7 @@ class _CreateTournamentScreenState
                         Expanded(
                           child: Text(
                             'arena_create_note'.tr(),
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 12.5,
                               color: AppColors.inkMute,
                               height: 1.45,
@@ -491,7 +489,7 @@ class _CreateTournamentScreenState
                           borderRadius: BorderRadius.circular(14),
                           boxShadow: [
                             BoxShadow(
-                              color: _gameType.accent.withOpacity(0.35),
+                              color: Colors.black.withValues(alpha: 0.28),
                               blurRadius: 20,
                               offset: const Offset(0, 4),
                             ),
@@ -504,7 +502,7 @@ class _CreateTournamentScreenState
                                   height: 22,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2,
-                                    color: Color(0xFF1A1205),
+                                    color: Color(0xFF241703),
                                   ),
                                 ),
                               )
@@ -515,15 +513,15 @@ class _CreateTournamentScreenState
                                     PhosphorIcons.trophy(
                                         PhosphorIconsStyle.bold),
                                     size: 18,
-                                    color: const Color(0xFF1A1205),
+                                    color: const Color(0xFF241703),
                                   ),
                                   const SizedBox(width: 10),
                                   Text(
                                     'create_tournament'.tr(),
-                                    style: GoogleFonts.inter(
+                                    style: AppFonts.ui(
                                       fontSize: 16,
                                       fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF1A1205),
+                                      color: const Color(0xFF241703),
                                     ),
                                   ),
                                 ],
@@ -557,7 +555,6 @@ class _FormCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
       ),
       child: child,
     );
@@ -572,11 +569,11 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       label,
-      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: AppColors.inkMute,
-        letterSpacing: 0.8,
-      ),
+      style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
     );
   }
 }

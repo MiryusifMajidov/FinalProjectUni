@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
@@ -12,13 +11,13 @@ import '../../../core/services/notification_service.dart';
 import 'settings_screen.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg           = AppColors.background;
 const _kSurface      = AppColors.surface;
 const _kCard         = AppColors.card;
-const _kCardElevated = AppColors.cardElevated;
-const _kAmber        = AppColors.amber;
-const _kAmberGlow    = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk          = AppColors.ink;
 const _kInkDim       = AppColors.inkDim;
 const _kInkMute      = AppColors.inkMute;
@@ -187,9 +186,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
   Widget _timepickerTheme(BuildContext ctx, Widget? child) {
     return Theme(
       data: Theme.of(ctx).copyWith(
-        colorScheme: const ColorScheme.dark(
+        colorScheme: ColorScheme.dark(
           primary:    _kAmber,
-          onPrimary:  Color(0xFF1A1205),
+          onPrimary:  Color(0xFF241703),
           surface:    _kCard,
           onSurface:  _kInk,
         ),
@@ -235,7 +234,6 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -247,7 +245,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'notifications'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -272,10 +270,9 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [_kCardElevated, _kCard],
+                          colors: [_kCard, _kCard],
                         ),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Row(
                         children: [
@@ -303,7 +300,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                               children: [
                                 Text(
                                   'Push notifications',
-                                  style: GoogleFonts.inter(
+                                  style: AppFonts.ui(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                     color: _kInk,
@@ -314,7 +311,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
                                   _masterEnabled
                                       ? 'All channels enabled'
                                       : 'All channels disabled',
-                                  style: GoogleFonts.inter(
+                                  style: AppFonts.ui(
                                     fontSize: 12,
                                     color: _kInkMute,
                                   ),
@@ -486,11 +483,10 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: Text(
         label,
-        style: GoogleFonts.inter(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: _kInkMute,
-          letterSpacing: 1.2,
+        style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
         ),
       ),
     );
@@ -510,7 +506,6 @@ class _SettingsGroup extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(children: children),
@@ -551,7 +546,6 @@ class _SettingsRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: _kSurface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _kBorder),
                   ),
                   child: Center(
                     child: Icon(icon, color: _kAmber, size: 16),
@@ -565,7 +559,7 @@ class _SettingsRow extends StatelessWidget {
                     children: [
                       Text(
                         label,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           color: _kInk,
@@ -576,7 +570,7 @@ class _SettingsRow extends StatelessWidget {
                         Text(
                           sub!,
                           style:
-                              GoogleFonts.inter(fontSize: 11, color: _kInkMute),
+                              AppFonts.ui(fontSize: 11, color: _kInkMute),
                         ),
                       ],
                     ],
@@ -630,7 +624,7 @@ class _DesignToggle extends StatelessWidget {
               width: 18,
               height: 18,
               decoration: BoxDecoration(
-                color: on ? const Color(0xFF1A1205) : _kInk,
+                color: on ? const Color(0xFF241703) : _kInk,
                 shape: BoxShape.circle,
               ),
             ),

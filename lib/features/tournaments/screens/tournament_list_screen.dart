@@ -4,15 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/tournament_service.dart';
 import '../../../core/models/tournament_model.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/models/game_type.dart';
 import '../../../core/widgets/game_switch.dart';
-import '../../../core/utils/text_case.dart';
 import 'arena_lobby_screen.dart' show ArenaStatusBadge;
+import '../../../core/theme/app_fonts.dart';
 
 /// The arena's name in the player's language when the server supplied a
 /// translation key (live arenas), otherwise the name its creator typed.
@@ -120,7 +119,7 @@ class TournamentListScreen extends ConsumerWidget {
                       children: [
                         Text(
                           'arena'.tr(),
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 28,
                             fontWeight: FontWeight.w600,
                             color: AppColors.ink,
@@ -135,7 +134,7 @@ class TournamentListScreen extends ConsumerWidget {
                                 })
                               : 'arena_count'
                                   .tr(namedArgs: {'count': '${open.length}'}),
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 12,
                             color: AppColors.inkMute,
                           ),
@@ -157,7 +156,7 @@ class TournamentListScreen extends ConsumerWidget {
                           borderRadius: BorderRadius.circular(12),
                           boxShadow: [
                             BoxShadow(
-                              color: activeGame.accent.withValues(alpha: 0.35),
+                              color: Colors.black.withValues(alpha: 0.28),
                               blurRadius: 14,
                               offset: const Offset(0, 4),
                             ),
@@ -166,7 +165,7 @@ class TournamentListScreen extends ConsumerWidget {
                         child: Center(
                           child: Icon(
                             PhosphorIcons.plus(PhosphorIconsStyle.bold),
-                            color: const Color(0xFF0A0A0B),
+                            color: const Color(0xFF111915),
                             size: 18,
                           ),
                         ),
@@ -249,12 +248,11 @@ class _SectionTitle extends StatelessWidget {
     return Padding(
       padding: EdgeInsets.fromLTRB(padding, 14, padding, 8),
       child: Text(
-        title.toUpperCaseFor(context),
-        style: GoogleFonts.inter(
-          fontSize: 11,
-          fontWeight: FontWeight.w700,
-          color: AppColors.inkMute,
-          letterSpacing: 1.2,
+        title,
+        style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
         ),
       ),
     );
@@ -281,7 +279,7 @@ class _EmptyState extends StatelessWidget {
             const SizedBox(height: 16),
             Text(
               'no_arenas_yet'.tr(),
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontWeight: FontWeight.w600,
                 fontSize: 18,
                 color: AppColors.inkDim,
@@ -291,7 +289,7 @@ class _EmptyState extends StatelessWidget {
             Text(
               'arena_empty_hint'.tr(),
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 13,
                 color: AppColors.inkMute,
                 height: 1.45,
@@ -371,7 +369,7 @@ class TournamentCard extends StatelessWidget {
                       children: [
                         Text(
                           tournamentDisplayName(t),
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 17,
                             fontWeight: FontWeight.w700,
                             color: AppColors.ink,
@@ -385,7 +383,7 @@ class TournamentCard extends StatelessWidget {
                           subtitle == null
                               ? arenaClockLabel(t)
                               : '${arenaClockLabel(t)} · $subtitle',
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontFeatures: const [FontFeature.tabularFigures()],
                             fontSize: 12,
                             fontWeight: FontWeight.w600,
@@ -409,7 +407,7 @@ class TournamentCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     players,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontFeatures: const [FontFeature.tabularFigures()],
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
@@ -423,7 +421,7 @@ class TournamentCard extends StatelessWidget {
                   Text(
                     'arena_minutes_short'
                         .tr(namedArgs: {'minutes': '${t.durationMinutes}'}),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontFeatures: const [FontFeature.tabularFigures()],
                       fontSize: 11.5,
                       fontWeight: FontWeight.w600,
@@ -434,14 +432,14 @@ class TournamentCard extends StatelessWidget {
                   if (timing != null) ...[
                     if (finished) ...[
                       Icon(PhosphorIcons.trophy(PhosphorIconsStyle.fill),
-                          size: 12, color: AppColors.amber),
+                          size: 12, color: AppColors.accent),
                       const SizedBox(width: 4),
                     ],
                     Flexible(
                       child: Text(
                         timing,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontFeatures: const [FontFeature.tabularFigures()],
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,

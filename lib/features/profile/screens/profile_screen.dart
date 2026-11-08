@@ -9,8 +9,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:go_router/go_router.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
+import '../../../core/widgets/bot_badge.dart';
+import '../../../core/services/bot_pool.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -32,7 +33,7 @@ import '../../../core/widgets/game_switch.dart';
 
 import '../../../core/widgets/game_icon.dart';
 import '../../../core/widgets/route_settled.dart';
-import '../../../core/utils/text_case.dart';
+import '../../../core/theme/app_fonts.dart';
 /// Live user document of another player (your own comes from
 /// [currentUserProvider], which is already loaded). Released when nobody
 /// shows that player any more, so visited profiles and friend chips do not
@@ -89,7 +90,7 @@ TextStyle _display({
   Color color = AppColors.ink,
   double letterSpacing = 0,
 }) =>
-    GoogleFonts.inter(
+    AppFonts.ui(
       fontSize: size,
       fontWeight: weight,
       color: color,
@@ -102,7 +103,7 @@ TextStyle _inter({
   Color color = AppColors.ink,
   double letterSpacing = 0,
 }) =>
-    GoogleFonts.inter(
+    AppFonts.ui(
       fontSize: size,
       fontWeight: weight,
       color: color,
@@ -124,7 +125,7 @@ TextStyle _mono({
   Color color = AppColors.inkDim,
   double letterSpacing = 0,
 }) =>
-    GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: size,
+    AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: size,
       fontWeight: weight,
       color: color,
       letterSpacing: letterSpacing,
@@ -134,10 +135,17 @@ TextStyle _mono({
 
 class ProfileScreen extends ConsumerWidget {
   final String uid;
-  const ProfileScreen({super.key, required this.uid});
+
+  /// Your own profile shown as the home screen's Profile tab: no back
+  /// arrow, the navigation bar stays below it.
+  final bool asTab;
+  const ProfileScreen({super.key, required this.uid, this.asTab = false});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Rebuilt when the selected game changes: the page wears its colour
+    // (AppColors.accent).
+    ref.watch(activeGameProvider);
     final currentUid = ref.watch(authStateProvider).valueOrNull?.uid;
     final isOwnProfile = currentUid == uid;
     // Your own document is already streaming for the home screen, so the
@@ -176,6 +184,7 @@ class ProfileScreen extends ConsumerWidget {
             user: user,
             isOwnProfile: isOwnProfile,
             myUid: currentUid ?? '',
+            asTab: asTab,
           );
         },
       ),
@@ -189,17 +198,19 @@ class _ProfileContent extends ConsumerWidget {
   final UserModel user;
   final bool isOwnProfile;
   final String myUid;
+  final bool asTab;
 
   const _ProfileContent({
     required this.user,
     required this.isOwnProfile,
     required this.myUid,
+    this.asTab = false,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     if (isOwnProfile) {
-      return _OwnProfileLayout(user: user, myUid: myUid);
+      return _OwnProfileLayout(user: user, myUid: myUid, asTab: asTab);
     }
 
     // Friends-only profile: check friendship before showing full content
@@ -226,9 +237,13 @@ class _OwnProfileLayout extends ConsumerStatefulWidget {
   final UserModel user;
   final String myUid;
 
+  /// Shown as the Profile tab (no back arrow).
+  final bool asTab;
+
   const _OwnProfileLayout({
     required this.user,
     required this.myUid,
+    this.asTab = false,
   });
 
   @override
@@ -380,10 +395,10 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout>
                   width: 84,
                   height: 84,
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
+                    gradient: LinearGradient(
                       begin: Alignment.topLeft,
                       end: Alignment.bottomRight,
-                      colors: [AppColors.amber, AppColors.amberDeep],
+                      colors: [AppColors.accent, AppColors.accent],
                     ),
                     borderRadius: BorderRadius.circular(24),
                   ),
@@ -394,7 +409,7 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout>
                           height: 32,
                           child: CircularProgressIndicator(
                             strokeWidth: 2.5,
-                            color: Color(0xFF1A1205),
+                            color: Color(0xFF241703),
                           ),
                         )
                       : (user.photoUrl != null
@@ -416,7 +431,7 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout>
                               style: _display(
                                   size: 40,
                                   weight: FontWeight.w700,
-                                  color: const Color(0xFF1A1205)),
+                                  color: const Color(0xFF241703)),
                             )),
                 ),
                 // Camera badge
@@ -427,14 +442,14 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout>
                     width: 26,
                     height: 26,
                     decoration: BoxDecoration(
-                      color: AppColors.amber,
+                      color: AppColors.accent,
                       shape: BoxShape.circle,
                       border: Border.all(color: AppColors.background, width: 2.5),
                     ),
                     child: Icon(
                       PhosphorIcons.camera(PhosphorIconsStyle.fill),
                       size: 13,
-                      color: const Color(0xFF1A1205),
+                      color: const Color(0xFF241703),
                     ),
                   ),
                 ),
@@ -503,11 +518,14 @@ class _OwnProfileLayoutState extends ConsumerState<_OwnProfileLayout>
       automaticallyImplyLeading: false,
       pinned: true,
       elevation: 0,
-      centerTitle: true,
-      leading: IconButton(
-        icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.regular), color: AppColors.inkDim),
-        onPressed: () => Navigator.of(context).maybePop(),
-      ),
+      // As the Profile tab there is nothing to go back to.
+      leading: widget.asTab
+          ? null
+          : IconButton(
+              icon: Icon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.bold),
+                  color: AppColors.inkDim),
+              onPressed: () => Navigator.of(context).maybePop(),
+            ),
       title: Text('profile'.tr(),
           style: _inter(size: 13, weight: FontWeight.w600, color: AppColors.inkDim)),
       actions: [
@@ -696,7 +714,7 @@ class _StatPillsRow extends StatelessWidget {
     return Row(
       children: [
         Expanded(child: _StatPillCard(
-          label: activeGame.identity.name.toUpperCase(),
+          label: activeGame.name.tr(),
           rating: stats.rating,
           ratingColor: activeGame.accent,
           subStats: '${stats.wins}W ${stats.draws}D ${stats.losses}L',
@@ -829,7 +847,7 @@ class _OtherProfileLayoutState extends ConsumerState<_OtherProfileLayout>
             ),
             ListTile(
               leading: Icon(PhosphorIcons.flag(PhosphorIconsStyle.regular),
-                  color: AppColors.amber),
+                  color: AppColors.accent),
               title: Text(
                 'report_user'.tr(),
                 style: _inter(size: 14, weight: FontWeight.w500,
@@ -912,7 +930,7 @@ class _OtherProfileLayoutState extends ConsumerState<_OtherProfileLayout>
             ? null
             : SnackBarAction(
                 label: 'block_user'.tr(),
-                textColor: AppColors.amber,
+                textColor: AppColors.accent,
                 onPressed: () => _blockAfterReport(context, ref),
               ),
       ));
@@ -957,9 +975,9 @@ class _OtherProfileLayoutState extends ConsumerState<_OtherProfileLayout>
           Container(
             width: 84, height: 84,
             decoration: BoxDecoration(
-              gradient: const LinearGradient(
+              gradient: LinearGradient(
                 begin: Alignment.topLeft, end: Alignment.bottomRight,
-                colors: [AppColors.amber, AppColors.amberDeep],
+                colors: [AppColors.accent, AppColors.accent],
               ),
               borderRadius: BorderRadius.circular(24),
             ),
@@ -977,12 +995,24 @@ class _OtherProfileLayoutState extends ConsumerState<_OtherProfileLayout>
                   )
                 : Text(
                     displayName.isNotEmpty ? displayName[0].toUpperCase() : '?',
-                    style: _display(size: 40, weight: FontWeight.w700, color: const Color(0xFF1A1205)),
+                    style: _display(size: 40, weight: FontWeight.w700, color: const Color(0xFF241703)),
                   ),
           ),
           const SizedBox(height: 10),
-          Text(displayName,
-              style: _display(size: 22, weight: FontWeight.w600, color: AppColors.ink)),
+          Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Flexible(
+                child: Text(displayName,
+                    overflow: TextOverflow.ellipsis,
+                    style: _display(size: 22, weight: FontWeight.w600, color: AppColors.ink)),
+              ),
+              if (BotPool.isLabelledUid(user.uid)) ...[
+                const SizedBox(width: 8),
+                const BotBadge(),
+              ],
+            ],
+          ),
           const SizedBox(height: 4),
           Text([
                 UserModel.flagEmoji(user.countryCode),
@@ -1028,7 +1058,7 @@ class _OtherProfileLayoutState extends ConsumerState<_OtherProfileLayout>
       pinned: true,
       elevation: 0,
       leading: IconButton(
-        icon: Icon(PhosphorIcons.caretLeft(PhosphorIconsStyle.regular), color: AppColors.inkDim),
+        icon: Icon(PhosphorIcons.arrowLeft(PhosphorIconsStyle.bold), color: AppColors.inkDim),
         onPressed: () => context.pop(),
       ),
       title: Text(displayName,
@@ -1157,7 +1187,7 @@ class _OverallRatingCard extends StatelessWidget {
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
           stops: [0.0, 1.0],
-          colors: [AppColors.amberDeep, Color(0xFF5A3A15)],
+          colors: [AppColors.cardElevated, AppColors.cardElevated],
         ),
         borderRadius: BorderRadius.circular(16),
       ),
@@ -1171,7 +1201,7 @@ class _OverallRatingCard extends StatelessWidget {
                 style: _mono(
                   size: 10,
                   weight: FontWeight.w500,
-                  color: const Color(0xFF1A1205).withOpacity(0.7),
+                  color: const Color(0xFF241703).withOpacity(0.7),
                   letterSpacing: 0.8,
                 ),
               ),
@@ -1181,7 +1211,7 @@ class _OverallRatingCard extends StatelessWidget {
                 style: _display(
                   size: 44,
                   weight: FontWeight.w700,
-                  color: const Color(0xFF1A1205),
+                  color: const Color(0xFF241703),
                   letterSpacing: -1.5,
                 ),
               ),
@@ -1189,7 +1219,7 @@ class _OverallRatingCard extends StatelessWidget {
                 'Top player globally',
                 style: _inter(
                   size: 11,
-                  color: const Color(0xFF1A1205).withOpacity(0.6),
+                  color: const Color(0xFF241703).withOpacity(0.6),
                 ),
               ),
             ],
@@ -1290,15 +1320,14 @@ class _RatingGraphCard extends StatelessWidget {
         ? DateFormat('MMM d').format(dates.first)
         : '';
 
-    final scoreWord = activeGame.scoreLabel.toUpperCase();
+    final scoreWord = (activeGame.isPointBased ? 'points_label' : 'rating').tr();
     final accent = activeGame.accent;
 
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1312,12 +1341,11 @@ class _RatingGraphCard extends StatelessWidget {
                 children: [
                   Text(
                     hasData
-                        ? '${activeGame.identity.name.toUpperCase()} · ${'games_n'.tr(args: ['$gameCount']).toUpperCaseFor(context)}'
-                        : '${activeGame.identity.name.toUpperCase()} $scoreWord',
+                        ? '${activeGame.name.tr()} · ${'games_n'.tr(args: ['$gameCount'])}'
+                        : '${activeGame.name.tr()} · $scoreWord',
                     style: _mono(
-                      size: 10,
+                      size: 13,
                       color: AppColors.inkMute,
-                      letterSpacing: 0.5,
                     ),
                   ),
                   const SizedBox(height: 2),
@@ -1405,7 +1433,7 @@ class _RatingGraphCard extends StatelessWidget {
             children: [
               Text(hasData ? startLabel : '',
                   style: _mono(size: 9, color: AppColors.inkMute)),
-              Text(hasData ? 'today'.tr().toUpperCaseFor(context) : '',
+              Text(hasData ? 'today'.tr() : '',
                   style: _mono(size: 9, color: AppColors.inkMute)),
             ],
           ),
@@ -1421,7 +1449,7 @@ class _RatingGraph extends StatelessWidget {
   final List<int> data;
   final bool isPlaceholder;
   final Color accent;
-  const _RatingGraph({super.key, required this.data, this.isPlaceholder = false, this.accent = AppColors.amber});
+  _RatingGraph({super.key, required this.data, this.isPlaceholder = false, Color? accent}) : accent = accent ?? AppColors.accent;
 
   @override
   Widget build(BuildContext context) {
@@ -1436,7 +1464,7 @@ class _RatingGraphPainter extends CustomPainter {
   final List<int> data;
   final bool isPlaceholder;
   final Color accent;
-  _RatingGraphPainter({required this.data, this.isPlaceholder = false, this.accent = AppColors.amber});
+  _RatingGraphPainter({required this.data, this.isPlaceholder = false, Color? accent}) : accent = accent ?? AppColors.accent;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -1557,7 +1585,6 @@ class _StatPillCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1600,9 +1627,8 @@ class _GamesDonutCard extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.card,
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -1694,7 +1720,7 @@ class _WinLossDonut extends StatelessWidget {
           wins: wins,
           draws: draws,
           losses: losses,
-          label: 'games'.tr().toUpperCaseFor(context),
+          label: 'games'.tr(),
         ),
       ),
     );
@@ -1772,7 +1798,7 @@ class _WinLossDonutPainter extends CustomPainter {
     final countTP = TextPainter(
       text: TextSpan(
         text: '$total',
-        style: GoogleFonts.inter(
+        style: AppFonts.ui(
           fontSize: 18,
           fontWeight: FontWeight.w700,
           color: AppColors.ink,
@@ -1789,7 +1815,7 @@ class _WinLossDonutPainter extends CustomPainter {
     final gamesTP = TextPainter(
       text: TextSpan(
         text: label,
-        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
+        style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
           color: AppColors.inkMute,
           letterSpacing: 0.3,
         ),
@@ -1845,7 +1871,6 @@ class _FriendsSection extends ConsumerWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -1859,7 +1884,7 @@ class _FriendsSection extends ConsumerWidget {
                 child: Row(
                   children: [
                     Icon(PhosphorIcons.users(PhosphorIconsStyle.fill),
-                        color: AppColors.amber, size: 18),
+                        color: AppColors.accent, size: 18),
                     const SizedBox(width: 8),
                     Text(
                       'friends'.tr(),
@@ -1871,12 +1896,12 @@ class _FriendsSection extends ConsumerWidget {
                       Container(
                         padding: const EdgeInsets.symmetric(horizontal: 7, vertical: 2),
                         decoration: BoxDecoration(
-                          color: AppColors.amberGlow,
+                          color: AppColors.accentGlow,
                           borderRadius: BorderRadius.circular(8),
                         ),
                         child: Text(
                           '${friends.length}',
-                          style: _mono(size: 10, weight: FontWeight.w600, color: AppColors.amber),
+                          style: _mono(size: 10, weight: FontWeight.w600, color: AppColors.accent),
                         ),
                       ),
                     ],
@@ -1926,16 +1951,16 @@ class _FriendsSection extends ConsumerWidget {
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
                     decoration: BoxDecoration(
-                      color: AppColors.amberGlow,
+                      color: AppColors.accentGlow,
                       borderRadius: BorderRadius.circular(8),
-                      border: Border.all(color: AppColors.amber.withOpacity(0.3)),
+                      border: Border.all(color: AppColors.accent.withOpacity(0.3)),
                     ),
                     child: Text(
                       '+ ${'add'.tr()}',
                       style: _inter(
                         size: 11,
                         weight: FontWeight.w600,
-                        color: AppColors.amber,
+                        color: AppColors.accent,
                       ),
                     ),
                   ),
@@ -2088,21 +2113,21 @@ class _AddFriendChip extends StatelessWidget {
               width: 52,
               height: 52,
               decoration: BoxDecoration(
-                color: AppColors.amberGlow,
+                color: AppColors.accentGlow,
                 shape: BoxShape.circle,
                 border: Border.all(
-                  color: AppColors.amber.withOpacity(0.4),
+                  color: AppColors.accent.withOpacity(0.4),
                   width: 1.5,
                   style: BorderStyle.solid,
                 ),
               ),
-              child: const Icon(Icons.person_add_rounded,
-                  color: AppColors.amber, size: 22),
+              child: Icon(Icons.person_add_rounded,
+                  color: AppColors.accent, size: 22),
             ),
             const SizedBox(height: 4),
             Text(
               'add'.tr(),
-              style: _inter(size: 10, color: AppColors.amber),
+              style: _inter(size: 10, color: AppColors.accent),
               textAlign: TextAlign.center,
             ),
           ],
@@ -2163,7 +2188,7 @@ class _OtherProfileActionsState extends ConsumerState<_OtherProfileActions> {
                     height: 46,
                     alignment: Alignment.center,
                     decoration: BoxDecoration(
-                      color: AppColors.amber,
+                      color: AppColors.accent,
                       borderRadius: BorderRadius.circular(12),
                     ),
                     child: Text(
@@ -2171,7 +2196,7 @@ class _OtherProfileActionsState extends ConsumerState<_OtherProfileActions> {
                       style: _inter(
                         size: 13,
                         weight: FontWeight.w700,
-                        color: const Color(0xFF1A1205),
+                        color: const Color(0xFF241703),
                       ),
                     ),
                   ),
@@ -2188,7 +2213,6 @@ class _OtherProfileActionsState extends ConsumerState<_OtherProfileActions> {
                           decoration: BoxDecoration(
                             color: AppColors.card,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.border),
                           ),
                           child: const SizedBox(
                             width: 20,
@@ -2204,7 +2228,6 @@ class _OtherProfileActionsState extends ConsumerState<_OtherProfileActions> {
                             decoration: BoxDecoration(
                               color: AppColors.card,
                               borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: AppColors.border),
                             ),
                             child: Text(
                               isFriend ? 'Friends' : 'Add Friend',
@@ -2235,22 +2258,22 @@ class _OtherProfileActionsState extends ConsumerState<_OtherProfileActions> {
                           height: 46,
                           alignment: Alignment.center,
                           decoration: BoxDecoration(
-                            color: AppColors.amberGlow,
+                            color: AppColors.accentGlow,
                             borderRadius: BorderRadius.circular(12),
-                            border: Border.all(color: AppColors.amber.withOpacity(0.35)),
+                            border: Border.all(color: AppColors.accent.withOpacity(0.35)),
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(PhosphorIcons.sword(PhosphorIconsStyle.bold),
-                                  size: 16, color: AppColors.amber),
+                                  size: 16, color: AppColors.accent),
                               const SizedBox(width: 8),
                               Text(
                                 'Challenge',
                                 style: _inter(
                                   size: 13,
                                   weight: FontWeight.w700,
-                                  color: AppColors.amber,
+                                  color: AppColors.accent,
                                 ),
                               ),
                             ],
@@ -2628,24 +2651,24 @@ class _ChallengeWaitingTile extends StatelessWidget {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
       decoration: BoxDecoration(
-        color: AppColors.amberGlow,
+        color: AppColors.accentGlow,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.amber.withOpacity(0.3)),
+        border: Border.all(color: AppColors.accent.withOpacity(0.3)),
       ),
       child: Row(
         children: [
-          const SizedBox(
+          SizedBox(
             width: 16, height: 16,
             child: CircularProgressIndicator(
               strokeWidth: 2,
-              color: AppColors.amber,
+              color: AppColors.accent,
             ),
           ),
           const SizedBox(width: 10),
           Expanded(
             child: Text(
               'waiting_for_response'.tr(),
-              style: _inter(size: 13, weight: FontWeight.w500, color: AppColors.amber),
+              style: _inter(size: 13, weight: FontWeight.w500, color: AppColors.accent),
             ),
           ),
           GestureDetector(
@@ -2744,12 +2767,12 @@ class _ChallengeSheetState extends ConsumerState<_ChallengeSheet> {
                       padding: const EdgeInsets.symmetric(vertical: 10),
                       decoration: BoxDecoration(
                         color: _color == opt.$1
-                            ? AppColors.amberGlow
+                            ? AppColors.accentGlow
                             : AppColors.card,
                         borderRadius: BorderRadius.circular(10),
                         border: Border.all(
                           color: _color == opt.$1
-                              ? AppColors.amber
+                              ? AppColors.accent
                               : AppColors.border,
                         ),
                       ),
@@ -2765,7 +2788,7 @@ class _ChallengeSheetState extends ConsumerState<_ChallengeSheet> {
                             style: _inter(
                               size: 12,
                               weight: _color == opt.$1 ? FontWeight.w700 : FontWeight.w400,
-                              color: _color == opt.$1 ? AppColors.amber : AppColors.inkDim,
+                              color: _color == opt.$1 ? AppColors.accent : AppColors.inkDim,
                             ),
                             textAlign: TextAlign.center,
                           ),
@@ -2801,7 +2824,6 @@ class _NoGamesYet extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -2811,7 +2833,7 @@ class _NoGamesYet extends StatelessWidget {
           Expanded(
             child: Text(
               'no_games_start_playing'.tr(),
-              style: GoogleFonts.inter(fontSize: 14, color: AppColors.inkDim),
+              style: AppFonts.ui(fontSize: 14, color: AppColors.inkDim),
             ),
           ),
         ],

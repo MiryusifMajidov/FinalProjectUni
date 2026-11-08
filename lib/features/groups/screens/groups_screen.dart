@@ -2,7 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/auth_service.dart';
@@ -10,18 +9,16 @@ import '../../../core/services/group_service.dart';
 import '../../../core/models/group_model.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../../core/widgets/keyed_stream_builder.dart';
+import '../../../core/theme/app_fonts.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg       = AppColors.background;
 const _kCard     = AppColors.card;
-const _kSurface  = AppColors.surface;
-const _kAmber    = AppColors.amber;
-const _kAmberDeep = AppColors.amberDeep;
-const _kAmberGlow = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk      = AppColors.ink;
 const _kInkDim   = AppColors.inkDim;
 const _kInkMute  = AppColors.inkMute;
-const _kBorder   = AppColors.border;
 
 class GroupsScreen extends ConsumerWidget {
   const GroupsScreen({super.key});
@@ -49,7 +46,6 @@ class GroupsScreen extends ConsumerWidget {
                         decoration: BoxDecoration(
                           color: _kCard,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: _kBorder),
                         ),
                         child: Icon(
                           PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -61,7 +57,7 @@ class GroupsScreen extends ConsumerWidget {
                     Expanded(
                       child: Text(
                         'groups'.tr(),
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
                           color: _kInk,
@@ -98,23 +94,22 @@ class GroupsScreen extends ConsumerWidget {
                   decoration: BoxDecoration(
                     color: _kCard,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _kBorder),
                   ),
                   child: TabBar(
                     indicator: BoxDecoration(
-                      gradient: const LinearGradient(
-                        colors: [_kAmber, _kAmberDeep],
+                      gradient: LinearGradient(
+                        colors: [_kAmber, _kAmber],
                       ),
                       borderRadius: BorderRadius.circular(8),
                     ),
                     indicatorSize: TabBarIndicatorSize.tab,
-                    labelColor: const Color(0xFF1A1205),
+                    labelColor: const Color(0xFF241703),
                     unselectedLabelColor: _kInkMute,
-                    labelStyle: GoogleFonts.inter(
+                    labelStyle: AppFonts.ui(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                     ),
-                    unselectedLabelStyle: GoogleFonts.inter(
+                    unselectedLabelStyle: AppFonts.ui(
                       fontSize: 13,
                       fontWeight: FontWeight.w500,
                     ),
@@ -132,7 +127,7 @@ class GroupsScreen extends ConsumerWidget {
                 child: TabBarView(
                   children: [
                     myUid == null
-                        ? const Center(
+                        ? Center(
                             child: CircularProgressIndicator(color: _kAmber),
                           )
                         : _MyGroupsTab(myUid: myUid),
@@ -161,7 +156,7 @@ class _MyGroupsTab extends ConsumerWidget {
       create: () => ref.read(groupServiceProvider).watchMyGroups(myUid),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: CircularProgressIndicator(color: _kAmber),
           );
         }
@@ -185,7 +180,7 @@ class _MyGroupsTab extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(
                   'No groups yet',
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: _kInk,
@@ -194,7 +189,7 @@ class _MyGroupsTab extends ConsumerWidget {
                 const SizedBox(height: 6),
                 Text(
                   'Create or discover groups',
-                  style: GoogleFonts.inter(fontSize: 13, color: _kInkMute),
+                  style: AppFonts.ui(fontSize: 13, color: _kInkMute),
                 ),
               ],
             ),
@@ -223,7 +218,7 @@ class _DiscoverTab extends ConsumerWidget {
       create: () => ref.read(groupServiceProvider).watchPublicGroups(),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(
+          return Center(
             child: CircularProgressIndicator(color: _kAmber),
           );
         }
@@ -232,7 +227,7 @@ class _DiscoverTab extends ConsumerWidget {
           return Center(
             child: Text(
               'No public groups',
-              style: GoogleFonts.inter(fontSize: 14, color: _kInkMute),
+              style: AppFonts.ui(fontSize: 14, color: _kInkMute),
             ),
           );
         }
@@ -265,7 +260,6 @@ class _GroupCard extends ConsumerWidget {
         decoration: BoxDecoration(
           color: _kCard,
           borderRadius: BorderRadius.circular(14),
-          border: Border.all(color: _kBorder),
         ),
         child: Row(
           children: [
@@ -303,7 +297,7 @@ class _GroupCard extends ConsumerWidget {
                       Expanded(
                         child: Text(
                           group.name,
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 14,
                             fontWeight: FontWeight.w600,
                             color: _kInk,
@@ -324,7 +318,7 @@ class _GroupCard extends ConsumerWidget {
                     const SizedBox(height: 2),
                     Text(
                       group.description!,
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                         fontSize: 12, color: _kInkMute,
                       ),
                       maxLines: 1,
@@ -334,7 +328,7 @@ class _GroupCard extends ConsumerWidget {
                   const SizedBox(height: 2),
                   Text(
                     '${group.memberCount} members',
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 11, color: _kInkMute,
                     ),
                   ),
@@ -354,17 +348,17 @@ class _GroupCard extends ConsumerWidget {
                 child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 7),
                   decoration: BoxDecoration(
-                    gradient: const LinearGradient(
-                      colors: [_kAmber, _kAmberDeep],
+                    gradient: LinearGradient(
+                      colors: [_kAmber, _kAmber],
                     ),
                     borderRadius: BorderRadius.circular(8),
                   ),
                   child: Text(
                     'join'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 12,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1A1205),
+                      color: const Color(0xFF241703),
                     ),
                   ),
                 ),

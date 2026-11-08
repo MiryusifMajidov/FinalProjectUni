@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/otp_service.dart';
@@ -130,13 +131,7 @@ class _AppleSignInButtonState extends ConsumerState<AppleSignInButton> {
         style: ElevatedButton.styleFrom(
           backgroundColor: Colors.black,
           disabledBackgroundColor: Colors.black,
-          foregroundColor: Colors.white,
-          elevation: 0,
-          side: BorderSide(color: AppColors.borderStrong),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
+          foregroundColor: Colors.white,),
         child: _loading
             ? const SizedBox(
                 width: 20,
@@ -156,10 +151,15 @@ class _AppleSignInButtonState extends ConsumerState<AppleSignInButton> {
                     child: Icon(Icons.apple, size: 24, color: Colors.white),
                   ),
                   const SizedBox(width: 10),
-                  Text(
-                    'continue_with_apple'.tr(),
-                    style: AppTextStyles.labelLarge.copyWith(
-                      color: Colors.white,
+                  Flexible(
+                    child: Text(
+                      'continue_with_apple'.tr(),
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.ui(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
                     ),
                   ),
                 ],

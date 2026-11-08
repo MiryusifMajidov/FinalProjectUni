@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/cache_service.dart';
@@ -11,12 +10,13 @@ import 'settings_screen.dart';
 import '../../../core/legal/legal_texts.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg           = AppColors.background;
 const _kSurface      = AppColors.surface;
 const _kCard         = AppColors.card;
-const _kAmber        = AppColors.amber;
-const _kAmberGlow    = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk          = AppColors.ink;
 const _kInkDim       = AppColors.inkDim;
 const _kInkMute      = AppColors.inkMute;
@@ -79,7 +79,6 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -90,7 +89,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'privacy'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22, fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
@@ -107,7 +106,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                     padding: const EdgeInsets.fromLTRB(20, 12, 20, 18),
                     child: Text(
                       'privacy_intro'.tr(),
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                           fontSize: 12, color: _kInkMute, height: 1.5),
                     ),
                   ),
@@ -336,7 +335,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
             const SizedBox(height: 16),
             Text(
               'Your data',
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 18, fontWeight: FontWeight.w700,
                 color: _kInk,
               ),
@@ -349,13 +348,12 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
               decoration: BoxDecoration(
                 color: _kSurface,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _kBorder),
               ),
               child: SingleChildScrollView(
                 padding: const EdgeInsets.all(14),
                 child: Text(
                   text,
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: _kInkDim, height: 1.6),
+                  style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: _kInkDim, height: 1.6),
                 ),
               ),
             ),
@@ -377,7 +375,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                 label: Text('copy'.tr()),
                 style: FilledButton.styleFrom(
                   backgroundColor: _kAmber,
-                  foregroundColor: const Color(0xFF1A1205),
+                  foregroundColor: const Color(0xFF241703),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(10)),
                 ),
@@ -424,7 +422,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   const SizedBox(height: 12),
                   Text(
                     'Privacy Policy',
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 18, fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
@@ -432,12 +430,12 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   const SizedBox(height: 2),
                   Text(
                     'Last updated: September 2026',
-                    style: GoogleFonts.inter(fontSize: 11, color: _kInkMute),
+                    style: AppFonts.ui(fontSize: 11, color: _kInkMute),
                   ),
                 ],
               ),
             ),
-            const Divider(color: Color(0xFF2A2520), height: 1),
+            const Divider(color: Color(0xFF26352D), height: 1),
             Expanded(
               child: ListView(
                 controller: ctrl,
@@ -446,7 +444,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   padding: const EdgeInsets.only(bottom: 14),
                   child: Text(
                     p,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                         fontSize: 13, color: _kInkDim, height: 1.6),
                   ),
                 )).toList(),
@@ -490,7 +488,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     'who_can_message'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 18, fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
@@ -519,7 +517,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   Navigator.pop(ctx);
                 },
                 title: Text(opt.$2,
-                    style: GoogleFonts.inter(fontSize: 14, color: _kInk)),
+                    style: AppFonts.ui(fontSize: 14, color: _kInk)),
                 activeColor: _kAmber,
                 dense: true,
               ))),
@@ -610,7 +608,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   alignment: Alignment.centerLeft,
                   child: Text(
                     title,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 18, fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
@@ -631,7 +629,7 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
                   if (ctx.mounted) Navigator.pop(ctx);
                 },
                 title: Text(opt.$2,
-                    style: GoogleFonts.inter(fontSize: 14, color: _kInk)),
+                    style: AppFonts.ui(fontSize: 14, color: _kInk)),
                 activeColor: _kAmber,
                 dense: true,
               ))),
@@ -647,9 +645,10 @@ class _PrivacyScreenState extends ConsumerState<PrivacyScreen> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: Text(
         label,
-        style: GoogleFonts.inter(
-          fontSize: 10, fontWeight: FontWeight.w700,
-          color: _kInkMute, letterSpacing: 1.2,
+        style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
         ),
       ),
     );
@@ -689,7 +688,7 @@ class _SegmentedPicker extends StatelessWidget {
             ),
             child: Text(
               opt,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 10,
                 fontWeight: FontWeight.w600,
                 color: isSelected ? _kAmber : _kInkDim,
@@ -715,7 +714,6 @@ class _SettingsGroup extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(children: children),
@@ -747,14 +745,13 @@ class _SettingsRowRaw extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: _kSurface,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _kBorder),
                 ),
                 child: Center(child: Icon(icon, color: _kAmber, size: 16)),
               ),
               const SizedBox(width: 10),
               Expanded(
                 child: Text(label,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                         fontSize: 14,
                         fontWeight: FontWeight.w500,
                         color: _kInk)),
@@ -804,7 +801,6 @@ class _SettingsRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: _kSurface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _kBorder),
                   ),
                   child: Center(child: Icon(icon, color: _kAmber, size: 16)),
                 ),
@@ -815,14 +811,14 @@ class _SettingsRow extends StatelessWidget {
                     mainAxisSize: MainAxisSize.min,
                     children: [
                       Text(label,
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                               color: _kInk)),
                       if (sub != null) ...[
                         const SizedBox(height: 2),
                         Text(sub!,
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                                 fontSize: 11, color: _kInkMute)),
                       ],
                     ],
@@ -871,7 +867,7 @@ class _DesignToggle extends StatelessWidget {
             child: Container(
               width: 18, height: 18,
               decoration: BoxDecoration(
-                color: on ? const Color(0xFF1A1205) : _kInk,
+                color: on ? const Color(0xFF241703) : _kInk,
                 shape: BoxShape.circle,
               ),
             ),

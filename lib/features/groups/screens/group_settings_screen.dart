@@ -2,7 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/auth_service.dart';
@@ -11,14 +10,14 @@ import '../../../core/services/photo_service.dart';
 import '../../../core/models/group_model.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../../core/widgets/keyed_stream_builder.dart';
+import '../../../core/theme/app_fonts.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg       = AppColors.background;
 const _kCard     = AppColors.card;
 const _kSurface  = AppColors.surface;
-const _kAmber    = AppColors.amber;
-const _kAmberDeep = AppColors.amberDeep;
-const _kAmberGlow = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk      = AppColors.ink;
 const _kInkDim   = AppColors.inkDim;
 const _kInkMute  = AppColors.inkMute;
@@ -88,7 +87,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
           SnackBar(
             content: Text(
               'Saved',
-              style: GoogleFonts.inter(fontSize: 13, color: _kInk),
+              style: AppFonts.ui(fontSize: 13, color: _kInk),
             ),
             backgroundColor: _kCard,
             duration: const Duration(seconds: 2),
@@ -113,7 +112,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
           title: Text(
             'Add Member',
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
               fontSize: 18,
               fontWeight: FontWeight.w700,
               color: _kInk,
@@ -129,7 +128,6 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                   decoration: BoxDecoration(
                     color: _kSurface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _kBorder),
                   ),
                   child: Row(
                     children: [
@@ -142,10 +140,10 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                       Expanded(
                         child: TextField(
                           controller: searchCtrl,
-                          style: GoogleFonts.inter(fontSize: 13, color: _kInk),
+                          style: AppFonts.ui(fontSize: 13, color: _kInk),
                           decoration: InputDecoration(
                             hintText: 'Search username…',
-                            hintStyle: GoogleFonts.inter(
+                            hintStyle: AppFonts.ui(
                               fontSize: 13, color: _kInkMute,
                             ),
                             border: InputBorder.none,
@@ -162,7 +160,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                             setDialogState(() => searching = true);
                             final found = await ref
                                 .read(firestoreServiceProvider)
-                                .searchUsers(val.trim());
+                                .searchUsers(val.trim(), includeBots: false);
                             setDialogState(() {
                               results = found;
                               searching = false;
@@ -175,7 +173,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                 ),
                 const SizedBox(height: 12),
                 if (searching)
-                  const Padding(
+                  Padding(
                     padding: EdgeInsets.all(8),
                     child: CircularProgressIndicator(color: _kAmber, strokeWidth: 2),
                   )
@@ -213,7 +211,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                             const SizedBox(width: 10),
                             Text(
                               user.username,
-                              style: GoogleFonts.inter(
+                              style: AppFonts.ui(
                                 fontSize: 13,
                                 fontWeight: FontWeight.w600,
                                 color: _kInk,
@@ -232,7 +230,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
               onPressed: () => Navigator.pop(ctx),
               child: Text(
                 'cancel'.tr(),
-                style: GoogleFonts.inter(fontSize: 14, color: _kInkMute),
+                style: AppFonts.ui(fontSize: 14, color: _kInkMute),
               ),
             ),
           ],
@@ -250,7 +248,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Leave Group?',
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: _kInk,
@@ -258,21 +256,21 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
         ),
         content: Text(
           'You will no longer receive messages from this group.',
-          style: GoogleFonts.inter(fontSize: 14, color: _kInkDim),
+          style: AppFonts.ui(fontSize: 14, color: _kInkDim),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
               'Cancel',
-              style: GoogleFonts.inter(fontSize: 14, color: _kInkMute),
+              style: AppFonts.ui(fontSize: 14, color: _kInkMute),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(
               'Leave',
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: _kLoss,
@@ -297,7 +295,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
         title: Text(
           'Delete Group?',
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: _kInk,
@@ -305,21 +303,21 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
         ),
         content: Text(
           'This permanently deletes the group and all messages. This cannot be undone.',
-          style: GoogleFonts.inter(fontSize: 14, color: _kInkDim),
+          style: AppFonts.ui(fontSize: 14, color: _kInkDim),
         ),
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context, false),
             child: Text(
               'Cancel',
-              style: GoogleFonts.inter(fontSize: 14, color: _kInkMute),
+              style: AppFonts.ui(fontSize: 14, color: _kInkMute),
             ),
           ),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             child: Text(
               'delete'.tr(),
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: _kLoss,
@@ -364,7 +362,6 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                           decoration: BoxDecoration(
                             color: _kCard,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: _kBorder),
                           ),
                           child: Icon(
                             PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -375,7 +372,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                       const SizedBox(width: 14),
                       Text(
                         'Group Settings',
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 22,
                           fontWeight: FontWeight.w700,
                           color: _kInk,
@@ -388,7 +385,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                 // ── Body ────────────────────────────────────────────────────
                 Expanded(
                   child: group == null
-                      ? const Center(
+                      ? Center(
                           child: CircularProgressIndicator(color: _kAmber),
                         )
                       : ListView(
@@ -402,7 +399,6 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                               decoration: BoxDecoration(
                                 color: _kCard,
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: _kBorder),
                               ),
                               child: Column(
                                 crossAxisAlignment: CrossAxisAlignment.start,
@@ -431,14 +427,14 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                                                         padding: EdgeInsets.all(5),
                                                         child: CircularProgressIndicator(
                                                           strokeWidth: 2,
-                                                          color: Color(0xFF1A1205),
+                                                          color: Color(0xFF241703),
                                                         ),
                                                       )
                                                     : Icon(
                                                         PhosphorIcons.pencilSimple(
                                                             PhosphorIconsStyle.bold),
                                                         size: 12,
-                                                        color: const Color(0xFF1A1205),
+                                                        color: const Color(0xFF241703),
                                                       ),
                                               ),
                                             ),
@@ -453,17 +449,16 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                                     decoration: BoxDecoration(
                                       color: _kSurface,
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: _kBorder),
                                     ),
                                     child: TextField(
                                       controller: _nameCtrl,
                                       enabled: isAdmin,
-                                      style: GoogleFonts.inter(
+                                      style: AppFonts.ui(
                                         fontSize: 14, color: _kInk,
                                       ),
                                       decoration: InputDecoration(
                                         hintText: 'group_name'.tr(),
-                                        hintStyle: GoogleFonts.inter(
+                                        hintStyle: AppFonts.ui(
                                           fontSize: 14, color: _kInkMute,
                                         ),
                                         contentPadding: const EdgeInsets.symmetric(
@@ -483,18 +478,17 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                                     decoration: BoxDecoration(
                                       color: _kSurface,
                                       borderRadius: BorderRadius.circular(10),
-                                      border: Border.all(color: _kBorder),
                                     ),
                                     child: TextField(
                                       controller: _descCtrl,
                                       enabled: isAdmin,
                                       maxLines: 3,
-                                      style: GoogleFonts.inter(
+                                      style: AppFonts.ui(
                                         fontSize: 14, color: _kInk,
                                       ),
                                       decoration: InputDecoration(
                                         hintText: 'Description (optional)',
-                                        hintStyle: GoogleFonts.inter(
+                                        hintStyle: AppFonts.ui(
                                           fontSize: 14, color: _kInkMute,
                                         ),
                                         contentPadding: const EdgeInsets.all(14),
@@ -515,15 +509,15 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                                         decoration: BoxDecoration(
                                           gradient: _infoSaving
                                               ? null
-                                              : const LinearGradient(
-                                                  colors: [_kAmber, _kAmberDeep],
+                                              : LinearGradient(
+                                                  colors: [_kAmber, _kAmber],
                                                 ),
                                           color: _infoSaving ? _kSurface : null,
                                           borderRadius: BorderRadius.circular(10),
                                         ),
                                         child: Center(
                                           child: _infoSaving
-                                              ? const SizedBox(
+                                              ? SizedBox(
                                                   width: 16, height: 16,
                                                   child: CircularProgressIndicator(
                                                     strokeWidth: 2, color: _kAmber,
@@ -531,10 +525,10 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                                                 )
                                               : Text(
                                                   'save'.tr(),
-                                                  style: GoogleFonts.inter(
+                                                  style: AppFonts.ui(
                                                     fontSize: 13,
                                                     fontWeight: FontWeight.w700,
-                                                    color: const Color(0xFF1A1205),
+                                                    color: const Color(0xFF241703),
                                                   ),
                                                 ),
                                         ),
@@ -555,7 +549,6 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                                 decoration: BoxDecoration(
                                   color: _kCard,
                                   borderRadius: BorderRadius.circular(16),
-                                  border: Border.all(color: _kBorder),
                                 ),
                                 child: Row(
                                   children: [
@@ -565,7 +558,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                                         children: [
                                           Text(
                                             'Who can send messages',
-                                            style: GoogleFonts.inter(
+                                            style: AppFonts.ui(
                                               fontSize: 13,
                                               fontWeight: FontWeight.w600,
                                               color: _kInk,
@@ -576,7 +569,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                                             group.whoCanSend == 'admins'
                                                 ? 'Admins only'
                                                 : 'Everyone',
-                                            style: GoogleFonts.inter(
+                                            style: AppFonts.ui(
                                               fontSize: 11, color: _kInkMute,
                                             ),
                                           ),
@@ -616,7 +609,6 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                               decoration: BoxDecoration(
                                 color: _kCard,
                                 borderRadius: BorderRadius.circular(16),
-                                border: Border.all(color: _kBorder),
                               ),
                               child: Column(
                                 children: [
@@ -647,7 +639,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                                             const SizedBox(width: 12),
                                             Text(
                                               'Add Member',
-                                              style: GoogleFonts.inter(
+                                              style: AppFonts.ui(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w600,
                                                 color: _kAmber,
@@ -712,7 +704,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                                           const SizedBox(width: 12),
                                           Text(
                                             'Leave Group',
-                                            style: GoogleFonts.inter(
+                                            style: AppFonts.ui(
                                               fontSize: 14,
                                               fontWeight: FontWeight.w600,
                                               color: _kLoss,
@@ -748,7 +740,7 @@ class _GroupSettingsScreenState extends ConsumerState<GroupSettingsScreen> {
                                             const SizedBox(width: 12),
                                             Text(
                                               'Delete Group',
-                                              style: GoogleFonts.inter(
+                                              style: AppFonts.ui(
                                                 fontSize: 14,
                                                 fontWeight: FontWeight.w600,
                                                 color: _kLoss,
@@ -784,12 +776,11 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: GoogleFonts.inter(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: _kInkMute,
-        letterSpacing: 0.6,
-      ),
+      style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
     );
   }
 }
@@ -840,7 +831,7 @@ class _PermChip extends StatelessWidget {
         padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
         decoration: BoxDecoration(
           gradient: selected
-              ? const LinearGradient(colors: [_kAmber, _kAmberDeep])
+              ? LinearGradient(colors: [_kAmber, _kAmber])
               : null,
           color: selected ? null : _kSurface,
           borderRadius: BorderRadius.circular(20),
@@ -850,10 +841,10 @@ class _PermChip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 12,
             fontWeight: FontWeight.w600,
-            color: selected ? const Color(0xFF1A1205) : _kInkDim,
+            color: selected ? const Color(0xFF241703) : _kInkDim,
           ),
         ),
       ),
@@ -906,7 +897,7 @@ class _MemberTile extends ConsumerWidget {
                       children: [
                         Text(
                           username,
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: _kInk,
@@ -916,7 +907,7 @@ class _MemberTile extends ConsumerWidget {
                           const SizedBox(width: 6),
                           Text(
                             '· You',
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 11, color: _kInkMute,
                             ),
                           ),
@@ -932,7 +923,7 @@ class _MemberTile extends ConsumerWidget {
                             ),
                             child: Text(
                               'Admin',
-                              style: GoogleFonts.inter(
+                              style: AppFonts.ui(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w700,
                                 color: _kAmber,
@@ -974,7 +965,7 @@ class _MemberTile extends ConsumerWidget {
                         value: 'make_admin',
                         child: Text(
                           'make_admin'.tr(),
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 13, color: _kInk,
                           ),
                         ),
@@ -984,7 +975,7 @@ class _MemberTile extends ConsumerWidget {
                         value: 'remove_admin',
                         child: Text(
                           'remove_admin'.tr(),
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 13, color: _kInk,
                           ),
                         ),
@@ -993,7 +984,7 @@ class _MemberTile extends ConsumerWidget {
                       value: 'remove',
                       child: Text(
                         'Remove from group',
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 13, color: _kLoss,
                         ),
                       ),

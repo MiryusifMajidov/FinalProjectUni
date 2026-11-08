@@ -1,11 +1,11 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
-import 'package:google_fonts/google_fonts.dart';
 
 import 'legal_texts.dart';
 
 import '../theme/app_colors.dart';
+import '../theme/app_fonts.dart';
 /// The date shown under a legal document's title. Bump it whenever
 /// [kTermsParagraphs] or [kPolicyParagraphs] changes in a way a user would care
 /// about — section 11 of the terms promises a new date on every revision.
@@ -60,7 +60,7 @@ void showLegalDocSheet(
                 const SizedBox(height: 12),
                 Text(
                   title,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 18,
                     fontWeight: FontWeight.w700,
                     color: _kInk,
@@ -69,7 +69,7 @@ void showLegalDocSheet(
                 const SizedBox(height: 2),
                 Text(
                   'Last updated: $kLegalUpdated',
-                  style: GoogleFonts.inter(fontSize: 11, color: _kInkMute),
+                  style: AppFonts.ui(fontSize: 11, color: _kInkMute),
                 ),
               ],
             ),
@@ -84,7 +84,7 @@ void showLegalDocSheet(
                         padding: const EdgeInsets.only(bottom: 14),
                         child: Text(
                           p,
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 13,
                             color: _kInkDim,
                             height: 1.6,
@@ -112,14 +112,14 @@ void showLegalDocSheet(
 /// Both documents open in full here. A link that goes nowhere fails the same
 /// check as no link at all.
 class LegalConsentNotice extends StatelessWidget {
-  const LegalConsentNotice({super.key, this.accent = const Color(0xFFE8B960)});
+  const LegalConsentNotice({super.key, this.accent = const Color(0xFFF0A93B)});
 
   /// The screen's own accent, so the links read as links in either palette.
   final Color accent;
 
   @override
   Widget build(BuildContext context) {
-    final base = GoogleFonts.inter(
+    final base = AppFonts.ui(
       fontSize: 11.5,
       height: 1.45,
       color: _kInkMute,

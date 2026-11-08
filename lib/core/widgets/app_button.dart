@@ -2,11 +2,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../theme/app_colors.dart';
 import '../theme/app_text_styles.dart';
-import '../theme/app_theme_extension.dart';
+import '../theme/moulded.dart';
 
 enum AppButtonVariant { primary, secondary, outlined, ghost, danger }
 
-class AppButton extends StatefulWidget {
+/// The app's button: a moulded token (see moulded.dart).
+///
+///   primary   → butterscotch, the one main action on a screen
+///   secondary / outlined → a raised token of the surface
+///   danger    → coral face for destructive actions
+///   ghost     → plain text action, no token
+class AppButton extends StatelessWidget {
   final String label;
   final VoidCallback? onTap;
   final AppButtonVariant variant;
@@ -26,117 +32,94 @@ class AppButton extends StatefulWidget {
     this.height,
   });
 
-  @override
-  State<AppButton> createState() => _AppButtonState();
-}
-
-class _AppButtonState extends State<AppButton>
-    with SingleTickerProviderStateMixin {
-  bool _pressed = false;
-
-  Color get _bgColor => switch (widget.variant) {
-        AppButtonVariant.primary => AppColors.primary,
-        AppButtonVariant.secondary => AppColors.secondary,
-        AppButtonVariant.outlined => Colors.transparent,
-        AppButtonVariant.ghost => Colors.transparent,
-        AppButtonVariant.danger => AppColors.error,
+  Color get _face => switch (variant) {
+        AppButtonVariant.primary => AppColors.accent,
+        AppButtonVariant.danger => AppColors.loss,
+        _ => AppColors.cardElevated,
       };
 
-  Color get _textColor => switch (widget.variant) {
-        AppButtonVariant.primary => const Color(0xFF0A0A0B),  // dark on amber
-        AppButtonVariant.outlined => AppColors.ink,
-        AppButtonVariant.ghost => AppColors.amber,
-        AppButtonVariant.danger => Colors.white,
-        _ => const Color(0xFF0A0A0B),
-      };
-
-  Border? get _border => switch (widget.variant) {
-        AppButtonVariant.outlined =>
-          Border.all(color: AppColors.divider, width: 1.5),
-        _ => null,
+  Color get _ink => switch (variant) {
+        AppButtonVariant.primary => AppColors.onAmber,
+        AppButtonVariant.danger => AppColors.onAmber,
+        AppButtonVariant.ghost => AppColors.accent,
+        _ => AppColors.ink,
       };
 
   @override
   Widget build(BuildContext context) {
-    final child = GestureDetector(
-      onTapDown: (_) {
-        setState(() => _pressed = true);
-        HapticFeedback.lightImpact();
-      },
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap?.call();
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 150),
-          height: widget.height ?? 50,
-          width: widget.expand ? double.infinity : null,
-          padding: const EdgeInsets.symmetric(horizontal: 24),
-          decoration: BoxDecoration(
-            color: widget.onTap == null
-                ? AppColors.textDisabled
-                : _bgColor,
-            borderRadius: BorderRadius.circular(12),
-            border: _border,
-            boxShadow: widget.variant == AppButtonVariant.primary &&
-                    widget.onTap != null
-                ? [
-                    BoxShadow(
-                      color: AppColors.primary.withOpacity(0.3),
-                      blurRadius: 12,
-                      offset: const Offset(0, 4),
-                    )
-                  ]
-                : null,
+    final enabled = onTap != null && !isLoading;
+    final content = Row(
+      mainAxisAlignment: MainAxisAlignment.center,
+      mainAxisSize: expand ? MainAxisSize.max : MainAxisSize.min,
+      children: [
+        if (isLoading)
+          SizedBox(
+            width: 20,
+            height: 20,
+            child: CircularProgressIndicator(strokeWidth: 2.5, color: _ink),
+          )
+        else ...[
+          if (icon != null) ...[
+            IconTheme.merge(
+              data: IconThemeData(color: _ink, size: 20),
+              child: icon!,
+            ),
+            const SizedBox(width: 10),
+          ],
+          Flexible(
+            child: Text(
+              label,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.buttonLarge.copyWith(
+                color: _ink,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
           ),
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.center,
-            mainAxisSize:
-                widget.expand ? MainAxisSize.max : MainAxisSize.min,
-            children: [
-              if (widget.isLoading)
-                SizedBox(
-                  width: 18,
-                  height: 18,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor:
-                        AlwaysStoppedAnimation<Color>(_textColor),
-                  ),
-                )
-              else ...[
-                if (widget.icon != null) ...[
-                  widget.icon!,
-                  const SizedBox(width: 8),
-                ],
-                Text(
-                  widget.label,
-                  style: AppTextStyles.buttonLarge.copyWith(
-                    color: widget.onTap == null
-                        ? AppColors.textSecondary
-                        : _textColor,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
-      ),
+        ],
+      ],
     );
 
-    return widget.expand ? child : child;
+    final h = height ?? 52;
+
+    if (variant == AppButtonVariant.ghost) {
+      return SizedBox(
+        height: h,
+        width: expand ? double.infinity : null,
+        child: TextButton(
+          onPressed: enabled ? onTap : null,
+          child: content,
+        ),
+      );
+    }
+
+    return SizedBox(
+      height: h,
+      width: expand ? double.infinity : null,
+      child: Moulded(
+        color: _face,
+        radius: 12,
+        semanticLabel: label,
+        onTap: enabled
+            ? () {
+                HapticFeedback.lightImpact();
+                onTap!();
+              }
+            : null,
+        padding: const EdgeInsets.symmetric(horizontal: 20),
+        child: Center(child: content),
+      ),
+    );
   }
 }
 
-class AppIconButton extends StatefulWidget {
+class AppIconButton extends StatelessWidget {
   final Widget icon;
   final VoidCallback? onTap;
   final Color? backgroundColor;
   final double size;
+  final String? tooltip;
 
   const AppIconButton({
     super.key,
@@ -144,40 +127,28 @@ class AppIconButton extends StatefulWidget {
     this.onTap,
     this.backgroundColor,
     this.size = 44,
+    this.tooltip,
   });
 
   @override
-  State<AppIconButton> createState() => _AppIconButtonState();
-}
-
-class _AppIconButtonState extends State<AppIconButton> {
-  bool _pressed = false;
-
-  @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) {
-        setState(() => _pressed = true);
-        HapticFeedback.lightImpact();
-      },
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap?.call();
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.93 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: Container(
-          width: widget.size,
-          height: widget.size,
-          decoration: BoxDecoration(
-            color: widget.backgroundColor ?? context.appColors.card,
-            borderRadius: BorderRadius.circular(12),
-          ),
-          child: Center(child: widget.icon),
-        ),
+    final button = SizedBox(
+      width: size,
+      height: size,
+      child: Moulded(
+        color: backgroundColor ?? AppColors.card,
+        radius: 12,
+        lip: 3,
+        semanticLabel: tooltip,
+        onTap: onTap == null
+            ? null
+            : () {
+                HapticFeedback.selectionClick();
+                onTap!();
+              },
+        child: Center(child: icon),
       ),
     );
+    return tooltip == null ? button : Tooltip(message: tooltip!, child: button);
   }
 }

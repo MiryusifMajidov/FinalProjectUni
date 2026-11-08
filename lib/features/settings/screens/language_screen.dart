@@ -1,16 +1,16 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg           = AppColors.background;
 const _kSurface      = AppColors.surface;
 const _kCard         = AppColors.card;
-const _kAmber        = AppColors.amber;
-const _kAmberGlow    = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk          = AppColors.ink;
 const _kInkDim       = AppColors.inkDim;
 const _kInkMute      = AppColors.inkMute;
@@ -54,7 +54,6 @@ class LanguageScreen extends StatelessWidget {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -66,7 +65,7 @@ class LanguageScreen extends StatelessWidget {
                   const SizedBox(width: 14),
                   Text(
                     'language'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -81,7 +80,7 @@ class LanguageScreen extends StatelessWidget {
               padding: const EdgeInsets.fromLTRB(20, 12, 20, 20),
               child: Text(
                 'Choose the language for the app interface. Move notation uses standard algebraic notation (SAN) across all languages.',
-                style: GoogleFonts.inter(fontSize: 13, color: _kInkDim),
+                style: AppFonts.ui(fontSize: 13, color: _kInkDim),
               ),
             ),
 
@@ -93,7 +92,6 @@ class LanguageScreen extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: _kCard,
                     borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: _kBorder),
                   ),
                   clipBehavior: Clip.hardEdge,
                   child: ListView.separated(
@@ -160,7 +158,7 @@ class _LangRow extends StatelessWidget {
               child: Center(
                 child: Text(
                   lang.code.toUpperCase(),
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                  style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: selected ? _kAmber : _kInkDim,
                   ),
@@ -175,7 +173,7 @@ class _LangRow extends StatelessWidget {
                 children: [
                   Text(
                     lang.native,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 14,
                       fontWeight: FontWeight.w500,
                       color: selected ? _kInk : _kInkDim,
@@ -183,7 +181,7 @@ class _LangRow extends StatelessWidget {
                   ),
                   Text(
                     lang.english,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 11,
                       color: _kInkMute,
                     ),

@@ -3,11 +3,13 @@ import 'dart:math' as math;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:uuid/uuid.dart';
+import '../../../core/services/bot_pool.dart';
+import '../../../core/services/human_pace.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/models/game_model.dart';
@@ -18,13 +20,13 @@ import '../../../core/services/realtime_game_service.dart';
 import '../../../core/services/tournament_service.dart';
 import '../../../core/theme/board_themes.dart';
 import '../../settings/screens/settings_screen.dart' show settingsProvider;
-import '../../../core/utils/text_case.dart';
 import '../../../core/widgets/game_icon.dart';
 import '../../game/widgets/game_chat_panel.dart';
 import '../../game/widgets/game_chrome.dart';
 import '../../tournaments/screens/arena_lobby_screen.dart' show returnToArena;
 import '../engine/checkers_engine.dart';
 import '../widgets/checkers_board_widget.dart';
+import '../../../core/theme/app_fonts.dart';
 
 /// Checkers game screen — supports bot, local, online & campaign modes.
 /// Accepts either direct constructor params (bot setup) or an [extra] map
@@ -66,8 +68,10 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
   late final String _myUsername;
   late final String _opponentUsername;
   late final bool _isRated;
-  /// A named bot (arena or matchmaking), shown with a BOT badge.
+  /// A stand-in: a bot under a player name (arena or matchmaking). It plays
+  /// as a person would, at a person's pace, with no hint or take-back.
   late final bool _namedBot;
+  final _paceRng = math.Random();
   late String _gameId;
   late final CheckersVariant _variant;
   late final String? _arenaId;
@@ -155,6 +159,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
       'turkish'       => CheckersVariant.turkish,
       'brazilian'     => CheckersVariant.brazilian,
       'russian'       => CheckersVariant.russian,
+      'german'        => CheckersVariant.german,
       _               => CheckersVariant.standard,
     };
 
@@ -243,6 +248,9 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
       final onPath = hint.toSet();
       _hintCells = _hintCells.where(onPath.contains).toSet();
       _captureHintCells = _captureHintCells.where(onPath.contains).toSet();
+      // The final square already carries the hint ring.
+      _hintCells.remove(hint.last);
+      _captureHintCells.remove(hint.last);
     }
   }
 
@@ -349,7 +357,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
     ScaffoldMessenger.of(context)
       ..clearSnackBars()
       ..showSnackBar(SnackBar(
-        content: Text(msg, style: GoogleFonts.inter(fontSize: 13)),
+        content: Text(msg, style: AppFonts.ui(fontSize: 13)),
         duration: const Duration(seconds: 2),
         behavior: SnackBarBehavior.floating,
       ));
@@ -596,7 +604,20 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
 
   Future<void> _scheduleBotMove() async {
     setState(() => _thinking = true);
-    await Future.delayed(const Duration(milliseconds: 350));
+    final gameId = _gameId;
+    final watch = Stopwatch()..start();
+    // A stand-in takes a person's time over the move; the plain bot answers
+    // after a short beat.
+    final legal = _engine.legalMoves();
+    final paceMs = _namedBot
+        ? HumanPace.draughtsMs(
+            moveNumber: _engine.moveHistory.length ~/ 2 + 1,
+            legalMoves: legal.length,
+            capture: legal.isNotEmpty && legal.first.captured.isNotEmpty,
+            rng: _paceRng,
+          )
+        : 350;
+    if (!_namedBot) await Future.delayed(Duration(milliseconds: paceMs));
     if (!mounted) return;
 
     // The search runs in a background isolate so the UI never janks.
@@ -611,6 +632,16 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
       res = null;
     }
     if (!mounted) return;
+    final left = paceMs - watch.elapsedMilliseconds;
+    if (_namedBot && left > 0) {
+      await Future.delayed(Duration(milliseconds: left));
+      if (!mounted) return;
+    }
+    // Resigned or restarted while the bot was thinking.
+    if (_gameId != gameId || _engine.result != CheckersResult.ongoing) {
+      if (_gameId == gameId) setState(() => _thinking = false);
+      return;
+    }
 
     if (res != null) {
       final move = CheckersMove(
@@ -638,7 +669,10 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
     if (user == null) return;
 
     final myUid = user.uid;
-    final oppUid = _opponentUid ?? widget.extra['opponentUid'] as String?;
+    final oppUid = _opponentUid ??
+        widget.extra['opponentUid'] as String? ??
+        widget.extra['opponentBotUid'] as String? ??
+        _arenaBotUid;
     final whiteUid = _playerIsWhite ? myUid : oppUid;
     final blackUid = _playerIsWhite ? oppUid : myUid;
     final whiteUsername = _playerIsWhite ? _myUsername : _opponentUsername;
@@ -656,6 +690,12 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
     final lost = (_playerIsWhite && result == CheckersResult.blackWin) ||
         (!_playerIsWhite && result == CheckersResult.whiteWin);
     final isDraw = result == CheckersResult.draw;
+
+    // A stand-in's profile counts the game at once (on this phone).
+    final botUid = _namedBot ? _opponentProfileUid : null;
+    if (botUid != null && result != CheckersResult.ongoing) {
+      unawaited(BotRecords.add(botUid, 'checkers', lost ? 1 : won ? -1 : 0));
+    }
 
     try {
       final firestore = ref.read(firestoreServiceProvider);
@@ -853,7 +893,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
             const SizedBox(height: 24),
             Text(
               title,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 32,
                 fontWeight: FontWeight.w700,
                 color: titleColor,
@@ -864,7 +904,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
             Text(
               '${'white'.tr()}: ${_engine.countPieces(CheckersPlayer.white)} · '
               '${'black'.tr()}: ${_engine.countPieces(CheckersPlayer.black)}',
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 13, color: AppColors.inkDim,
               ),
             ),
@@ -878,12 +918,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
                       Navigator.pop(context);
                     },
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.borderStrong),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),),
                     child: Text('exit'.tr(), style: AppTextStyles.buttonMedium),
                   ),
                 ),
@@ -903,13 +938,9 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
                       }
                     },
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: const Color(0xFF6FB4E0),
-                      foregroundColor: const Color(0xFF0A0A0B),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
+                      backgroundColor: const Color(0xFFE2565E),
+                      foregroundColor: const Color(0xFF111915),
+                      padding: const EdgeInsets.symmetric(vertical: 14),),
                     child: Text(
                         (_arenaId != null
                                 ? 'back_to_arena'
@@ -918,7 +949,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
                                     : 'rematch')
                             .tr(),
                         style: AppTextStyles.buttonMedium
-                            .copyWith(color: const Color(0xFF0A0A0B))),
+                            .copyWith(color: const Color(0xFF111915))),
                   ),
                 ),
               ],
@@ -1012,13 +1043,19 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
                       children: [
                         _strip(
                           label: topLabel,
-                          isBot: _namedBot,
+                          isBot: _namedBot &&
+                              BotPool.isLabelledUid(_opponentProfileUid),
+                          onTap: _opponentProfileUid == null
+                              ? null
+                              : () => context
+                                  .push('/home/profile/$_opponentProfileUid'),
                           count: topCount,
                           whitePieces: topIsWhite,
                           active: topTurn,
                           showClock: showClock,
-                          // The bot sits at the top in bot games.
-                          thinking: _thinking && topTurn,
+                          // The bot sits at the top in bot games; a
+                          // stand-in shows no "thinking" spinner.
+                          thinking: _thinking && topTurn && !_namedBot,
                         ),
                         const SizedBox(height: 10),
                         SizedBox(
@@ -1039,9 +1076,14 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
                                   }
                                 : const <int>{};
                             final board = ref.watch(settingsProvider).boardTheme;
+                            // While the hint shows, its own tint marks the
+                            // piece; the selection tint on top turned it muddy.
+                            final hintOrigin = _hintPath != null &&
+                                _hintPath!.isNotEmpty &&
+                                _hintPath!.first == _selectedCell;
                             return CheckersBoardWidget(
                               engine: _engine,
-                              selectedCell: _selectedCell,
+                              selectedCell: hintOrigin ? null : _selectedCell,
                               hintCells: showHints ? _hintCells : const {},
                               captureHintCells:
                                   showHints ? _captureHintCells : const {},
@@ -1051,6 +1093,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
                               flipped: _flipped,
                               lightSquareColor: board.lightSquare,
                               darkSquareColor: board.darkSquare,
+                              hintPath: _hintPath,
                             );
                           }),
                         ),
@@ -1079,15 +1122,26 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
 
   // ── Page chrome ──────────────────────────────────────────────────────────
 
+  /// Whose profile the opponent's strip opens: a person's online, the bot's
+  /// for a stand-in. None for the plain bot, the campaign and same-phone play.
+  String? get _opponentProfileUid {
+    if (_isOnline) return _opponentUid;
+    if (!_namedBot) return null;
+    return widget.extra['opponentBotUid'] as String? ?? _arenaBotUid;
+  }
+
   String _modeLabel(BuildContext context) {
-    String up(String key) => key.tr().toUpperCaseFor(context);
+    String up(String key) => key.tr();
     if (_arenaId != null) return up('arena');
+    if (_namedBot && !BotPool.isLabelledUid(_opponentProfileUid)) {
+      return '${up('online')} · ${up('game_casual')}';
+    }
     if (_isOnline) {
       return '${up('online')} · ${_isRated ? up('rated_game') : up('game_casual')}';
     }
     return switch (_mode) {
       'campaign' => up('campaign'),
-      'bot' => '${up('vs_bot')} · ${up('game_casual')}',
+      'bot' => up('vs_bot'),
       _ => up('local_game'),
     };
   }
@@ -1098,6 +1152,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
       CheckersVariant.turkish => 'variant_turkish',
       CheckersVariant.brazilian => 'variant_brazilian',
       CheckersVariant.russian => 'variant_russian',
+      CheckersVariant.german => 'variant_german',
       CheckersVariant.standard => 'checkers',
     }
         .tr();
@@ -1113,18 +1168,20 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
     required bool active,
     required bool showClock,
     required bool thinking,
+    VoidCallback? onTap,
     bool isBot = false,
   }) {
     final timer = showClock && active;
     return GamePlayerStrip(
       name: label,
+      onTap: onTap,
       isBot: isBot,
       lightAvatar: whitePieces,
       isActive: active,
       token: GameIcon(
         type: GameType.checkers,
         size: 20,
-        color: whitePieces ? const Color(0xFF1A1310) : const Color(0xFFF5F3EF),
+        color: whitePieces ? const Color(0xFF1A1310) : const Color(0xFFEEF1EC),
       ),
       details: [GamePlayerStrip.detail('$count ${'pieces'.tr()}')],
       trailing: timer
@@ -1142,6 +1199,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
   List<GameAction> _actions() {
     final ongoing = _engine.result == CheckersResult.ongoing;
     final canUndo = !_isOnline &&
+        !_namedBot &&
         _undoStack.isNotEmpty &&
         _isHumanTurn &&
         !_thinking;
@@ -1168,7 +1226,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
     }
     if (_vsBot) {
       // Arena games are scored: no hints, no take-backs.
-      if (_arenaId != null) return [resign];
+      if (_arenaId != null || _namedBot) return [resign];
       return [
         GameAction(
           icon: PhosphorIcons.lightbulb(PhosphorIconsStyle.regular),
@@ -1176,6 +1234,7 @@ class _CheckersGameScreenState extends ConsumerState<CheckersGameScreen> {
           onTap: ongoing && _isHumanTurn && !_thinking && !_hinting
               ? _handleHint
               : null,
+          busy: _hinting,
         ),
         undo,
         resign,

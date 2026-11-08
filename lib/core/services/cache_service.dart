@@ -15,14 +15,22 @@ class CacheService extends ChangeNotifier {
   static const _kPhotoOnboardingShown = 'flag_photo_onboarding';
   static const _kShowOnMap = 'pref_show_on_map';
   static const _kThemeMode = 'pref_theme_mode';
+  static const _kFirstLaunchDone = 'flag_first_launch_done';
 
   final SharedPreferences _p;
   CacheService._(this._p);
 
   /// Creates an instance, loading the SharedPreferences store.
   static Future<CacheService> create() async {
-    return CacheService._(await SharedPreferences.getInstance());
+    final c = CacheService._(await SharedPreferences.getInstance());
+    c.isFirstSession = !(c._p.getBool(_kFirstLaunchDone) ?? false);
+    if (c.isFirstSession) await c._p.setBool(_kFirstLaunchDone, true);
+    return c;
   }
+
+  /// True for the whole first run of the app on this device. The first run
+  /// is for getting into a game: no system permission prompts on top of it.
+  bool isFirstSession = false;
 
   // ── Board / piece settings ────────────────────────────────────────────────
 

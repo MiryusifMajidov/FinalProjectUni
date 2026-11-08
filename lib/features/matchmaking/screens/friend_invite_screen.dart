@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/game_model.dart';
@@ -16,13 +15,14 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/realtime_game_service.dart';
 
 import '../../../core/widgets/game_icon.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kCard      = AppColors.card;
 const _kCardElev  = AppColors.cardElevated;
-const _kAmber     = AppColors.amber;
-const _kAmberDeep = AppColors.amberDeep;
-const _kAmberGlow = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberDeep => AppColors.accentDeep;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk       = AppColors.ink;
 const _kInkDim    = AppColors.inkDim;
 const _kInkMute   = AppColors.inkMute;
@@ -358,7 +358,7 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
 
             Text(
               _selected!.username,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 20,
                 fontWeight: FontWeight.w700,
                 color: _kInk,
@@ -367,7 +367,7 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
             const SizedBox(height: 8),
             Text(
               'searching_opponent'.tr(),
-              style: GoogleFonts.inter(fontSize: 14, color: _kInkMute),
+              style: AppFonts.ui(fontSize: 14, color: _kInkMute),
               textAlign: TextAlign.center,
             ),
             const SizedBox(height: 6),
@@ -384,7 +384,7 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                 _gameType == GameType.domino
                     ? _rulesLabel
                     : '$_rulesLabel · You play ${_inviterIsWhite ? (_gameType == GameType.checkers ? 'Light' : 'White') : (_gameType == GameType.checkers ? 'Dark' : 'Black')}',
-                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                   fontWeight: FontWeight.w500,
                   color: _kAmber,
                 ),
@@ -407,7 +407,6 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                 decoration: BoxDecoration(
                   color: _kCard,
                   borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: _kBorder),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -420,7 +419,7 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                     const SizedBox(width: 8),
                     Text(
                       'cancel'.tr(),
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: _kInkDim,
@@ -465,7 +464,6 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                         decoration: BoxDecoration(
                           color: _kCard,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: _kBorder),
                         ),
                         child: Icon(
                           _waitingForAcceptance
@@ -478,7 +476,7 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                     const SizedBox(width: 14),
                     Text(
                       'play_with_friend'.tr(),
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
                         color: _kInk,
@@ -530,17 +528,17 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
             child: TextField(
               controller: _searchCtrl,
               focusNode: _focusNode,
-              style: GoogleFonts.inter(fontSize: 14, color: _kInk),
+              style: AppFonts.ui(fontSize: 14, color: _kInk),
               decoration: InputDecoration(
                 hintText: 'Search by username…',
-                hintStyle: GoogleFonts.inter(fontSize: 14, color: _kInkMute),
+                hintStyle: AppFonts.ui(fontSize: 14, color: _kInkMute),
                 prefixIcon: Icon(
                   PhosphorIcons.magnifyingGlass(PhosphorIconsStyle.regular),
                   color: _focusNode.hasFocus ? _kAmber : _kInkMute,
                   size: 18,
                 ),
                 suffixIcon: _searching
-                    ? const Padding(
+                    ? Padding(
                         padding: EdgeInsets.all(14),
                         child: SizedBox(
                           width: 14,
@@ -584,7 +582,6 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
               decoration: BoxDecoration(
                 color: _kCard,
                 borderRadius: BorderRadius.circular(14),
-                border: Border.all(color: _kBorder),
                 boxShadow: [
                   BoxShadow(
                     color: Colors.black.withOpacity(0.3),
@@ -683,7 +680,7 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
             const SizedBox(height: 14),
             _TimeSection(
               icon: PhosphorIcons.lightning(PhosphorIconsStyle.fill),
-              iconColor: const Color(0xFFFF6B6B),
+              iconColor: const Color(0xFFFF6F61),
               label: 'bullet'.tr(),
               controls: TimeControls.allBullet,
               selected: _timeControl,
@@ -753,14 +750,14 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                   end: Alignment.bottomRight,
                   colors: _sending
                       ? [_kAmberDeep, _kAmberDeep]
-                      : [_kAmber, _kAmberDeep],
+                      : [_kAmber, _kAmber],
                 ),
                 borderRadius: BorderRadius.circular(14),
                 boxShadow: _sending
                     ? []
                     : [
                         BoxShadow(
-                          color: _kAmber.withOpacity(0.28),
+                          color: Colors.black.withValues(alpha: 0.28),
                           blurRadius: 18,
                           offset: const Offset(0, 4),
                         ),
@@ -773,7 +770,7 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                         height: 20,
                         child: CircularProgressIndicator(
                           strokeWidth: 2.5,
-                          color: Color(0xFF1A1205),
+                          color: Color(0xFF241703),
                         ),
                       )
                     : Row(
@@ -782,15 +779,15 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
                           Icon(
                             PhosphorIcons.paperPlaneTilt(PhosphorIconsStyle.fill),
                             size: 18,
-                            color: const Color(0xFF1A1205),
+                            color: const Color(0xFF241703),
                           ),
                           const SizedBox(width: 8),
                           Text(
                             'Send Invite',
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 15,
                               fontWeight: FontWeight.w700,
-                              color: const Color(0xFF1A1205),
+                              color: const Color(0xFF241703),
                             ),
                           ),
                         ],
@@ -803,7 +800,7 @@ class _FriendInviteScreenState extends ConsumerState<FriendInviteScreen> {
           Center(
             child: Text(
               "They'll receive a notification",
-              style: GoogleFonts.inter(fontSize: 12, color: _kInkMute),
+              style: AppFonts.ui(fontSize: 12, color: _kInkMute),
             ),
           ).animate(delay: 200.ms).fadeIn(),
         ],
@@ -833,7 +830,7 @@ class _AmberSectionLabel extends StatelessWidget {
         const SizedBox(width: 8),
         Text(
           text,
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 11,
             fontWeight: FontWeight.w700,
             color: _kAmber,
@@ -890,7 +887,7 @@ class _SearchResultTile extends StatelessWidget {
             Expanded(
               child: Text(
                 user.username,
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 14,
                   fontWeight: FontWeight.w500,
                   color: _kInk,
@@ -902,7 +899,7 @@ class _SearchResultTile extends StatelessWidget {
             // Rating
             Text(
               '${user.overallRating} rating',
-              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+              style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                 color: _kInkMute,
               ),
             ),
@@ -962,7 +959,7 @@ class _SelectedPlayerCard extends StatelessWidget {
                     Flexible(
                       child: Text(
                         user.username,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 15,
                           fontWeight: FontWeight.w600,
                           color: _kInk,
@@ -974,7 +971,7 @@ class _SelectedPlayerCard extends StatelessWidget {
                 ),
                 Text(
                   '${user.overallRating} rating',
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                  style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                     color: _kInkMute,
                   ),
                 ),
@@ -1018,14 +1015,14 @@ class _ColorCard extends StatelessWidget {
   final VoidCallback onTap;
   final Color accent;
 
-  const _ColorCard({
+  _ColorCard({
     required this.value,
     required this.label,
     required this.icon,
     required this.selected,
     required this.onTap,
-    this.accent = _kAmber,
-  });
+    Color? accent,
+  }) : accent = accent ?? _kAmber;
 
   @override
   Widget build(BuildContext context) {
@@ -1050,7 +1047,7 @@ class _ColorCard extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 label,
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 12,
                   fontWeight: selected ? FontWeight.w700 : FontWeight.w400,
                   color: selected ? accent : _kInkDim,
@@ -1102,7 +1099,7 @@ class _RuleChips extends StatelessWidget {
             ),
             child: Text(
               opt.$2,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 13,
                 fontWeight: isSel ? FontWeight.w700 : FontWeight.w400,
                 color: isSel ? accent : _kInkDim,
@@ -1145,7 +1142,7 @@ class _TimeSection extends StatelessWidget {
             const SizedBox(width: 6),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
                 color: iconColor,
@@ -1158,7 +1155,7 @@ class _TimeSection extends StatelessWidget {
                 height: 1,
                 decoration: BoxDecoration(
                   gradient: LinearGradient(
-                    colors: [iconColor.withOpacity(0.35), Colors.transparent],
+                    colors: [Colors.transparent, Colors.transparent],
                   ),
                 ),
               ),
@@ -1187,7 +1184,7 @@ class _TimeSection extends StatelessWidget {
                 ),
                 child: Text(
                   tc.label,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 13,
                     fontWeight: isSel ? FontWeight.w700 : FontWeight.w400,
                     color: isSel ? iconColor : _kInkDim,

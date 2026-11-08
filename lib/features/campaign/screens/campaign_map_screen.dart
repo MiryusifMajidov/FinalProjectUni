@@ -2,13 +2,13 @@ import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/models/campaign_chapter.dart';
 import '../../../core/models/game_type.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/widgets/shimmer_box.dart';
+import '../../../core/theme/app_fonts.dart';
 
 // ── Chapter title list (short display names) ──────────────────────────────────
 
@@ -165,7 +165,7 @@ TextStyle _mono({
   Color color = AppColors.inkMute,
   double letterSpacing = 0.6,
 }) =>
-    GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: size,
+    AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: size,
       fontWeight: weight,
       color: color,
       letterSpacing: letterSpacing,
@@ -179,7 +179,7 @@ TextStyle _display({
   Color color = AppColors.ink,
   double letterSpacing = 0,
 }) =>
-    GoogleFonts.inter(
+    AppFonts.ui(
       fontSize: size,
       fontWeight: weight,
       color: color,
@@ -191,7 +191,7 @@ TextStyle _inter({
   FontWeight weight = FontWeight.w400,
   Color color = AppColors.ink,
 }) =>
-    GoogleFonts.inter(fontSize: size, fontWeight: weight, color: color);
+    AppFonts.ui(fontSize: size, fontWeight: weight, color: color);
 
 // ── Winding path node positions ───────────────────────────────────────────────
 
@@ -278,7 +278,6 @@ class CampaignMapScreen extends ConsumerWidget {
                           decoration: BoxDecoration(
                             color: AppColors.card,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.border),
                           ),
                           child: Icon(
                             PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -413,7 +412,6 @@ class _ProgressHeroCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
       ),
       child: Stack(
         children: [
@@ -427,7 +425,7 @@ class _ProgressHeroCard extends StatelessWidget {
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
-                  colors: [accent.withValues(alpha: 0.08), Colors.transparent],
+                  colors: [Colors.transparent, Colors.transparent],
                 ),
               ),
             ),
@@ -586,12 +584,12 @@ class _UpNextCard extends StatelessWidget {
                       style: _display(
                         size: 18,
                         weight: FontWeight.w700,
-                        color: const Color(0xFF1A1205),
+                        color: const Color(0xFF241703),
                       ),
                     )
                   : Icon(
                       PhosphorIcons.lock(PhosphorIconsStyle.fill),
-                      color: const Color(0xFF1A1205),
+                      color: const Color(0xFF241703),
                       size: 20,
                     ),
             ),
@@ -787,17 +785,17 @@ class _ChapterNode extends StatelessWidget {
       centerChild = Icon(PhosphorIcons.check(PhosphorIconsStyle.bold),
           color: AppColors.win, size: 22);
       shadows = [
-        BoxShadow(color: AppColors.win.withValues(alpha: 0.2), blurRadius: 12, spreadRadius: 1),
+        BoxShadow(color: Colors.black.withValues(alpha: 0.28), blurRadius: 12, spreadRadius: 1),
       ];
     } else if (isCurrent) {
       bgColor = _accent;
       borderColor = _accent;
       centerChild = Text(
         '$chapter',
-        style: _display(size: 18, weight: FontWeight.w700, color: const Color(0xFF1A1205)),
+        style: _display(size: 18, weight: FontWeight.w700, color: const Color(0xFF241703)),
       );
       shadows = [
-        BoxShadow(color: _accent.withValues(alpha: 0.35), blurRadius: 16, spreadRadius: 2),
+        BoxShadow(color: Colors.black.withValues(alpha: 0.28), blurRadius: 16, spreadRadius: 2),
       ];
     } else {
       bgColor = AppColors.card;

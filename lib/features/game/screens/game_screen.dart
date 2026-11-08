@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../core/services/bot_pool.dart';
 import '../../../core/services/cache_service.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -16,6 +16,7 @@ import '../../../core/models/game_type.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/widgets/app_button.dart';
+import '../../../core/router/app_router.dart' show homeRouteFor;
 import '../engine/chess_engine.dart';
 import '../providers/game_provider.dart';
 import '../widgets/chess_board_widget.dart';
@@ -24,9 +25,9 @@ import '../widgets/game_chrome.dart';
 import '../../tournaments/screens/arena_lobby_screen.dart' show returnToArena;
 import '../widgets/game_chat_panel.dart';
 
-import '../../../core/utils/text_case.dart';
 import '../../../core/widgets/game_icon.dart';
 import '../../../core/theme/board_themes.dart';
+import '../../../core/theme/app_fonts.dart';
 class GameScreen extends ConsumerStatefulWidget {
   final String gameId;
   final Map<String, dynamic>? extra;
@@ -42,6 +43,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
   UserModel? _opponentUser;
   bool _resultModalShown = false;
   bool _manualFlip = false; // offline view toggle (flip board button)
+
+  /// The Hint button's suggestion, tied to the position it was found for:
+  /// once a move is played the FEN differs and the arrow goes away.
+  ({String from, String to, String fen})? _hint;
+  bool _hinting = false;
 
   // Overlay notification management
   OverlayEntry? _currentNotif;
@@ -68,6 +74,12 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       opponentUsername: extra['opponentUsername'] as String?,
       arenaId: extra['arenaId'] as String?,
       arenaBotUid: extra['arenaBotUid'] as String?,
+      // A bot under a player name (matchmaking or arena) plays as one.
+      standIn: extra['mode'] == GameMode.bot.name &&
+          extra['opponentIsBot'] == true &&
+          extra['opponentUsername'] != null,
+      standInUid: extra['opponentBotUid'] as String? ??
+          extra['arenaBotUid'] as String?,
       gameType: extra['gameType'] as String? ?? 'chess',
     );
 
@@ -127,14 +139,16 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 label: 'chat'.tr(),
                 onTap: () { Navigator.pop(ctx); _openChat(); },
               ),
-              const Divider(color: Color(0xFF2A2520), height: 1),
+              const Divider(color: Color(0xFF26352D), height: 1),
+            ],
+            if (_config.mode == GameMode.online || _config.standIn) ...[
               _MoreSheetItem(
                 icon: PhosphorIcons.handshake(PhosphorIconsStyle.regular),
                 label: gameState.drawOfferSent ? 'draw_offered'.tr() : 'draw'.tr(),
                 disabled: gameState.drawOfferSent,
                 onTap: () { Navigator.pop(ctx); notifier.offerDraw(); },
               ),
-              const Divider(color: Color(0xFF2A2520), height: 1),
+              const Divider(color: Color(0xFF26352D), height: 1),
             ],
             _MoreSheetItem(
               icon: PhosphorIcons.flag(PhosphorIconsStyle.regular),
@@ -287,8 +301,10 @@ class _GameScreenState extends ConsumerState<GameScreen> {
       });
     }
 
-    final isOnlineActive = _config.mode == GameMode.online &&
-        gameState.status == GameStatus.playing;
+    // Leaving a game against a person (or a stand-in) resigns it.
+    final isOnlineActive =
+        (_config.mode == GameMode.online || _config.standIn) &&
+            gameState.status == GameStatus.playing;
 
     // Local pass-and-play: the board stays FIXED (white at the bottom) — it
     // must never auto-rotate after each move when two players share one
@@ -327,7 +343,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         }
       },
       child: Scaffold(
-        backgroundColor: const Color(0xFF0A0908),
+        backgroundColor: AppColors.background,
         // Must be false: the game Scaffold must never resize its body when a
         // keyboard opens (including keyboards inside the chat modal-bottom-sheet).
         // Without this the LayoutBuilder's maxHeight shrinks and boardSize
@@ -337,12 +353,14 @@ class _GameScreenState extends ConsumerState<GameScreen> {
         body: SafeArea(
           child: LayoutBuilder(
             builder: (context, outerConstraints) {
-              const headerH   = 52.0;
+              const headerH   = 60.0;
               const stripH    = 56.0;
-              const actionH   = 66.0;
+              const actionH   = 82.0;
               const spacingH  = 8.0;
-              // Move history strip is always visible once first move is played.
-              final moveListH = gameState.engine.moveHistory.isNotEmpty ? 44.0 : 0.0;
+              // The move strip's room is kept from the first frame: sizing the
+              // board without it made the board shrink and jump up the moment
+              // the first move was played.
+              const moveListH = 44.0;
               final disconnH  = gameState.opponentDisconnected ? 50.0 : 0.0;
               final fixedH    = headerH + stripH * 2 + actionH + spacingH + moveListH + disconnH;
               final boardSize = (outerConstraints.maxHeight - fixedH)
@@ -351,6 +369,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
               final reviewEngine = gameState.isInReview
                   ? gameState.engine.snapshotAt(gameState.reviewIndex!)
                   : gameState.engine;
+              final showHint = _hint != null &&
+                  !gameState.isInReview &&
+                  _hint!.fen == gameState.engine.fen;
 
               final oppIsActive = gameState.status == GameStatus.playing &&
                   ((_config.playerIsWhite && !gameState.engine.isWhiteTurn) ||
@@ -363,7 +384,12 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                 children: [
                   // ── Minimal header ───────────────────────────────────────
                   _MinimalHeader(
-                    gameMode: _config.mode,
+                    // A stand-in's game reads as a casual online one; a
+                    // labelled bot's as a bot game.
+                    gameMode: _config.standIn &&
+                            !BotPool.isLabelledUid(_config.standInUid)
+                        ? GameMode.online
+                        : _config.mode,
                     timeControl: _config.timeControl,
                     moveCount: gameState.engine.moveHistory.length,
                     isRated: _config.isRated,
@@ -389,7 +415,6 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                         _CalmPlayerStrip(
                           username: oppUsername,
                           photoUrl: oppPhotoUrl,
-                          isBot: _namedBot,
                           isWhite: !_config.playerIsWhite,
                           milliseconds: _config.playerIsWhite
                               ? gameState.blackMsLeft
@@ -402,6 +427,11 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                           countryCode: oppCountryCode,
                           materialAdvantage: (-myMaterialAdv).clamp(0, 99),
                           pieceSet: ref.watch(settingsProvider).pieceSet.folderName,
+                          isBot: BotPool.isLabelledUid(_config.standInUid),
+                          onTap: _opponentProfileUid == null
+                              ? null
+                              : () => context
+                                  .push('/home/profile/$_opponentProfileUid'),
                         ),
 
                         // Disconnect banner
@@ -436,9 +466,14 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                                   pieceSet: ref.watch(settingsProvider).pieceSet,
                                   showCoordinates: cache.showCoordinates,
                                   showLastMoveHighlight: cache.highlightLastMove,
-                                  animationDuration: cache.pieceMoveAnimationDuration,
+                                  animationDuration:
+                                      MediaQuery.disableAnimationsOf(context)
+                                          ? Duration.zero
+                                          : cache.pieceMoveAnimationDuration,
                                   premoveFrom: gameState.premoveFrom,
                                   premoveTo: gameState.premoveTo,
+                                  hintFrom: showHint ? _hint!.from : null,
+                                  hintTo: showHint ? _hint!.to : null,
                                 ),
                                 // Confirm-move overlay bar
                                 if (gameState.pendingMoveFrom != null)
@@ -475,7 +510,9 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                         // ── Move history strip (always visible after first move) ──
                         // Tapping any move enters review at that position.
                         // Notation (SAN / Long / Figurine) from game settings applies here.
-                        if (gameState.engine.moveHistory.isNotEmpty)
+                        if (gameState.engine.moveHistory.isEmpty)
+                          const SizedBox(height: 44)
+                        else
                           SizedBox(
                             height: 44,
                             child: _MoveHistoryStrip(
@@ -501,8 +538,10 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                   // ── Quiet action row ─────────────────────────────────────
                   _QuietActionRow(
                     isOnline: _config.mode == GameMode.online,
-                    isBot: _config.mode == GameMode.bot ||
-                        _config.mode == GameMode.campaign,
+                    isBot: !_config.standIn &&
+                        (_config.mode == GameMode.bot ||
+                            _config.mode == GameMode.campaign),
+                    standIn: _config.standIn,
                     drawOfferSent: gameState.drawOfferSent,
                     onChat: _config.mode == GameMode.online
                         ? _openChat
@@ -511,7 +550,10 @@ class _GameScreenState extends ConsumerState<GameScreen> {
                     onResign: () => _confirmResign(context, notifier),
                     // Arena games keep to the same rules as online ones.
                     isArena: _config.arenaId != null,
-                    onHint: notifier.canHint ? () => _showHint(notifier) : null,
+                    onHint: notifier.canHint
+                        ? () => _showHint(notifier, gameState.engine.fen)
+                        : null,
+                    hintBusy: _hinting,
                     onUndo: notifier.canUndo ? notifier.undoMove : null,
                     onFlip: () => setState(() => _manualFlip = !_manualFlip),
                   ),
@@ -539,38 +581,42 @@ class _GameScreenState extends ConsumerState<GameScreen> {
     return extra['myUsername'] as String? ?? 'You';
   }
 
-  /// A named bot (arena or matchmaking): shown with its name and a BOT
-  /// badge rather than as "Bot (1200)".
-  bool get _namedBot =>
-      _config.mode == GameMode.bot &&
-      (widget.extra ?? {})['opponentIsBot'] == true &&
-      (widget.extra ?? {})['opponentUsername'] != null;
+  /// Whose profile the opponent's strip opens: a person's online, the bot's
+  /// for a stand-in. None for the plain bot, the campaign and same-phone play.
+  String? get _opponentProfileUid => _config.mode == GameMode.online
+      ? _config.opponentUid
+      : _config.standInUid;
 
   String _opponentName() {
     final extra = widget.extra ?? {};
-    if (_namedBot) return extra['opponentUsername'] as String;
+    // A stand-in plays under its player name, not as "Bot (1200)".
+    if (_config.standIn) return extra['opponentUsername'] as String;
     if (_config.mode == GameMode.bot || _config.mode == GameMode.campaign) {
       return 'Bot (${_config.botRating ?? 1200})';
     }
     return extra['opponentUsername'] as String? ?? 'Opponent';
   }
 
-  Future<void> _showHint(GameNotifier notifier) async {
-    final messenger = ScaffoldMessenger.of(context);
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(
-      content: Text('hint_thinking'.tr()),
-      duration: const Duration(seconds: 2),
-    ));
+  Future<void> _showHint(GameNotifier notifier, String fen) async {
+    if (_hinting) return;
+    setState(() {
+      _hinting = true;
+      _hint = null;
+    });
     final move = await notifier.requestHint();
     if (!mounted) return;
-    messenger.hideCurrentSnackBar();
-    messenger.showSnackBar(SnackBar(
-      content: Text(move == null
-          ? 'hint_unavailable'.tr()
-          : 'hint_move'.tr(namedArgs: {'move': move})),
-      duration: const Duration(seconds: 3),
-    ));
+    setState(() {
+      _hinting = false;
+      _hint = move == null ? null : (from: move.from, to: move.to, fen: fen);
+    });
+    if (move == null) {
+      ScaffoldMessenger.of(context)
+        ..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+          content: Text('hint_unavailable'.tr()),
+          duration: const Duration(seconds: 3),
+        ));
+    }
   }
 
   Future<void> _confirmResign(BuildContext context, GameNotifier notifier) async {
@@ -633,7 +679,7 @@ class _GameScreenState extends ConsumerState<GameScreen> {
             : null,
         onHome: () {
           Navigator.pop(context);
-          context.go('/home');
+          context.go(homeRouteFor(ref));
         },
         onNewOpponent: () {
           Navigator.pop(context);
@@ -679,14 +725,15 @@ class _MinimalHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    String up(String key) => key.tr().toUpperCaseFor(context);
-    final tc = timeControl.label.toUpperCase();
+    String up(String key) => key.tr();
+    final tc = timeControl.label;
     final modeLabel = isArena
         ? '${up('arena')} · $tc'
         : switch (gameMode) {
             GameMode.online =>
               '$tc · ${isRated ? up('rated_game') : up('game_casual')}',
-            GameMode.bot => '${up('vs_bot')} · ${up('game_casual')}',
+            // "Casual" here meant unrated, but read as the bot's "Casual" level.
+            GameMode.bot => '${up('vs_bot')} · $tc',
             GameMode.campaign => up('campaign'),
             GameMode.local => up('local_game'),
           };
@@ -745,7 +792,7 @@ class _MoreSheetItem extends StatelessWidget {
           children: [
             Icon(icon, color: c, size: 20),
             const SizedBox(width: 14),
-            Text(label, style: GoogleFonts.inter(
+            Text(label, style: AppFonts.ui(
               fontSize: 15, fontWeight: FontWeight.w500, color: c,
             )),
           ],
@@ -767,6 +814,11 @@ class _CalmPlayerStrip extends StatelessWidget {
   final int? rating;
   final String? countryCode;
   final int materialAdvantage;
+
+  /// Opens the player's profile.
+  final VoidCallback? onTap;
+
+  /// A labelled bot (Bot badge after the name).
   final bool isBot;
 
   /// Folder of the board's piece set, for the captured-piece icons.
@@ -783,6 +835,7 @@ class _CalmPlayerStrip extends StatelessWidget {
     this.rating,
     this.countryCode,
     this.materialAdvantage = 0,
+    this.onTap,
     this.isBot = false,
   });
 
@@ -803,11 +856,12 @@ class _CalmPlayerStrip extends StatelessWidget {
       photoUrl: photoUrl,
       lightAvatar: isWhite,
       isActive: isActive,
+      onTap: onTap,
       isBot: isBot,
       token: PieceIcon(
         'bK',
         size: 22,
-        color: isWhite ? const Color(0xFF1A1310) : const Color(0xFFF5F3EF),
+        color: isWhite ? const Color(0xFF1A1310) : const Color(0xFFEEF1EC),
       ),
       details: [
         if (subParts.isNotEmpty) GamePlayerStrip.detail(subParts.join(' · ')),
@@ -826,7 +880,13 @@ class _CalmPlayerStrip extends StatelessWidget {
             ),
           ),
       ],
-      trailing: GameClockText(clockStr, active: isActive),
+      // Under 20 seconds the running clock turns coral, as it already did
+      // on the draughts and dominoes pages.
+      trailing: GameClockText(
+        clockStr,
+        active: isActive,
+        low: isActive && milliseconds < 20000,
+      ),
     );
   }
 }
@@ -841,18 +901,24 @@ class _QuietActionRow extends StatelessWidget {
   final VoidCallback onDraw;
   final VoidCallback onResign;
   final VoidCallback? onHint;
+  final bool hintBusy;
   final VoidCallback? onUndo;
   final VoidCallback? onFlip;
   final bool isArena;
 
+  /// Against a stand-in: the online row without chat (draw and resign).
+  final bool standIn;
+
   const _QuietActionRow({
     required this.isOnline,
     required this.isBot,
+    this.standIn = false,
     required this.drawOfferSent,
     this.onChat,
     required this.onDraw,
     required this.onResign,
     this.onHint,
+    this.hintBusy = false,
     this.onUndo,
     this.onFlip,
     this.isArena = false,
@@ -876,7 +942,15 @@ class _QuietActionRow extends StatelessWidget {
       onTap: onResign,
       danger: true,
     );
-    final actions = isBot && isArena
+    // A pending offer shows as a dimmed "Draw offered".
+    final draw = GameAction(
+      icon: PhosphorIcons.handshake(PhosphorIconsStyle.regular),
+      label: drawOfferSent ? 'draw_offered'.tr() : 'draw'.tr(),
+      onTap: drawOfferSent ? null : onDraw,
+    );
+    final actions = standIn
+        ? [draw, resign]
+        : isBot && isArena
         // Arena games are scored: no hints, no take-backs.
         ? [flip, resign]
         : isBot
@@ -885,6 +959,7 @@ class _QuietActionRow extends StatelessWidget {
                   icon: PhosphorIcons.lightbulb(PhosphorIconsStyle.regular),
                   label: 'hint'.tr(),
                   onTap: onHint,
+                  busy: hintBusy,
                 ),
                 undo,
                 resign,
@@ -896,12 +971,7 @@ class _QuietActionRow extends StatelessWidget {
                       label: 'chat'.tr(),
                       onTap: onChat,
                     ),
-                    // A pending offer shows as a dimmed "Draw offered".
-                    GameAction(
-                      icon: PhosphorIcons.handshake(PhosphorIconsStyle.regular),
-                      label: drawOfferSent ? 'draw_offered'.tr() : 'draw'.tr(),
-                      onTap: drawOfferSent ? null : onDraw,
-                    ),
+                    draw,
                     resign,
                   ]
                 : [flip, undo, resign];
@@ -1585,7 +1655,7 @@ class _CampaignObjectivesSummary extends StatelessWidget {
       children: [
         Text(
           'OBJECTIVES',
-          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+          style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
             fontWeight: FontWeight.w700,
             color: AppColors.textSecondary,
             letterSpacing: 1.2,
@@ -1622,7 +1692,7 @@ class _CampaignObjectivesSummary extends StatelessWidget {
                 Expanded(
                   child: Text(
                     _labels[i],
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 13,
                       color: completed
                           ? AppColors.textPrimary
@@ -1645,7 +1715,7 @@ class _CampaignObjectivesSummary extends StatelessWidget {
                   ),
                   child: Text(
                     '+5 XP',
-                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                    style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                       fontWeight: FontWeight.w600,
                       color: completed
                           ? AppColors.amber
@@ -1814,7 +1884,7 @@ class _MoveHistoryStripState extends State<_MoveHistoryStrip> {
     final pairCount = (moves.length / 2).ceil();
 
     return Container(
-      color: const Color(0xFF0C0B0A),
+      color: AppColors.surface,
       child: Row(
         children: [
           // ── Scrollable move chips ───────────────────────────────────────
@@ -1842,7 +1912,7 @@ class _MoveHistoryStripState extends State<_MoveHistoryStrip> {
                     // Move number
                     Text(
                       '${pairIdx + 1}.',
-                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                      style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                         color: const Color(0xFF504840),
                         fontWeight: FontWeight.w600,
                       ),
@@ -1875,7 +1945,7 @@ class _MoveHistoryStripState extends State<_MoveHistoryStrip> {
             Container(
               decoration: const BoxDecoration(
                 border: Border(
-                  left: BorderSide(color: Color(0xFF2A2520), width: 1),
+                  left: BorderSide(color: Color(0xFF26352D), width: 1),
                 ),
               ),
               child: Row(
@@ -1920,16 +1990,16 @@ class _MoveChip extends StatelessWidget {
             const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
         decoration: BoxDecoration(
           color: highlighted
-              ? const Color(0xFFE8B960)
+              ? const Color(0xFFF0A93B)
               : Colors.transparent,
           borderRadius: BorderRadius.circular(5),
         ),
         child: Text(
           label,
-          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
+          style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
             fontWeight: FontWeight.w600,
             color: highlighted
-                ? const Color(0xFF1A1205)
+                ? const Color(0xFF241703)
                 : const Color(0xFFD0C8BF),
           ),
         ),
@@ -2040,7 +2110,7 @@ class _FullMovesSheetState extends ConsumerState<_FullMovesSheet> {
 
     return Container(
       decoration: const BoxDecoration(
-        color: Color(0xFF131316),
+        color: Color(0xFF17211C),
         borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
       ),
       child: SafeArea(
@@ -2067,9 +2137,9 @@ class _FullMovesSheetState extends ConsumerState<_FullMovesSheet> {
                 children: [
                   Text(
                     'move_history'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 20, fontWeight: FontWeight.w700,
-                      color: const Color(0xFFF5F3EF),
+                      color: const Color(0xFFEEF1EC),
                     ),
                   ),
                   const Spacer(),
@@ -2080,15 +2150,15 @@ class _FullMovesSheetState extends ConsumerState<_FullMovesSheet> {
                         padding: const EdgeInsets.symmetric(
                             horizontal: 10, vertical: 5),
                         decoration: BoxDecoration(
-                          color: const Color(0x24E8B960),
+                          color: const Color(0x24F0A93B),
                           borderRadius: BorderRadius.circular(6),
-                          border: Border.all(color: const Color(0x66E8B960)),
+                          border: Border.all(color: const Color(0x66F0A93B)),
                         ),
                         child: Text(
                           'Back to live',
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 11, fontWeight: FontWeight.w600,
-                            color: const Color(0xFFE8B960),
+                            color: const Color(0xFFF0A93B),
                           ),
                         ),
                       ),
@@ -2097,7 +2167,7 @@ class _FullMovesSheetState extends ConsumerState<_FullMovesSheet> {
               ),
             ),
 
-            const Divider(color: Color(0xFF2A2520), height: 1),
+            const Divider(color: Color(0xFF26352D), height: 1),
 
             // ── Moves list ────────────────────────────────────────────────
             ConstrainedBox(
@@ -2109,7 +2179,7 @@ class _FullMovesSheetState extends ConsumerState<_FullMovesSheet> {
                       padding: const EdgeInsets.all(32),
                       child: Text(
                         'no_moves_played_yet'.tr(),
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                             fontSize: 14, color: const Color(0xFF706860)),
                         textAlign: TextAlign.center,
                       ),
@@ -2139,7 +2209,7 @@ class _FullMovesSheetState extends ConsumerState<_FullMovesSheet> {
                     ),
             ),
 
-            const Divider(color: Color(0xFF2A2520), height: 1),
+            const Divider(color: Color(0xFF26352D), height: 1),
 
             // ── Navigation buttons ────────────────────────────────────────
             Padding(
@@ -2202,7 +2272,7 @@ class _MovePairRow extends StatelessWidget {
             width: 34,
             child: Text(
               '$moveNumber.',
-              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12, fontWeight: FontWeight.w600,
+              style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12, fontWeight: FontWeight.w600,
                 color: const Color(0xFF504840),
               ),
             ),
@@ -2218,15 +2288,15 @@ class _MovePairRow extends StatelessWidget {
                     const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
                 decoration: BoxDecoration(
                   color: whiteHighlighted
-                      ? const Color(0xFFE8B960)
+                      ? const Color(0xFFF0A93B)
                       : Colors.transparent,
                   borderRadius: BorderRadius.circular(6),
                 ),
                 child: Text(
                   whiteLabel,
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13, fontWeight: FontWeight.w600,
+                  style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13, fontWeight: FontWeight.w600,
                     color: whiteHighlighted
-                        ? const Color(0xFF1A1205)
+                        ? const Color(0xFF241703)
                         : const Color(0xFFD0C8BF),
                   ),
                 ),
@@ -2246,15 +2316,15 @@ class _MovePairRow extends StatelessWidget {
                           horizontal: 8, vertical: 8),
                       decoration: BoxDecoration(
                         color: blackHighlighted
-                            ? const Color(0xFFE8B960)
+                            ? const Color(0xFFF0A93B)
                             : Colors.transparent,
                         borderRadius: BorderRadius.circular(6),
                       ),
                       child: Text(
                         blackLabel!,
-                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13, fontWeight: FontWeight.w600,
+                        style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13, fontWeight: FontWeight.w600,
                           color: blackHighlighted
-                              ? const Color(0xFF1A1205)
+                              ? const Color(0xFF241703)
                               : const Color(0xFFD0C8BF),
                         ),
                       ),

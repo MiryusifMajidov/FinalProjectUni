@@ -5,7 +5,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/legal/legal_consent.dart';
 import '../../../core/theme/app_colors.dart';
@@ -22,6 +21,7 @@ import '../widgets/apple_sign_in_button.dart';
 import '../widgets/google_sign_in_button.dart';
 
 import '../../../core/widgets/game_icon.dart';
+import '../../../core/theme/app_fonts.dart';
 /// Skill levels shown on step 2. Each is drawn with a chess piece, pawn to
 /// king — the same scale the bot-difficulty picker uses — instead of the
 /// emoji (🐣 🙂 ⚡ 🔥 🏆 👑) it had before.
@@ -368,7 +368,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -380,7 +379,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   Expanded(
                     child: Text(
                       _currentPage == 0 ? 'create_account'.tr() : 'your_level'.tr(),
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                         fontSize: 20,
                         fontWeight: FontWeight.w700,
                         color: AppColors.ink,
@@ -448,7 +447,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           children: [
             Text(
               'register_story_headline'.tr(),
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 32,
                 fontWeight: FontWeight.w700,
                 color: AppColors.ink,
@@ -462,7 +461,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
             const SizedBox(height: 8),
             Text(
               'register_community_subtitle'.tr(),
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 14,
                 color: AppColors.inkMute,
               ),
@@ -779,7 +778,7 @@ class _Step2 extends StatelessWidget {
                     boxShadow: sel
                         ? [
                             BoxShadow(
-                              color: AppColors.primary.withOpacity(0.2),
+                              color: Colors.black.withValues(alpha: 0.28),
                               blurRadius: 12,
                             )
                           ]

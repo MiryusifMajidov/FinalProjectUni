@@ -3,23 +3,21 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/otp_service.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kSurface   = AppColors.surface;
 const _kCard      = AppColors.card;
-const _kAmber     = AppColors.amber;
-const _kAmberGlow = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
 const _kInk       = AppColors.ink;
 const _kInkDim    = AppColors.inkDim;
 const _kInkMute   = AppColors.inkMute;
-const _kBorder    = AppColors.border;
 const _kWin       = AppColors.win;
 const _kLoss      = AppColors.loss;
 
@@ -130,7 +128,6 @@ class _HelpFeedbackScreenState extends ConsumerState<HelpFeedbackScreen> {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -141,7 +138,7 @@ class _HelpFeedbackScreenState extends ConsumerState<HelpFeedbackScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'help_feedback'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -181,7 +178,7 @@ class _HelpFeedbackScreenState extends ConsumerState<HelpFeedbackScreen> {
             const SizedBox(height: 20),
             Text(
               'feedback_sent'.tr(),
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 24, fontWeight: FontWeight.w700,
                 color: _kInk,
               ),
@@ -192,7 +189,7 @@ class _HelpFeedbackScreenState extends ConsumerState<HelpFeedbackScreen> {
                   ? 'Your bug report has been sent. We\'ll investigate shortly.'
                   : 'Thanks for your feedback! We read every message.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 14, color: _kInkMute, height: 1.5),
+              style: AppFonts.ui(fontSize: 14, color: _kInkMute, height: 1.5),
             ),
             const SizedBox(height: 28),
             GestureDetector(
@@ -205,10 +202,10 @@ class _HelpFeedbackScreenState extends ConsumerState<HelpFeedbackScreen> {
                 ),
                 child: Text(
                   'done'.tr(),
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1A1205),
+                    color: const Color(0xFF241703),
                   ),
                 ),
               ),
@@ -229,7 +226,6 @@ class _HelpFeedbackScreenState extends ConsumerState<HelpFeedbackScreen> {
           decoration: BoxDecoration(
             color: _kSurface,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _kBorder),
           ),
           child: Row(
             children: [
@@ -255,7 +251,7 @@ class _HelpFeedbackScreenState extends ConsumerState<HelpFeedbackScreen> {
         // ── Description ────────────────────────────────────────────────
         Text(
           _isBug ? 'Describe the bug' : 'your_feedback'.tr(),
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 12, fontWeight: FontWeight.w600,
             color: _kInkMute, letterSpacing: 0.8,
           ),
@@ -265,18 +261,17 @@ class _HelpFeedbackScreenState extends ConsumerState<HelpFeedbackScreen> {
           decoration: BoxDecoration(
             color: _kCard,
             borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: _kBorder),
           ),
           child: TextField(
             controller: _ctrl,
             maxLines: 8,
             minLines: 6,
-            style: GoogleFonts.inter(fontSize: 14, color: _kInk, height: 1.5),
+            style: AppFonts.ui(fontSize: 14, color: _kInk, height: 1.5),
             decoration: InputDecoration(
               hintText: _isBug
                   ? 'Steps to reproduce, what happened, what you expected…'
                   : 'Tell us what you think, suggest a feature, or ask for help…',
-              hintStyle: GoogleFonts.inter(fontSize: 13, color: _kInkMute),
+              hintStyle: AppFonts.ui(fontSize: 13, color: _kInkMute),
               border: InputBorder.none,
               enabledBorder: InputBorder.none,
               focusedBorder: InputBorder.none,
@@ -290,14 +285,14 @@ class _HelpFeedbackScreenState extends ConsumerState<HelpFeedbackScreen> {
           const SizedBox(height: 8),
           Text(
             _error!,
-            style: GoogleFonts.inter(fontSize: 12, color: _kLoss),
+            style: AppFonts.ui(fontSize: 12, color: _kLoss),
           ),
         ],
 
         const SizedBox(height: 8),
         Text(
           'Your response will be sent to our team along with your app version and device info.',
-          style: GoogleFonts.inter(fontSize: 11, color: _kInkMute, height: 1.4),
+          style: AppFonts.ui(fontSize: 11, color: _kInkMute, height: 1.4),
         ),
 
         const SizedBox(height: 24),
@@ -316,7 +311,7 @@ class _HelpFeedbackScreenState extends ConsumerState<HelpFeedbackScreen> {
                   ? const SizedBox(
                       width: 20, height: 20,
                       child: CircularProgressIndicator(
-                        strokeWidth: 2, color: Color(0xFF1A1205),
+                        strokeWidth: 2, color: Color(0xFF241703),
                       ),
                     )
                   : Row(
@@ -324,15 +319,15 @@ class _HelpFeedbackScreenState extends ConsumerState<HelpFeedbackScreen> {
                       children: [
                         Icon(
                           PhosphorIcons.paperPlaneTilt(PhosphorIconsStyle.fill),
-                          color: const Color(0xFF1A1205), size: 16,
+                          color: const Color(0xFF241703), size: 16,
                         ),
                         const SizedBox(width: 8),
                         Text(
                           'send_feedback'.tr(),
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 14,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1A1205),
+                            color: const Color(0xFF241703),
                           ),
                         ),
                       ],
@@ -383,7 +378,7 @@ class _TypeTab extends StatelessWidget {
               const SizedBox(width: 6),
               Text(
                 label,
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 13,
                   fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
                   color: selected ? color : _kInkMute,

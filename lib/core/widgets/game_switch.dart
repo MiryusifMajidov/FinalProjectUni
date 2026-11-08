@@ -1,13 +1,16 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../models/game_type.dart';
 import '../theme/app_colors.dart';
+import '../theme/app_fonts.dart';
+import '../theme/moulded.dart';
 import 'game_icon.dart';
 
-/// Three-segment game switcher matching the design's `GameSwitch` component.
-/// Sits at the top of Home / Profile / Leaderboard / Arena screens.
+/// The game switcher: three catalin tokens — butterscotch chess, cherry
+/// draughts, jade dominoes. The active game's token is filled with its colour;
+/// the others are plain surface tokens with the colour on their icon only.
 ///
 /// Uses the [activeGameProvider] so every screen that reads it updates together.
 class GameSwitch extends ConsumerWidget {
@@ -20,71 +23,81 @@ class GameSwitch extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final active = ref.watch(activeGameProvider);
 
-    return Container(
-      height: 44,
-      padding: const EdgeInsets.all(3),
-      decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
-      ),
+    return SizedBox(
+      height: 48,
       child: Row(
-        children: GameType.values.map((type) {
-          final selected = type == active;
-          final identity = type.identity;
-          return Expanded(
-            child: GestureDetector(
-              onTap: () {
-                if (onChanged != null) {
-                  onChanged!(type);
-                } else {
-                  ref.read(activeGameProvider.notifier).select(type);
-                }
-              },
-              child: AnimatedContainer(
-                duration: const Duration(milliseconds: 200),
-                curve: Curves.easeOutCubic,
-                decoration: BoxDecoration(
-                  color: selected
-                      ? identity.accent.withValues(alpha: 0.15)
-                      : Colors.transparent,
-                  borderRadius: BorderRadius.circular(11),
-                  border: Border.all(
-                    color: selected
-                        ? identity.accent.withValues(alpha: 0.25)
-                        : Colors.transparent,
-                    width: 1,
-                  ),
-                ),
-                child: Center(
-                  child: Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      GameIcon(
-                        type: type,
-                        size: 15,
-                        color: selected ? identity.accent : AppColors.inkMute,
-                      ),
-                      const SizedBox(width: 7),
-                      Text(
-                        identity.type.name.tr(),
-                        style: GoogleFonts.inter(
-                          fontSize: 12,
-                          fontWeight:
-                              selected ? FontWeight.w600 : FontWeight.w500,
-                          color: selected
-                              ? identity.accent
-                              : AppColors.inkMute,
-                          letterSpacing: 0.2,
-                        ),
-                      ),
-                    ],
-                  ),
+        children: [
+          for (final type in GameType.values) ...[
+            if (type != GameType.values.first) const SizedBox(width: 8),
+            Expanded(
+              child: _GameToken(
+                type: type,
+                selected: type == active,
+                onTap: () {
+                  if (type == active) return;
+                  HapticFeedback.selectionClick();
+                  if (onChanged != null) {
+                    onChanged!(type);
+                  } else {
+                    ref.read(activeGameProvider.notifier).select(type);
+                  }
+                },
+              ),
+            ),
+          ],
+        ],
+      ),
+    );
+  }
+}
+
+class _GameToken extends StatelessWidget {
+  final GameType type;
+  final bool selected;
+  final VoidCallback onTap;
+
+  const _GameToken({
+    required this.type,
+    required this.selected,
+    required this.onTap,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    final accent = type.accent;
+    final ink = selected ? AppColors.onAmber : AppColors.inkDim;
+    return Moulded(
+      color: selected ? accent : AppColors.card,
+      selected: selected,
+      radius: 12,
+      lip: 3,
+      semanticLabel: type.name.tr(),
+      onTap: onTap,
+      padding: const EdgeInsets.symmetric(horizontal: 8),
+      child: Center(
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            GameIcon(
+              type: type,
+              size: 17,
+              color: selected ? AppColors.onAmber : accent,
+            ),
+            const SizedBox(width: 7),
+            Flexible(
+              child: Text(
+                type.name.tr(),
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: AppFonts.ui(
+                  fontSize: 14,
+                  fontWeight: selected ? FontWeight.w700 : FontWeight.w600,
+                  color: ink,
                 ),
               ),
             ),
-          );
-        }).toList(),
+          ],
+        ),
       ),
     );
   }

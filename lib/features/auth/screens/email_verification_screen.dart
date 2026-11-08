@@ -4,24 +4,22 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kCard      = AppColors.card;
 const _kAmber     = AppColors.amber;
-const _kAmberDeep = AppColors.amberDeep;
 const _kInk       = AppColors.ink;
 const _kInkDim    = AppColors.inkDim;
 const _kInkMute   = AppColors.inkMute;
-const _kBorder    = AppColors.border;
 const _kLoss      = AppColors.loss;
 const _kLossSoft  = AppColors.lossSoft;
 const _kWin       = AppColors.win;
-const _kDark      = Color(0xFF1A1205);
+const _kDark      = Color(0xFF241703);
 
 /// Shown right after e-mail registration (and from Account → Email when the
 /// address is still unverified).
@@ -184,12 +182,12 @@ class _EmailVerificationScreenState
                           gradient: const LinearGradient(
                             begin: Alignment.topLeft,
                             end: Alignment.bottomRight,
-                            colors: [_kAmber, _kAmberDeep],
+                            colors: [_kAmber, _kAmber],
                           ),
                           borderRadius: BorderRadius.circular(20),
                           boxShadow: [
                             BoxShadow(
-                              color: _kAmber.withValues(alpha: 0.3),
+                              color: Colors.black.withValues(alpha: 0.28),
                               blurRadius: 20,
                               offset: const Offset(0, 6),
                             ),
@@ -206,7 +204,7 @@ class _EmailVerificationScreenState
 
                       Text(
                         'verification_title'.tr(),
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 34,
                           fontWeight: FontWeight.w700,
                           color: _kInk,
@@ -219,12 +217,12 @@ class _EmailVerificationScreenState
 
                       Text(
                         'verification_sent_to'.tr(),
-                        style: GoogleFonts.inter(fontSize: 14, color: _kInkDim),
+                        style: AppFonts.ui(fontSize: 14, color: _kInkDim),
                       ),
                       const SizedBox(height: 4),
                       Text(
                         _email,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 15,
                           color: _kAmber,
                           fontWeight: FontWeight.w600,
@@ -246,7 +244,7 @@ class _EmailVerificationScreenState
                           Expanded(
                             child: Text(
                               'verification_hint'.tr(),
-                              style: GoogleFonts.inter(
+                              style: AppFonts.ui(
                                 fontSize: 13,
                                 color: _kInkMute,
                                 height: 1.5,
@@ -274,7 +272,7 @@ class _EmailVerificationScreenState
                           ),
                           child: Text(
                             _errorMessage ?? _infoMessage!,
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 13,
                               color: _errorMessage != null ? _kLoss : _kWin,
                             ),
@@ -299,7 +297,7 @@ class _EmailVerificationScreenState
                                   : const LinearGradient(
                                       begin: Alignment.topLeft,
                                       end: Alignment.bottomRight,
-                                      colors: [_kAmber, _kAmberDeep],
+                                      colors: [_kAmber, _kAmber],
                                     ),
                               color: _checking ? _kCard : null,
                               borderRadius: BorderRadius.circular(14),
@@ -316,7 +314,7 @@ class _EmailVerificationScreenState
                                     )
                                   : Text(
                                       'verification_continue'.tr(),
-                                      style: GoogleFonts.inter(
+                                      style: AppFonts.ui(
                                         fontSize: 15,
                                         fontWeight: FontWeight.w700,
                                         color: _kDark,
@@ -347,19 +345,14 @@ class _EmailVerificationScreenState
                                     'seconds': '$_cooldownSeconds'
                                   })
                                 : 'resend'.tr(),
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                               color: resendDisabled ? _kInkMute : _kInk,
                             ),
                           ),
                           style: OutlinedButton.styleFrom(
-                            backgroundColor: _kCard,
-                            side: const BorderSide(color: _kBorder),
-                            shape: RoundedRectangleBorder(
-                              borderRadius: BorderRadius.circular(14),
-                            ),
-                          ),
+                            backgroundColor: _kCard,),
                         ),
                       ),
 
@@ -370,7 +363,7 @@ class _EmailVerificationScreenState
                           onPressed: () => _finish(verified: false),
                           child: Text(
                             'skip_for_now'.tr(),
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 14,
                               fontWeight: FontWeight.w600,
                               color: _kInkDim,

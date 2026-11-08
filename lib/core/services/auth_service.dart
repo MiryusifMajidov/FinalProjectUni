@@ -938,3 +938,22 @@ final currentUserProvider = StreamProvider.autoDispose<UserModel?>((ref) {
   if (uid == null) return Stream.value(null);
   return ref.read(firestoreServiceProvider).watchUser(uid);
 });
+
+/// The signed-in player's profile when it can be had quickly, else null.
+///
+/// Starting a bot or same-phone game only wants a display name. Awaiting
+/// `currentUserProvider.future` there used to hang the Start button for as
+/// long as Firestore had nothing to emit — offline with an empty cache, the
+/// game simply never opened.
+Future<UserModel?> readUserQuickly(WidgetRef ref) async {
+  final cached = ref.read(currentUserProvider).valueOrNull;
+  if (cached != null) return cached;
+  if (ref.read(authStateProvider).valueOrNull == null) return null;
+  try {
+    return await ref
+        .read(currentUserProvider.future)
+        .timeout(const Duration(seconds: 2));
+  } catch (_) {
+    return null;
+  }
+}

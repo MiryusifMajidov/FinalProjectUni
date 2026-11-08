@@ -3,18 +3,17 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/services/otp_service.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg      = AppColors.background;
 const _kSurface = AppColors.surface;
 const _kCard    = AppColors.card;
 const _kAmber   = AppColors.amber;
 const _kInk     = AppColors.ink;
-const _kInkDim  = AppColors.inkDim;
 const _kInkMute = AppColors.inkMute;
 const _kBorder  = AppColors.border;
 const _kLoss    = AppColors.loss;
@@ -107,7 +106,7 @@ class _TwoFactorVerifyScreenState
 
               Text(
                 'Two-Factor Authentication',
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 22, fontWeight: FontWeight.w700,
                   color: _kInk,
                 ),
@@ -116,7 +115,7 @@ class _TwoFactorVerifyScreenState
               const SizedBox(height: 10),
               Text(
                 '${'enter_verification_code'.tr()}\n${'code_sent_to'.tr(namedArgs: {'email': widget.email})}',
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                     fontSize: 13, color: _kInkMute, height: 1.5),
                 textAlign: TextAlign.center,
               ),
@@ -133,7 +132,6 @@ class _TwoFactorVerifyScreenState
                     decoration: BoxDecoration(
                       color: _kCard,
                       borderRadius: BorderRadius.circular(10),
-                      border: Border.all(color: _kBorder),
                     ),
                     child: TextField(
                       controller: _ctrls[i],
@@ -141,7 +139,7 @@ class _TwoFactorVerifyScreenState
                       textAlign: TextAlign.center,
                       keyboardType: TextInputType.number,
                       maxLength: 1,
-                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 20, fontWeight: FontWeight.bold,
+                      style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 20, fontWeight: FontWeight.bold,
                         color: _kAmber,
                       ),
                       decoration: const InputDecoration(
@@ -165,7 +163,7 @@ class _TwoFactorVerifyScreenState
               if (_error != null) ...[
                 const SizedBox(height: 12),
                 Text(_error!,
-                    style: GoogleFonts.inter(fontSize: 12, color: _kLoss),
+                    style: AppFonts.ui(fontSize: 12, color: _kLoss),
                     textAlign: TextAlign.center),
               ],
 
@@ -179,7 +177,7 @@ class _TwoFactorVerifyScreenState
                             strokeWidth: 2, color: _kAmber),
                       )
                     : Text('resend'.tr(),
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                             fontSize: 13, color: _kAmber)),
               ),
 
@@ -205,16 +203,16 @@ class _TwoFactorVerifyScreenState
                             child: CircularProgressIndicator(
                               strokeWidth: 2,
                               color: _code.length == 6
-                                  ? const Color(0xFF1A1205)
+                                  ? const Color(0xFF241703)
                                   : _kInkMute,
                             ),
                           )
                         : Text(
                             'verify'.tr(),
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 15, fontWeight: FontWeight.w600,
                               color: _code.length == 6
-                                  ? const Color(0xFF1A1205)
+                                  ? const Color(0xFF241703)
                                   : _kInkMute,
                             ),
                           ),
@@ -228,7 +226,7 @@ class _TwoFactorVerifyScreenState
                 onPressed: () => context.pop(false),
                 child: Text(
                   'Cancel login',
-                  style: GoogleFonts.inter(fontSize: 13, color: _kInkMute),
+                  style: AppFonts.ui(fontSize: 13, color: _kInkMute),
                 ),
               ),
             ],

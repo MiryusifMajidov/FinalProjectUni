@@ -1,5 +1,7 @@
+import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'bot_pool.dart';
 import '../models/user_model.dart';
 import '../models/game_model.dart';
 
@@ -44,6 +46,8 @@ class FirestoreService {
   }
 
   Future<UserModel?> getUser(String uid) async {
+    // Bots have no users/ document; their profile comes from the bot pool.
+    if (BotPool.isBotUid(uid)) return BotPool.userFor(uid);
     final doc = await _users.doc(uid).get();
     if (!doc.exists) return null;
     return UserModel.fromMap(doc.data()!);
@@ -52,19 +56,28 @@ class FirestoreService {
   Future<UserModel?> getUserByUsername(String username) async {
     final usernameDoc =
         await _usernames.doc(username.toLowerCase()).get();
-    if (!usernameDoc.exists) return null;
+    // Bots are players too; their names live in the bot pool.
+    if (!usernameDoc.exists) return BotPool.userByName(username);
     final uid = usernameDoc.data()!['uid'] as String;
     return getUser(uid);
   }
 
   /// Prefix-search for users whose lowercase username starts with [query].
   /// Pass [excludeUid] to remove the current user from results.
-  /// Returns up to 8 results. Minimum 2 chars required.
+  /// Returns up to 8 results. Minimum 2 chars required. Bots whose name
+  /// matches fill the list after people unless [includeBots] is false (for
+  /// adding members to a group or seats at a table, which bots never take).
   Future<List<UserModel>> searchUsers(String query,
-      {String? excludeUid}) async {
+      {String? excludeUid, bool includeBots = true}) async {
     final q = query.trim().toLowerCase();
     if (q.length < 2) return [];
+    final people = await _searchPeople(q, excludeUid: excludeUid);
+    if (!includeBots || people.length >= 8) return people;
+    final bots = await BotPool.search(q, limit: 8 - people.length);
+    return [...people, ...bots];
+  }
 
+  Future<List<UserModel>> _searchPeople(String q, {String? excludeUid}) async {
     final snap = await _usernames
         .orderBy(FieldPath.documentId)
         .startAt([q])
@@ -154,6 +167,7 @@ class FirestoreService {
           });
 
   Stream<UserModel?> watchUser(String uid) {
+    if (BotPool.isBotUid(uid)) return Stream.fromFuture(BotPool.userFor(uid));
     return _users.doc(uid).snapshots().map((doc) {
       if (!doc.exists) return null;
       return UserModel.fromMap(doc.data()!);
@@ -261,6 +275,21 @@ class FirestoreService {
     // concurrent calls could both read the pre-trim list and both write an
     // untrimmed version, defeating the 50-entry cap.
     final docRef = _users.doc(uid);
+    try {
+      await _addRecentGameIdTx(docRef, gameId)
+          .timeout(const Duration(seconds: 8));
+    } catch (_) {
+      // Offline: transactions need the server, so a game played without a
+      // connection never reached the history. arrayUnion is queued and shows
+      // in the local cache at once; the next online game trims the list.
+      unawaited(docRef.update({
+        'recentGameIds': FieldValue.arrayUnion([gameId]),
+      }).catchError((_) {}));
+    }
+  }
+
+  Future<void> _addRecentGameIdTx(
+      DocumentReference<Map<String, dynamic>> docRef, String gameId) async {
     await FirebaseFirestore.instance.runTransaction((t) async {
       final snap = await t.get(docRef);
       final ids = ((snap.data()?['recentGameIds'] as List<dynamic>?)
@@ -282,6 +311,20 @@ class FirestoreService {
         .limit(300)
         .snapshots()
         .map((s) => s.docs.map((d) => UserModel.fromMap(d.data())).toList());
+  }
+
+  /// How many people the app saw in the last [window] (their `lastSeen`),
+  /// counted on the server; 0 if the count fails.
+  Future<int> countOnlineUsers(
+      {Duration window = const Duration(minutes: 5)}) async {
+    try {
+      final since = Timestamp.fromDate(DateTime.now().subtract(window));
+      final agg =
+          await _users.where('lastSeen', isGreaterThan: since).count().get();
+      return agg.count ?? 0;
+    } catch (_) {
+      return 0;
+    }
   }
 
   /// Updates only coordinates + lastSeen — does NOT change showOnMap flag.

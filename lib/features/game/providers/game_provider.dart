@@ -5,10 +5,12 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
+import '../../../core/services/bot_pool.dart';
 import '../../../core/models/game_model.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/cache_service.dart';
 import '../../../core/services/elo_service.dart';
+import '../../../core/services/human_pace.dart';
 import '../../../core/services/log_service.dart';
 import '../../../core/services/realtime_game_service.dart';
 import '../../../core/services/sound_service.dart';
@@ -186,8 +188,18 @@ class GameNotifier extends StateNotifier<GameState> {
   /// The arena bot (`bot_…`) a bot-mode arena game is played against, so the
   /// server can score that bot too. Null outside arenas / for online games.
   final String? arenaBotUid;
+
+  /// The opponent is a stand-in: a bot playing under a player name
+  /// (matchmaking or arena). It takes a person's time over its moves and
+  /// answers draw offers, and no hints or take-backs are offered.
+  final bool standIn;
+
+  /// The stand-in's `bot_…` id, saved on the game as the opponent.
+  final String? standInUid;
   final String gameType; // 'chess', 'checkers', 'domino'
   final Ref _ref;
+  final _paceRng = Random();
+  int _lastDrawOfferPly = -100;
 
   Timer? _clockTimer;
   // Internal ms trackers — updated every 100ms tick, but state only emits on
@@ -224,6 +236,8 @@ class GameNotifier extends StateNotifier<GameState> {
     this.opponentUsername,
     this.arenaId,
     this.arenaBotUid,
+    this.standIn = false,
+    this.standInUid,
     this.gameType = 'chess',
     required Ref ref,
   })  : _ref = ref,
@@ -896,6 +910,7 @@ class GameNotifier extends StateNotifier<GameState> {
     final randomMove = moves[Random().nextInt(moves.length)];
 
     state = state.copyWith(isBotThinking: true);
+    final thinkWatch = Stopwatch()..start();
 
     int? overrideDepth;
     int? overrideDelayMs;
@@ -931,6 +946,12 @@ class GameNotifier extends StateNotifier<GameState> {
     if (!mounted) return;
     if (state.engine.isWhiteTurn == playerIsWhite) return;
 
+    if (standIn) {
+      await _waitLikeAPerson(bestMove, thinkWatch.elapsedMilliseconds);
+      if (!mounted || state.status != GameStatus.playing) return;
+      if (state.engine.isWhiteTurn == playerIsWhite) return;
+    }
+
     state = state.copyWith(isBotThinking: false);
     if (state.status != GameStatus.playing) return;
     if (state.reviewIndex != null) state = state.copyWith(clearReview: true);
@@ -953,6 +974,54 @@ class GameNotifier extends StateNotifier<GameState> {
     }
   }
 
+  /// Waits until the stand-in has spent a person's time on [move] (UCI or
+  /// SAN), counting the [spentMs] the engine already took.
+  Future<void> _waitLikeAPerson(String move, int spentMs) async {
+    final engine = state.engine;
+    final fen = engine.fen;
+    final uci = RegExp(r'^[a-h][1-8][a-h][1-8]').hasMatch(move);
+    final to = uci ? move.substring(2, 4) : null;
+    final history = engine.verboseHistory;
+    final last = history.isEmpty ? null : history.last;
+    final botIsWhite = !playerIsWhite;
+    final ms = HumanPace.chessMs(
+      moveNumber: engine.moveCount ~/ 2 + 1,
+      legalMoves: engine.allLegalMoveSans.length,
+      inCheck: engine.isCheck,
+      recapture: to != null && last != null &&
+          last.san.contains('x') && last.to == to,
+      piecesOnBoard: _piecesOnBoard(fen),
+      clockMs: timeControl.minutes > 0 || timeControl.incrementSeconds > 0
+          ? (botIsWhite ? _internalWhiteMs : _internalBlackMs)
+          : 0,
+      baseSeconds: timeControl.minutes * 60,
+      incrementSeconds: timeControl.incrementSeconds,
+      rng: _paceRng,
+    );
+    final left = ms - spentMs;
+    if (left > 0) await Future.delayed(Duration(milliseconds: left));
+  }
+
+  static int _piecesOnBoard(String fen) => fen
+      .split(' ')
+      .first
+      .split('')
+      .where((c) => RegExp('[pnbrqkPNBRQK]').hasMatch(c))
+      .length;
+
+  /// Material of [white]'s side minus the other side's, in pawns.
+  static int _materialLead(String fen, {required bool white}) {
+    const value = {'p': 1, 'n': 3, 'b': 3, 'r': 5, 'q': 9};
+    var lead = 0;
+    for (final c in fen.split(' ').first.split('')) {
+      final v = value[c.toLowerCase()];
+      if (v == null) continue;
+      final isWhitePiece = c == c.toUpperCase();
+      lead += isWhitePiece == white ? v : -v;
+    }
+    return lead;
+  }
+
   // ── Bot / local helpers: undo & hint ──────────────────────────────────────
   //
   // The game screen always showed "Hint" and "Undo" in bot games, but both
@@ -960,7 +1029,9 @@ class GameNotifier extends StateNotifier<GameState> {
   // offered in online or arena games.
 
   bool get _assistAllowed =>
-      arenaId == null && (mode == GameMode.bot || mode == GameMode.local);
+      !standIn &&
+      arenaId == null &&
+      (mode == GameMode.bot || mode == GameMode.local);
 
   /// Whether [undoMove] would do anything right now.
   bool get canUndo =>
@@ -1001,10 +1072,9 @@ class GameNotifier extends StateNotifier<GameState> {
       !state.isBotThinking &&
       (mode == GameMode.local || state.engine.isWhiteTurn == playerIsWhite);
 
-  /// Finds a good move for the side to play and selects its piece, so the
-  /// board shows it with its legal targets. Returns the move as "e2 → e4"
-  /// (null when no move could be found).
-  Future<String?> requestHint() async {
+  /// Finds a good move for the side to play; the screen draws it as an
+  /// arrow on the board. Null when no move could be found.
+  Future<({String from, String to})?> requestHint() async {
     if (!canHint) return null;
     final fen = state.engine.fen;
     String? uci;
@@ -1021,13 +1091,7 @@ class GameNotifier extends StateNotifier<GameState> {
     }
     if (!mounted || state.engine.fen != fen) return null;
     if (uci == null || uci.length < 4) return null;
-    final from = uci.substring(0, 2);
-    final to = uci.substring(2, 4);
-    state = state.copyWith(
-      selectedSquare: from,
-      legalMoveSquares: state.engine.legalMovesFrom(from),
-    );
-    return '$from → $to';
+    return (from: uci.substring(0, 2), to: uci.substring(2, 4));
   }
 
   // ── Game control ───────────────────────────────────────────────────────────
@@ -1038,6 +1102,10 @@ class GameNotifier extends StateNotifier<GameState> {
   }
 
   void offerDraw() {
+    if (standIn) {
+      _offerDrawToStandIn();
+      return;
+    }
     if (mode != GameMode.online) return;
     if (state.status != GameStatus.playing) return;
     if (state.drawOfferSent || state.drawOfferPending) return;
@@ -1045,6 +1113,30 @@ class GameNotifier extends StateNotifier<GameState> {
     final rtdb = _ref.read(realtimeGameServiceProvider);
     rtdb.sendDrawOffer(_gameId, _myUid ?? '');
     // drawOfferSent will be set true via the RTDB echo in _onDrawOfferUpdate
+  }
+
+  /// A stand-in answers a draw offer as a person would, after a few
+  /// seconds: yes when it is behind on material, usually yes when material
+  /// is level well into the game, otherwise no (and always no to an offer
+  /// repeated soon after a refusal). A refusal reads "Draw" again, as it
+  /// does online.
+  Future<void> _offerDrawToStandIn() async {
+    if (state.status != GameStatus.playing || state.drawOfferSent) return;
+    final ply = state.engine.moveCount;
+    final tooSoon = ply - _lastDrawOfferPly < 10;
+    _lastDrawOfferPly = ply;
+    state = state.copyWith(drawOfferSent: true);
+    await Future.delayed(
+        Duration(milliseconds: 1800 + _paceRng.nextInt(3200)));
+    if (!mounted || state.status != GameStatus.playing) return;
+    final lead = _materialLead(state.engine.fen, white: !playerIsWhite);
+    final accept = !tooSoon &&
+        (lead <= -2 || (lead <= 0 && ply >= 30 && _paceRng.nextDouble() < 0.7));
+    if (accept) {
+      _endGame(GameResult.draw, GameStatus.draw);
+    } else {
+      state = state.copyWith(drawOfferSent: false);
+    }
   }
 
   Future<void> acceptDraw() async {
@@ -1341,7 +1433,21 @@ class GameNotifier extends StateNotifier<GameState> {
     if (auth == null) return;
 
     final myUid = _myUid ?? auth.uid;
-    final oppUid = opponentUid;
+    final oppUid = opponentUid ?? standInUid;
+
+    // A stand-in's profile counts the game at once (on this phone).
+    final botUid = standInUid;
+    if (botUid != null && result != GameResult.aborted &&
+        result != GameResult.ongoing) {
+      final botIsWhite = !playerIsWhite;
+      final botResult = result == GameResult.draw
+          ? 0
+          : (result == GameResult.white) == botIsWhite
+              ? 1
+              : -1;
+      unawaited(BotRecords.add(
+          botUid, BotRecords.chessKind(timeControl), botResult));
+    }
 
     final whiteUid = playerIsWhite ? myUid : oppUid;
     final blackUid = playerIsWhite ? oppUid : myUid;
@@ -1373,8 +1479,13 @@ class GameNotifier extends StateNotifier<GameState> {
     );
 
     try {
-      await firestore.saveGame(game);
+      // Online games must be on the server before the rating function runs.
+      // Bot and same-phone games must not wait for it: offline, saveGame only
+      // completes on reconnect, and the history entry waited with it.
+      final saved = firestore.saveGame(game);
+      if (mode == GameMode.online) await saved;
       await firestore.addRecentGameId(myUid, _gameId);
+      unawaited(saved.catchError((_) {}));
       debugPrint('[Game] saved $_gameId (mode: ${mode.name})');
     } catch (e) {
       debugPrint('[Game] failed to save game: $e');
@@ -1428,6 +1539,8 @@ final gameProvider = StateNotifierProvider.autoDispose
     opponentUsername: config.opponentUsername,
     arenaId: config.arenaId,
     arenaBotUid: config.arenaBotUid,
+    standIn: config.standIn,
+    standInUid: config.standInUid,
     gameType: config.gameType,
     ref: ref,
   );
@@ -1449,6 +1562,8 @@ class GameConfig {
   final String? opponentUsername;
   final String? arenaId;
   final String? arenaBotUid;
+  final bool standIn;
+  final String? standInUid;
   final String gameType; // 'chess', 'checkers', 'domino'
 
   const GameConfig({
@@ -1466,6 +1581,8 @@ class GameConfig {
     this.opponentUsername,
     this.arenaId,
     this.arenaBotUid,
+    this.standIn = false,
+    this.standInUid,
     this.gameType = 'chess',
   });
 
@@ -1485,11 +1602,13 @@ class GameConfig {
       myUsername == other.myUsername &&
       opponentUsername == other.opponentUsername &&
       arenaId == other.arenaId &&
-      arenaBotUid == other.arenaBotUid;
+      arenaBotUid == other.arenaBotUid &&
+      standIn == other.standIn &&
+      standInUid == other.standInUid;
 
   @override
   int get hashCode => Object.hash(mode, timeControl, playerIsWhite, botRating,
       isRated, gameId, campaignChapter, opponentUid, opponentRating,
       opponentCountryCode, myUsername, opponentUsername, arenaId,
-      arenaBotUid);
+      arenaBotUid, standIn, standInUid);
 }

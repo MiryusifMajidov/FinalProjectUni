@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/theme/app_colors.dart';
@@ -12,18 +11,16 @@ import '../../../core/models/game_model.dart';
 import '../../../core/services/auth_service.dart';
 
 import '../../../core/widgets/game_icon.dart';
-import '../../../core/utils/text_case.dart';
+import '../../../core/theme/app_fonts.dart';
+import '../../../core/theme/moulded.dart';
 // ── Design tokens ─────────────────────────────────────────────────────────────
 
 const _kBg            = AppColors.background;
 const _kCard          = AppColors.card;
 const _kAmber         = AppColors.amber;
-const _kAmberDeep     = AppColors.amberDeep;
-const _kAmberGlow     = AppColors.amberGlow;
 const _kInk           = AppColors.ink;
 const _kInkDim        = AppColors.inkDim;
 const _kInkMute       = AppColors.inkMute;
-const _kBorder        = AppColors.border;
 
 // ── Level data ────────────────────────────────────────────────────────────────
 
@@ -76,28 +73,23 @@ class _BotSetupScreenState extends ConsumerState<BotSetupScreen> {
               padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
               child: Row(
                 children: [
-                  GestureDetector(
-                    onTap: () => context.pop(),
-                    child: Container(
-                      width: 36, height: 36,
-                      decoration: BoxDecoration(
-                        color: _kCard,
-                        borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
-                      ),
-                      child: Icon(
-                        PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
-                        color: _kInkDim, size: 18,
-                      ),
+                  // The same plain back arrow as every other app bar.
+                  IconButton(
+                    tooltip: 'back'.tr(),
+                    onPressed: () => context.pop(),
+                    icon: Icon(
+                      PhosphorIcons.arrowLeft(PhosphorIconsStyle.bold),
+                      color: _kInk, size: 22,
                     ),
                   ),
-                  const SizedBox(width: 14),
+                  const SizedBox(width: 4),
                   Text(
                     'play_vs_bot'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
-                      fontWeight: FontWeight.w700,
+                      fontWeight: FontWeight.w800,
                       color: _kInk,
+                      letterSpacing: -0.3,
                     ),
                   ),
                 ],
@@ -107,13 +99,13 @@ class _BotSetupScreenState extends ConsumerState<BotSetupScreen> {
               child: Stack(
                 children: [
           SingleChildScrollView(
-            padding: const EdgeInsets.only(bottom: 100),
+            padding: const EdgeInsets.only(bottom: 120),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // 1. Hero card
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 6, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 14, 20, 0),
                   child: _HeroCard(level: _level)
                       .animate()
                       .fadeIn(duration: 360.ms)
@@ -122,12 +114,12 @@ class _BotSetupScreenState extends ConsumerState<BotSetupScreen> {
 
                 // 2. Difficulty section
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       _SectionLabel('difficulty'.tr()),
-                      const SizedBox(height: 10),
+                      const SizedBox(height: 12),
                       _LevelGrid(
                         currentIndex: _levelIndex,
                         onSelect: (i) => setState(() => _levelIndex = i),
@@ -138,7 +130,7 @@ class _BotSetupScreenState extends ConsumerState<BotSetupScreen> {
 
                 // 3. Play as section
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -154,7 +146,7 @@ class _BotSetupScreenState extends ConsumerState<BotSetupScreen> {
 
                 // 4. Time control section
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(20, 18, 20, 0),
+                  padding: const EdgeInsets.fromLTRB(20, 24, 20, 0),
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
@@ -195,7 +187,7 @@ class _BotSetupScreenState extends ConsumerState<BotSetupScreen> {
         ? DateTime.now().millisecondsSinceEpoch.isEven
         : _playerColor == 'white';
 
-    final user = await ref.read(currentUserProvider.future);
+    final user = await readUserQuickly(ref);
     final gameId = const Uuid().v4();
     if (!mounted) return;
 
@@ -218,15 +210,12 @@ class _SectionLabel extends StatelessWidget {
   const _SectionLabel(this.text);
 
   @override
-  // One style for every section heading (they were a mix of "Difficulty",
-  // "PLAY AS" and "Choose Time Control").
   Widget build(BuildContext context) => Text(
-        text.toUpperCaseFor(context),
-        style: GoogleFonts.inter(
-          fontSize: 11,
+        text,
+        style: AppFonts.ui(
+          fontSize: 17,
           fontWeight: FontWeight.w700,
-          color: _kInkMute,
-          letterSpacing: 1.0,
+          color: _kInk,
         ),
       );
 }
@@ -240,37 +229,32 @@ class _StickyStartButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [_kBg.withOpacity(0.0), _kBg.withOpacity(0.98)],
-        ),
-      ),
-      padding: const EdgeInsets.fromLTRB(20, 24, 20, 32),
-      child: GestureDetector(
-        onTap: onPressed,
-        child: Container(
-          height: 52,
-          decoration: BoxDecoration(
-            color: _kAmber,
-            borderRadius: BorderRadius.circular(14),
-            boxShadow: [
-              BoxShadow(
-                color: _kAmberGlow,
-                blurRadius: 20,
-                offset: const Offset(0, 6),
-              ),
-            ],
-          ),
+      color: _kBg,
+      padding: const EdgeInsets.fromLTRB(20, 12, 20, 16),
+      child: SizedBox(
+        height: 60,
+        child: Moulded(
+          color: _kAmber,
+          radius: 14,
+          lip: 5,
+          semanticLabel: 'start_game'.tr(),
+          onTap: onPressed,
           child: Center(
-            child: Text(
-              'Start game →',
-              style: GoogleFonts.inter(
-                fontSize: 15,
-                fontWeight: FontWeight.w700,
-                color: const Color(0xFF1A1205),
-              ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(PhosphorIcons.play(PhosphorIconsStyle.fill),
+                    size: 20, color: AppColors.onAmber),
+                const SizedBox(width: 10),
+                Text(
+                  'start_game'.tr(),
+                  style: AppFonts.ui(
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                    color: AppColors.onAmber,
+                  ),
+                ),
+              ],
             ),
           ),
         ),
@@ -279,7 +263,7 @@ class _StickyStartButton extends StatelessWidget {
   }
 }
 
-// ── Hero card ─────────────────────────────────────────────────────────────────
+// ── Selected level ────────────────────────────────────────────────────────────
 
 class _HeroCard extends StatelessWidget {
   final _BotLevel level;
@@ -287,102 +271,74 @@ class _HeroCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return AnimatedContainer(
-      duration: const Duration(milliseconds: 350),
-      clipBehavior: Clip.hardEdge,
+    return Container(
+      padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
+        color: AppColors.surface,
         borderRadius: BorderRadius.circular(18),
-        gradient: const LinearGradient(
-          begin: Alignment(0.0, -1.0),
-          end: Alignment(1.0, 1.0),
-          // 135deg
-          transform: GradientRotation(135 * math.pi / 180),
-          colors: [_kAmber, _kAmberDeep],
-        ),
-        boxShadow: [
-          BoxShadow(
-            color: _kAmberGlow,
-            blurRadius: 30,
-            offset: const Offset(0, 10),
-          ),
-        ],
       ),
-      child: Stack(
+      child: Row(
         children: [
-          // Content overlay
-          Padding(
-            padding: const EdgeInsets.all(18),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                Text(
-                  'SELECTED · TIER ${level.tier}',
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-                    fontWeight: FontWeight.w700,
-                    letterSpacing: 0.6,
-                    color: const Color(0xFF1A1205).withOpacity(0.7),
-                  ),
-                ),
-                const SizedBox(height: 6),
-                AnimatedSwitcher(
-                  duration: const Duration(milliseconds: 300),
-                  child: Text(
+          Container(
+            width: 76,
+            height: 76,
+            decoration: BoxDecoration(
+              color: AppColors.boardBrown1,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            alignment: Alignment.center,
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: PieceIcon(
+                'b${level.piece}',
+                key: ValueKey(level.piece),
+                size: 58,
+              ),
+            ),
+          ),
+          const SizedBox(width: 16),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              layoutBuilder: (current, previous) => Stack(
+                alignment: Alignment.centerLeft,
+                children: [...previous, if (current != null) current],
+              ),
+              child: Column(
+                key: ValueKey(level.name),
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
                     level.name.tr(),
-                    key: ValueKey(level.name),
-                    style: GoogleFonts.inter(
-                      fontSize: 32,
+                    style: AppFonts.ui(
+                      fontSize: 26,
+                      fontWeight: FontWeight.w800,
+                      color: _kInk,
+                      letterSpacing: -0.5,
+                      height: 1.1,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  Text(
+                    level.description.tr(),
+                    style: AppFonts.ui(
+                      fontSize: 14,
+                      color: _kInkDim,
+                      height: 1.35,
+                    ),
+                  ),
+                  const SizedBox(height: 6),
+                  Text(
+                    '${'bot_level_selected'.tr(args: ['${level.tier}'])} · ${level.elo} Elo',
+                    style: AppFonts.ui(
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: const Color(0xFF1A1205),
-                      height: 1.0,
+                      color: _kAmber,
+                      fontFeatures: const [FontFeature.tabularFigures()],
                     ),
                   ),
-                ),
-                const SizedBox(height: 4),
-                SizedBox(
-                  width: 260,
-                  child: AnimatedSwitcher(
-                    duration: const Duration(milliseconds: 300),
-                    // Default layout centres the child, which indented the
-                    // line relative to the title above it.
-                    layoutBuilder: (current, previous) => Stack(
-                      alignment: Alignment.centerLeft,
-                      children: [...previous, if (current != null) current],
-                    ),
-                    child: Text(
-                      level.description.tr(),
-                      key: ValueKey(level.description),
-                      style: GoogleFonts.inter(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w500,
-                        color: const Color(0xFF1A1205).withOpacity(0.72),
-                      ),
-                    ),
-                  ),
-                ),
-                const SizedBox(height: 14),
-                Row(
-                  children: [
-                    Text(
-                      '${level.elo}',
-                      style: GoogleFonts.inter(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1A1205),
-                      ),
-                    ),
-                    const SizedBox(width: 6),
-                    Text(
-                      'ELO',
-                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF1A1205).withOpacity(0.6),
-                        letterSpacing: 0.4,
-                      ),
-                    ),
-                  ],
-                ),
-              ],
+                ],
+              ),
             ),
           ),
         ],
@@ -411,44 +367,45 @@ class _LevelGrid extends StatelessWidget {
         children: List.generate(_kLevels.length, (i) {
           final level = _kLevels[i];
           final selected = i == currentIndex;
-
-          return GestureDetector(
-            onTap: () => onSelect(i),
-            child: AnimatedContainer(
-              duration: const Duration(milliseconds: 200),
-              width: itemWidth,
-              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 8),
-              decoration: BoxDecoration(
-                color: selected ? _kAmberGlow : _kCard,
-                borderRadius: BorderRadius.circular(12),
-                border: Border.all(
-                  color: selected ? _kAmber : _kBorder,
-                  width: selected ? 1.5 : 1.0,
-                ),
-              ),
+          final ink = selected ? AppColors.onAmber : _kInk;
+          return SizedBox(
+            width: itemWidth,
+            child: Moulded(
+              color: selected ? _kAmber : _kCard,
+              selected: selected,
+              lip: 3,
+              semanticLabel: '${level.name.tr()}, ${level.elo} Elo',
+              onTap: () => onSelect(i),
+              padding: const EdgeInsets.symmetric(vertical: 12, horizontal: 6),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
                   PieceIcon(
                     'b${level.piece}',
-                    size: 26,
-                    color: selected ? _kAmber : _kInkDim,
+                    size: 28,
+                    color: selected ? AppColors.onAmber : _kInkDim,
                   ),
-                  const SizedBox(height: 4),
+                  const SizedBox(height: 6),
                   Text(
                     level.name.tr(),
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
-                      fontSize: 11,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: AppFonts.ui(
+                      fontSize: 14,
                       fontWeight: FontWeight.w700,
-                      color: _kInk,
+                      color: ink,
                     ),
                   ),
-                  const SizedBox(height: 2),
                   Text(
-                    '${level.elo} ELO',
-                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
-                      color: _kInkMute,
+                    '${level.elo}',
+                    style: AppFonts.ui(
+                      fontFeatures: const [FontFeature.tabularFigures()],
+                      fontSize: 13,
+                      fontWeight: FontWeight.w500,
+                      color: selected
+                          ? AppColors.onAmber.withValues(alpha: 0.75)
+                          : _kInkMute,
                     ),
                   ),
                 ],
@@ -507,19 +464,14 @@ class _ColorTile extends StatelessWidget {
     };
 
     return Expanded(
-      child: GestureDetector(
-        onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          height: 72,
-          decoration: BoxDecoration(
-            color: selected ? _kAmberGlow : _kCard,
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(
-              color: selected ? _kAmber : _kBorder,
-              width: selected ? 1.5 : 1.0,
-            ),
-          ),
+      child: SizedBox(
+        height: 84,
+        child: Moulded(
+          color: selected ? _kAmber : _kCard,
+          selected: selected,
+          lip: 3,
+          semanticLabel: label,
+          onTap: onTap,
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
@@ -527,10 +479,10 @@ class _ColorTile extends StatelessWidget {
               const SizedBox(height: 6),
               Text(
                 label,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: selected ? _kAmber : _kInkDim,
+                style: AppFonts.ui(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w700,
+                  color: selected ? AppColors.onAmber : _kInkDim,
                 ),
               ),
             ],
@@ -666,17 +618,21 @@ class _TimeRow extends StatelessWidget {
     return Row(
       children: [
         SizedBox(
-          width: 68,
+          width: 76,
           child: Row(
             children: [
-              Icon(icon, size: 13, color: labelColor),
-              const SizedBox(width: 5),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                  color: labelColor,
+              Icon(icon, size: 15, color: labelColor),
+              const SizedBox(width: 6),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.ui(
+                    fontSize: 14,
+                    fontWeight: FontWeight.w600,
+                    color: _kInkDim,
+                  ),
                 ),
               ),
             ],
@@ -684,32 +640,28 @@ class _TimeRow extends StatelessWidget {
         ),
         Expanded(
           child: Wrap(
-            spacing: 6,
-            runSpacing: 6,
+            spacing: 8,
+            runSpacing: 8,
             children: controls.map((tc) {
               final sel = selected == tc;
-              return GestureDetector(
+              return Moulded(
+                color: sel ? _kAmber : _kCard,
+                selected: sel,
+                radius: 10,
+                lip: 3,
+                semanticLabel: tc.label,
                 onTap: () => onSelect(tc),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 150),
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 6,
-                    horizontal: 11,
-                  ),
-                  decoration: BoxDecoration(
-                    color: sel ? _kAmberGlow : _kCard,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(
-                      color: sel ? _kAmber : _kBorder,
-                      width: sel ? 1.5 : 1.0,
-                    ),
-                  ),
-                  child: Text(
-                    tc.label,
-                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-                      fontWeight: FontWeight.w600,
-                      color: sel ? _kAmber : _kInkDim,
-                    ),
+                padding: const EdgeInsets.symmetric(
+                  vertical: 15,
+                  horizontal: 14,
+                ),
+                child: Text(
+                  tc.label,
+                  style: AppFonts.ui(
+                    fontFeatures: const [FontFeature.tabularFigures()],
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    color: sel ? AppColors.onAmber : _kInk,
                   ),
                 ),
               );

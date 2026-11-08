@@ -3,18 +3,18 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/otp_service.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kSurface   = AppColors.surface;
 const _kCard      = AppColors.card;
-const _kAmber     = AppColors.amber;
-const _kAmberGlow = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk       = AppColors.ink;
 const _kInkDim    = AppColors.inkDim;
 const _kInkMute   = AppColors.inkMute;
@@ -108,7 +108,6 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -121,7 +120,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                     widget.enabling
                         ? 'enable_2fa'.tr()
                         : 'disable_2fa'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -168,7 +167,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
             widget.enabling
                 ? 'tfa_security_add'.tr()
                 : 'tfa_security_remove'.tr(),
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
               fontSize: 22, fontWeight: FontWeight.w700,
               color: _kInk,
             ),
@@ -179,7 +178,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
             widget.enabling
                 ? 'tfa_desc_enable'.tr()
                 : 'tfa_desc_disable'.tr(),
-            style: GoogleFonts.inter(fontSize: 14, color: _kInkMute, height: 1.6),
+            style: AppFonts.ui(fontSize: 14, color: _kInkMute, height: 1.6),
             textAlign: TextAlign.center,
           ),
           if (user != null) ...[
@@ -189,7 +188,6 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
               decoration: BoxDecoration(
                 color: _kSurface,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _kBorder),
               ),
               child: Row(
                 children: [
@@ -198,7 +196,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                   const SizedBox(width: 10),
                   Text(
                     user.email,
-                    style: GoogleFonts.inter(fontSize: 13, color: _kInkDim),
+                    style: AppFonts.ui(fontSize: 13, color: _kInkDim),
                   ),
                 ],
               ),
@@ -207,7 +205,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
           if (_error != null) ...[
             const SizedBox(height: 12),
             Text(_error!,
-                style: GoogleFonts.inter(fontSize: 12, color: _kLoss)),
+                style: AppFonts.ui(fontSize: 12, color: _kLoss)),
           ],
           const Spacer(),
           GestureDetector(
@@ -228,16 +226,16 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           color: widget.enabling
-                              ? const Color(0xFF1A1205)
+                              ? const Color(0xFF241703)
                               : _kLoss,
                         ),
                       )
                     : Text(
                         'send_code'.tr(),
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 15, fontWeight: FontWeight.w600,
                           color: widget.enabling
-                              ? const Color(0xFF1A1205)
+                              ? const Color(0xFF241703)
                               : _kLoss,
                         ),
                       ),
@@ -262,7 +260,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
           const SizedBox(height: 16),
           Text(
             'enter_verification_code'.tr(),
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
               fontSize: 22, fontWeight: FontWeight.w700,
               color: _kInk,
             ),
@@ -270,7 +268,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
           const SizedBox(height: 10),
           Text(
             'code_sent_to'.tr(namedArgs: {'email': email}),
-            style: GoogleFonts.inter(fontSize: 13, color: _kInkMute, height: 1.5),
+            style: AppFonts.ui(fontSize: 13, color: _kInkMute, height: 1.5),
             textAlign: TextAlign.center,
           ),
           const SizedBox(height: 28),
@@ -284,7 +282,6 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                 decoration: BoxDecoration(
                   color: _kCard,
                   borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: _kBorder),
                 ),
                 child: TextField(
                   controller: _ctrls[i],
@@ -292,7 +289,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                   textAlign: TextAlign.center,
                   keyboardType: TextInputType.number,
                   maxLength: 1,
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 20, fontWeight: FontWeight.bold, color: _kAmber,
+                  style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 20, fontWeight: FontWeight.bold, color: _kAmber,
                   ),
                   decoration: const InputDecoration(
                     border: InputBorder.none,
@@ -318,14 +315,14 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
           if (_error != null) ...[
             const SizedBox(height: 12),
             Text(_error!,
-                style: GoogleFonts.inter(fontSize: 12, color: _kLoss)),
+                style: AppFonts.ui(fontSize: 12, color: _kLoss)),
           ],
           const SizedBox(height: 8),
           TextButton(
             onPressed: _loading ? null : _sendCode,
             child: Text(
               'resend'.tr(),
-              style: GoogleFonts.inter(fontSize: 13, color: _kAmber),
+              style: AppFonts.ui(fontSize: 13, color: _kAmber),
             ),
           ),
           const Spacer(),
@@ -348,16 +345,16 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                         child: CircularProgressIndicator(
                           strokeWidth: 2,
                           color: _code.length == 6
-                              ? const Color(0xFF1A1205)
+                              ? const Color(0xFF241703)
                               : _kInkMute,
                         ),
                       )
                     : Text(
                         'verify'.tr(),
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 15, fontWeight: FontWeight.w600,
                           color: _code.length == 6
-                              ? const Color(0xFF1A1205)
+                              ? const Color(0xFF241703)
                               : _kInkMute,
                         ),
                       ),
@@ -391,7 +388,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
             const SizedBox(height: 20),
             Text(
               widget.enabling ? 'tfa_enabled'.tr() : 'tfa_disabled'.tr(),
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 24, fontWeight: FontWeight.w700,
                 color: _kInk,
               ),
@@ -402,7 +399,7 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                   ? 'tfa_done_enable'.tr()
                   : 'tfa_done_disable'.tr(),
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                   fontSize: 14, color: _kInkMute, height: 1.5),
             ),
             const SizedBox(height: 28),
@@ -416,9 +413,9 @@ class _TwoFactorScreenState extends ConsumerState<TwoFactorScreen> {
                 ),
                 child: Text(
                   'done'.tr(),
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 14, fontWeight: FontWeight.w600,
-                    color: const Color(0xFF1A1205),
+                    color: const Color(0xFF241703),
                   ),
                 ),
               ),

@@ -3,7 +3,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:share_plus/share_plus.dart';
 import '../../../core/models/user_model.dart';
@@ -13,12 +12,13 @@ import '../../../core/constants/countries.dart';
 import '../../../core/widgets/guest_notice.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg           = AppColors.background;
 const _kSurface      = AppColors.surface;
 const _kCard         = AppColors.card;
-const _kAmber        = AppColors.amber;
-const _kAmberGlow    = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk          = AppColors.ink;
 const _kInkDim       = AppColors.inkDim;
 const _kInkMute      = AppColors.inkMute;
@@ -68,7 +68,6 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -80,7 +79,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'account'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -119,7 +118,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                                 ),
                                 child: ClipOval(
                                   child: _uploading
-                                      ? const Center(
+                                      ? Center(
                                           child: SizedBox(
                                             width: 28,
                                             height: 28,
@@ -159,7 +158,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                                     child: Icon(
                                       PhosphorIcons.camera(PhosphorIconsStyle.fill),
                                       size: 13,
-                                      color: const Color(0xFF1A1205),
+                                      color: const Color(0xFF241703),
                                     ),
                                   ),
                                 ),
@@ -169,7 +168,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                           const SizedBox(height: 10),
                           Text(
                             'tap_photo_to_change'.tr(),
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 12,
                               fontWeight: FontWeight.w600,
                               color: _kAmber,
@@ -323,7 +322,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
     return Center(
       child: Text(
         initial,
-        style: GoogleFonts.inter(
+        style: AppFonts.ui(
           fontSize: 36,
           fontWeight: FontWeight.w700,
           color: _kAmber,
@@ -561,9 +560,8 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
               margin: const EdgeInsets.all(12),
               padding: const EdgeInsets.all(20),
               decoration: BoxDecoration(
-                color: const Color(0xFF1A1A1E),
+                color: const Color(0xFF1D2923),
                 borderRadius: BorderRadius.circular(18),
-                border: Border.all(color: _kBorder),
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
@@ -584,7 +582,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   const SizedBox(height: 14),
                   Text(
                     'delete_account_confirm'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -594,7 +592,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                   Text(
                     'delete_account_body'.tr(),
                     textAlign: TextAlign.center,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 13,
                       color: _kInkMute,
                       height: 1.5,
@@ -606,10 +604,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     TextField(
                       controller: passCtrl,
                       obscureText: true,
-                      style: GoogleFonts.inter(color: _kInk, fontSize: 14),
+                      style: AppFonts.ui(color: _kInk, fontSize: 14),
                       decoration: InputDecoration(
                         labelText: 'delete_enter_password'.tr(),
-                        labelStyle: GoogleFonts.inter(color: _kInkMute),
+                        labelStyle: AppFonts.ui(color: _kInkMute),
                         errorText: error,
                         filled: true,
                         fillColor: _kSurface,
@@ -634,7 +632,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                           ? 'delete_reauth_apple'.tr()
                           : 'delete_reauth_google'.tr(),
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                           fontSize: 12, color: _kInkMute, height: 1.5),
                     ),
                     const SizedBox(height: 16),
@@ -672,12 +670,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                             },
                       style: ElevatedButton.styleFrom(
                         backgroundColor: _kDanger,
-                        foregroundColor: Colors.white,
-                        shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12),
-                        ),
-                        elevation: 0,
-                      ),
+                        foregroundColor: Colors.white,),
                       child: deleting
                           ? const SizedBox(
                               width: 20,
@@ -688,7 +681,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                             )
                           : Text(
                               'delete_account_button'.tr(),
-                              style: GoogleFonts.inter(
+                              style: AppFonts.ui(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600),
                             ),
@@ -699,7 +692,7 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
                     onPressed: () => Navigator.pop(ctx),
                     child: Text(
                       'cancel'.tr(),
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                           fontSize: 14, color: _kInkDim),
                     ),
                   ),
@@ -735,11 +728,10 @@ class _AccountScreenState extends ConsumerState<AccountScreen> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: Text(
         label,
-        style: GoogleFonts.inter(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: _kInkMute,
-          letterSpacing: 1.2,
+        style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
         ),
       ),
     );
@@ -803,7 +795,7 @@ class _EditSheetState extends State<_EditSheet> {
           const SizedBox(height: 20),
           Text(
             widget.title,
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
               fontSize: 18,
               fontWeight: FontWeight.w700,
               color: _kInk,
@@ -820,12 +812,12 @@ class _EditSheetState extends State<_EditSheet> {
                 controller: f.controller,
                 obscureText: f.obscure,
                 keyboardType: f.keyboardType,
-                style: GoogleFonts.inter(color: _kInk, fontSize: 14),
+                style: AppFonts.ui(color: _kInk, fontSize: 14),
                 autofocus: i == 0,
                 decoration: InputDecoration(
                   labelText: f.label,
                   errorText: i == widget.fields.length - 1 ? _error : null,
-                  labelStyle: GoogleFonts.inter(color: _kInkMute),
+                  labelStyle: AppFonts.ui(color: _kInkMute),
                   filled: true,
                   fillColor: _kSurface,
                   border: OutlineInputBorder(
@@ -838,7 +830,7 @@ class _EditSheetState extends State<_EditSheet> {
                   ),
                   focusedBorder: OutlineInputBorder(
                     borderRadius: BorderRadius.circular(10),
-                    borderSide: const BorderSide(color: _kAmber),
+                    borderSide: BorderSide(color: _kAmber),
                   ),
                 ),
               ),
@@ -852,22 +844,18 @@ class _EditSheetState extends State<_EditSheet> {
               onPressed: _loading ? null : _save,
               style: ElevatedButton.styleFrom(
                 backgroundColor: _kAmber,
-                foregroundColor: const Color(0xFF1A1205),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-                elevation: 0,
-              ),
+                foregroundColor: const Color(0xFF241703),),
               child: _loading
                   ? const SizedBox(
                       width: 20,
                       height: 20,
                       child: CircularProgressIndicator(
                           strokeWidth: 2,
-                          color: Color(0xFF1A1205)),
+                          color: Color(0xFF241703)),
                     )
                   : Text(
                       'save'.tr(),
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                           fontWeight: FontWeight.w600, fontSize: 14),
                     ),
             ),
@@ -970,7 +958,7 @@ class _CountrySheetState extends ConsumerState<_CountrySheet> {
           ),
           const SizedBox(height: 12),
           Text('change_country'.tr(),
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
                   color: _kInk)),
@@ -979,7 +967,7 @@ class _CountrySheetState extends ConsumerState<_CountrySheet> {
           ListTile(
             leading: Icon(PhosphorIcons.prohibit(PhosphorIconsStyle.regular), size: 20, color: AppColors.inkMute),
             title: Text('no_flag'.tr(),
-                style: GoogleFonts.inter(fontSize: 14, color: _kInk)),
+                style: AppFonts.ui(fontSize: 14, color: _kInk)),
             trailing: _selected == null
                 ? Icon(PhosphorIcons.check(PhosphorIconsStyle.bold),
                     color: _kAmber, size: 18)
@@ -998,7 +986,7 @@ class _CountrySheetState extends ConsumerState<_CountrySheet> {
                   leading: Text(UserModel.flagEmoji(code),
                       style: const TextStyle(fontSize: 22)),
                   title:
-                      Text(name, style: GoogleFonts.inter(fontSize: 14, color: _kInk)),
+                      Text(name, style: AppFonts.ui(fontSize: 14, color: _kInk)),
                   trailing: sel
                       ? Icon(PhosphorIcons.check(PhosphorIconsStyle.bold),
                           color: _kAmber, size: 18)
@@ -1009,7 +997,7 @@ class _CountrySheetState extends ConsumerState<_CountrySheet> {
             ),
           ),
           if (_loading)
-            const Padding(
+            Padding(
               padding: EdgeInsets.all(16),
               child: CircularProgressIndicator(color: _kAmber),
             ),
@@ -1054,7 +1042,6 @@ class _SettingsGroup extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(children: children),
@@ -1121,7 +1108,7 @@ class _SettingsRow extends StatelessWidget {
                     children: [
                       Text(
                         label,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           color: danger ? _kDanger : _kInk,
@@ -1131,7 +1118,7 @@ class _SettingsRow extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           sub!,
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                               fontSize: 12, color: subColor ?? _kInkMute),
                         ),
                       ],

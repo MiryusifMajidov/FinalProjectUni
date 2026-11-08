@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#0A0A0B</color>
+    <!-- The app's felt ground (AppColors.background). The window shows it
+         before the first Flutter frame and behind the system bars. -->
+    <color name="app_ground">#111915</color>
 </resources>

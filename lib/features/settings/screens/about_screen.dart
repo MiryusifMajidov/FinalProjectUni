@@ -4,7 +4,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:package_info_plus/package_info_plus.dart';
@@ -14,12 +13,13 @@ import '../../../core/legal/legal_texts.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_logo.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg       = AppColors.background;
 const _kSurface  = AppColors.surface;
 const _kCard     = AppColors.card;
-const _kAmber    = AppColors.amber;
-const _kAmberGlow = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk      = AppColors.ink;
 const _kInkDim   = AppColors.inkDim;
 const _kInkMute  = AppColors.inkMute;
@@ -67,7 +67,6 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -79,7 +78,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'about'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -123,7 +122,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                             const SizedBox(height: 14),
                             Text(
                               'CheckMate',
-                              style: GoogleFonts.inter(
+                              style: AppFonts.ui(
                                 fontSize: 26,
                                 fontWeight: FontWeight.w600,
                                 color: _kInk,
@@ -134,7 +133,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                             if (_version.isNotEmpty)
                               Text(
                                 _version,
-                                style: GoogleFonts.inter(
+                                style: AppFonts.ui(
                                   fontSize: 12,
                                   color: _kInkMute,
                                 ),
@@ -150,7 +149,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                               ),
                               child: Text(
                                 'MADE BY LUDODO',
-                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                                   fontWeight: FontWeight.w700,
                                   color: _kAmber,
                                   letterSpacing: 0.4,
@@ -169,7 +168,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                     child: Text(
                       '"The board is set, the pieces move. All we have to decide is what to do with the time given to us."',
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 14,
+                      style: AppFonts.ui(fontWeight: FontWeight.w600, fontSize: 14,
                         color: _kInkDim,
                         height: 1.55,
                       ),
@@ -265,7 +264,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                     child: Center(
                       child: Text(
                         '© 2026 CHECKMATE · ALL RIGHTS RESERVED',
-                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
+                        style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                           color: _kInkFaint,
                           letterSpacing: 0.5,
                         ),
@@ -286,11 +285,10 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: Text(
         label,
-        style: GoogleFonts.inter(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: _kInkMute,
-          letterSpacing: 1.2,
+        style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
         ),
       ),
     );
@@ -336,7 +334,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   const SizedBox(height: 12),
                   Text(
                     title,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 18, fontWeight: FontWeight.w700,
                       color: _kInk,
                     ),
@@ -344,7 +342,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   const SizedBox(height: 2),
                   Text(
                     subtitle,
-                    style: GoogleFonts.inter(fontSize: 11, color: _kInkMute),
+                    style: AppFonts.ui(fontSize: 11, color: _kInkMute),
                   ),
                 ],
               ),
@@ -359,7 +357,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                           padding: const EdgeInsets.only(bottom: 14),
                           child: Text(
                             p,
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                                 fontSize: 13, color: _kInkDim, height: 1.6),
                           ),
                         ))
@@ -400,7 +398,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
             const SizedBox(height: 18),
             Text(
               'Contact support',
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 18, fontWeight: FontWeight.w700,
                 color: _kInk,
               ),
@@ -411,7 +409,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
               'We reply within 3 business days. For bugs and ideas, the in-app '
               'forms below reach us faster because they attach your app version '
               'and device model.',
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                   fontSize: 12, color: _kInkMute, height: 1.5),
             ),
             const SizedBox(height: 16),
@@ -421,11 +419,10 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
               decoration: BoxDecoration(
                 color: _kSurface,
                 borderRadius: BorderRadius.circular(10),
-                border: Border.all(color: _kBorder),
               ),
               child: Text(
                 kSupportEmail,
-                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12, color: _kInk, letterSpacing: 0.2),
+                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12, color: _kInk, letterSpacing: 0.2),
               ),
             ),
             const SizedBox(height: 14),
@@ -442,12 +439,12 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                     size: 16),
                 label: Text(
                   'Copy address',
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                       fontWeight: FontWeight.w600, fontSize: 14),
                 ),
                 style: FilledButton.styleFrom(
                   backgroundColor: _kAmber,
-                  foregroundColor: const Color(0xFF1A1205),
+                  foregroundColor: const Color(0xFF241703),
                   minimumSize: const Size.fromHeight(46),
                   shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(12)),
@@ -493,7 +490,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                 const SizedBox(height: 20),
                 Text(
                   isBug ? 'report_bug_label'.tr() : 'send_feedback'.tr(),
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 18, fontWeight: FontWeight.w700,
                     color: _kInk,
                   ),
@@ -503,17 +500,17 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   isBug
                       ? 'Describe what happened and how to reproduce it.'
                       : 'We read every message — thank you for helping improve CheckMate.',
-                  style: GoogleFonts.inter(fontSize: 12, color: _kInkMute, height: 1.5),
+                  style: AppFonts.ui(fontSize: 12, color: _kInkMute, height: 1.5),
                 ),
                 const SizedBox(height: 16),
                 TextField(
                   controller: ctrl,
                   maxLines: 5,
                   autofocus: true,
-                  style: GoogleFonts.inter(color: _kInk, fontSize: 14),
+                  style: AppFonts.ui(color: _kInk, fontSize: 14),
                   decoration: InputDecoration(
                     hintText: isBug ? 'Describe the bug…' : 'Your feedback…',
-                    hintStyle: GoogleFonts.inter(color: _kInkMute),
+                    hintStyle: AppFonts.ui(color: _kInkMute),
                     filled: true,
                     fillColor: _kSurface,
                     border: OutlineInputBorder(
@@ -526,7 +523,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                     ),
                     focusedBorder: OutlineInputBorder(
                       borderRadius: BorderRadius.circular(10),
-                      borderSide: const BorderSide(color: _kAmber),
+                      borderSide: BorderSide(color: _kAmber),
                     ),
                   ),
                 ),
@@ -534,7 +531,7 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                   const SizedBox(height: 8),
                   Text(
                     error!,
-                    style: GoogleFonts.inter(fontSize: 12, color: const Color(0xFFF07079)),
+                    style: AppFonts.ui(fontSize: 12, color: const Color(0xFFF07A6E)),
                   ),
                 ],
                 const SizedBox(height: 16),
@@ -616,20 +613,16 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _kAmber,
-                      foregroundColor: const Color(0xFF1A1205),
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(12)),
-                      elevation: 0,
-                    ),
+                      foregroundColor: const Color(0xFF241703),),
                     child: sending
                         ? const SizedBox(
                             width: 20, height: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Color(0xFF1A1205)),
+                                strokeWidth: 2, color: Color(0xFF241703)),
                           )
                         : Text(
                             'send_feedback'.tr(),
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                                 fontWeight: FontWeight.w600, fontSize: 14),
                           ),
                   ),
@@ -758,7 +751,6 @@ class _SettingsGroup extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(children: children),
@@ -797,7 +789,6 @@ class _SettingsRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: _kSurface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _kBorder),
                   ),
                   child: Center(
                     child: Icon(icon, color: _kAmber, size: 16),
@@ -811,7 +802,7 @@ class _SettingsRow extends StatelessWidget {
                     children: [
                       Text(
                         label,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           color: _kInk,
@@ -822,7 +813,7 @@ class _SettingsRow extends StatelessWidget {
                         Text(
                           sub!,
                           style:
-                              GoogleFonts.inter(fontSize: 11, color: _kInkMute),
+                              AppFonts.ui(fontSize: 11, color: _kInkMute),
                         ),
                       ],
                     ],

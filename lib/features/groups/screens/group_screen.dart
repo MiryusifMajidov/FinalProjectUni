@@ -3,7 +3,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
@@ -16,6 +15,7 @@ import '../../../core/services/photo_service.dart';
 import '../../../core/models/group_model.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../../core/widgets/keyed_stream_builder.dart';
+import '../../../core/theme/app_fonts.dart';
 
 /// Live user stream for message bubble avatars — auto-disposes per sender.
 final _senderPhotoProvider =
@@ -224,7 +224,6 @@ class _GroupScreenState extends ConsumerState<GroupScreen>
                           decoration: BoxDecoration(
                             color: AppColors.card,
                             borderRadius: BorderRadius.circular(10),
-                            border: Border.all(color: AppColors.border),
                           ),
                           child: Icon(
                             PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -270,7 +269,7 @@ class _GroupScreenState extends ConsumerState<GroupScreen>
                           children: [
                             Text(
                               group?.name ?? 'Group',
-                              style: GoogleFonts.inter(
+                              style: AppFonts.ui(
                                 fontSize: 18,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.ink,
@@ -281,7 +280,7 @@ class _GroupScreenState extends ConsumerState<GroupScreen>
                             if (group != null)
                               Text(
                                 '${group.memberCount} members',
-                                style: GoogleFonts.inter(
+                                style: AppFonts.ui(
                                   fontSize: 11,
                                   color: AppColors.textHint,
                                 ),
@@ -514,7 +513,7 @@ class _EmptyChat extends StatelessWidget {
                 Container(
                   width: 120, height: 120,
                   decoration: BoxDecoration(
-                    color: AppColors.amber.withOpacity(0.06),
+                    color: AppColors.accent.withOpacity(0.06),
                     shape: BoxShape.circle,
                   ),
                 ),
@@ -523,12 +522,11 @@ class _EmptyChat extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.card,
                     borderRadius: BorderRadius.circular(24),
-                    border: Border.all(color: AppColors.border),
                   ),
                   child: Icon(
                     PhosphorIcons.chatCircle(PhosphorIconsStyle.regular),
                     size: 32,
-                    color: AppColors.amber,
+                    color: AppColors.accent,
                   ),
                 ),
               ],
@@ -536,7 +534,7 @@ class _EmptyChat extends StatelessWidget {
             const SizedBox(height: 18),
             Text(
               'Break the silence',
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 22,
                 fontWeight: FontWeight.w600,
                 color: AppColors.ink,
@@ -547,7 +545,7 @@ class _EmptyChat extends StatelessWidget {
             const SizedBox(height: 8),
             Text(
               'Be the first to say hi. Share a game, drop a puzzle, or just say salam.',
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 13,
                 color: AppColors.inkMute,
                 height: 1.5,
@@ -565,11 +563,10 @@ class _EmptyChat extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: AppColors.card,
                   borderRadius: BorderRadius.circular(100),
-                  border: Border.all(color: AppColors.border),
                 ),
                 child: Text(
                   p,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 11,
                     color: AppColors.inkDim,
                     fontWeight: FontWeight.w500,
@@ -661,10 +658,7 @@ class _GroupReplyBar extends StatelessWidget {
       padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
       decoration: BoxDecoration(
         color: context.appColors.surface,
-        border: Border(
-          left: const BorderSide(color: AppColors.primary, width: 3),
-          top: BorderSide(color: context.appColors.divider),
-        ),
+        border: Border(top: BorderSide(color: context.appColors.divider)),
       ),
       child: Row(
         children: [
@@ -774,10 +768,10 @@ class _GroupChatBubble extends StatelessWidget {
                     maxWidth: MediaQuery.of(context).size.width * 0.62),
                 decoration: BoxDecoration(
                   gradient: isMe
-                      ? const LinearGradient(
+                      ? LinearGradient(
                           begin: Alignment(0.0, -1.0),
                           end: Alignment(1.0, 1.0),
-                          colors: [AppColors.amber, AppColors.amberDeep],
+                          colors: [AppColors.accent, AppColors.accent],
                         )
                       : null,
                   color: isMe ? null : AppColors.card,
@@ -1044,11 +1038,7 @@ class _MembersTab extends ConsumerWidget {
                 style:
                     AppTextStyles.bodyMedium.copyWith(color: AppColors.primary),
               ),
-              style: OutlinedButton.styleFrom(
-                side: const BorderSide(color: AppColors.primary),
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12)),
-              ),
+              style: OutlinedButton.styleFrom(),
             ),
           ),
         Text(

@@ -5,9 +5,9 @@ import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:uuid/uuid.dart';
+import '../../../core/widgets/bot_badge.dart';
 import '../../../core/models/tournament_model.dart';
 import '../../../core/models/game_model.dart';
 import '../../../core/models/game_type.dart';
@@ -17,12 +17,11 @@ import '../../../core/services/bot_pool.dart';
 import '../../../core/services/tournament_service.dart';
 import '../../../core/services/realtime_game_service.dart';
 import '../../../core/theme/app_colors.dart';
-import '../../../core/widgets/bot_badge.dart';
-import '../../../core/utils/text_case.dart';
+import '../../../core/theme/app_fonts.dart';
 import 'tournament_list_screen.dart'
     show tournamentDisplayName, formatCountdown, arenaClockLabel;
 
-const _kDark = Color(0xFF1A1205);
+const _kDark = Color(0xFF241703);
 
 /// Seconds in the ready queue before the arena pairs you with one of its
 /// bots. Short on purpose: with few people online, waiting long for a human
@@ -271,6 +270,7 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
     final String name;
     final int rating;
     final String? country;
+    String? botUid = arenaBot?.uid;
     if (arenaBot != null) {
       name = arenaBot.username;
       rating = arenaBot.rating;
@@ -280,6 +280,7 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
       name = bot.username;
       rating = bot.ratingFor(gt);
       country = bot.countryCode;
+      botUid = bot.uid;
     }
     if (!mounted) return;
 
@@ -301,6 +302,7 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
       'myUsername': _myUsername,
       'arenaId': widget.tournamentId,
       if (arenaBot != null) 'arenaBotUid': arenaBot.uid,
+      if (botUid != null) 'opponentBotUid': botUid,
       ..._rulesExtras,
     });
   }
@@ -501,7 +503,7 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
                           t == null ? 'arena'.tr() : tournamentDisplayName(t),
                           maxLines: 1,
                           overflow: TextOverflow.ellipsis,
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 19,
                             fontWeight: FontWeight.w700,
                             color: AppColors.ink,
@@ -512,7 +514,7 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
                             arenaClockLabel(t),
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontFeatures: const [
                                 FontFeature.tabularFigures()
                               ],
@@ -535,13 +537,13 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
               child: _notFound
                   ? Center(
                       child: Text('arena_not_found'.tr(),
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                               fontSize: 14, color: AppColors.inkDim)),
                     )
                   : t == null
-                      ? const Center(
+                      ? Center(
                           child:
-                              CircularProgressIndicator(color: AppColors.amber))
+                              CircularProgressIndicator(color: AppColors.accent))
                       : _buildBody(t),
             ),
           ],
@@ -584,7 +586,7 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
                 child: Center(
                   child: Text(
                     'no_players_yet'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                         fontSize: 14, color: AppColors.inkMute),
                   ),
                 ),
@@ -692,7 +694,7 @@ class _ArenaLobbyScreenState extends ConsumerState<ArenaLobbyScreen> {
               child: Text(
                 'arena_leave'.tr(),
                 style:
-                    GoogleFonts.inter(fontSize: 13, color: AppColors.inkMute),
+                    AppFonts.ui(fontSize: 13, color: AppColors.inkMute),
               ),
             ),
           ),
@@ -751,7 +753,6 @@ class _BackButton extends StatelessWidget {
           decoration: BoxDecoration(
             color: AppColors.card,
             borderRadius: BorderRadius.circular(10),
-            border: Border.all(color: AppColors.border),
           ),
           child: Icon(
             PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -775,7 +776,7 @@ class _HintText extends StatelessWidget {
       child: Text(
         text,
         textAlign: TextAlign.center,
-        style: GoogleFonts.inter(
+        style: AppFonts.ui(
           fontSize: 12.5,
           color: AppColors.inkMute,
           height: 1.45,
@@ -798,7 +799,6 @@ class _InfoBox extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.center,
@@ -807,7 +807,7 @@ class _InfoBox extends StatelessWidget {
           const SizedBox(width: 8),
           Flexible(
             child: Text(text,
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                     fontSize: 14,
                     fontWeight: FontWeight.w600,
                     color: AppColors.inkDim)),
@@ -845,7 +845,7 @@ class _JoinedBox extends StatelessWidget {
               children: [
                 Text(
                   'arena_joined'.tr(),
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
                     color: accent,
@@ -854,7 +854,7 @@ class _JoinedBox extends StatelessWidget {
                 const SizedBox(height: 3),
                 Text(
                   text,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 12.5,
                     color: AppColors.inkDim,
                     height: 1.45,
@@ -878,7 +878,7 @@ class ArenaStatusBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final (label, color) = switch (status) {
-      TournamentStatus.waiting => ('arena_status_waiting'.tr(), AppColors.amber),
+      TournamentStatus.waiting => ('arena_status_waiting'.tr(), AppColors.accent),
       TournamentStatus.active => ('arena_status_live'.tr(), AppColors.live),
       TournamentStatus.finished =>
         ('arena_status_finished'.tr(), AppColors.inkMute),
@@ -901,12 +901,11 @@ class ArenaStatusBadge extends StatelessWidget {
               decoration: const BoxDecoration(
                 color: AppColors.live,
                 shape: BoxShape.circle,
-                boxShadow: [BoxShadow(color: AppColors.live, blurRadius: 6)],
               ),
             ),
           Text(
-            label.toUpperCaseFor(context),
-            style: GoogleFonts.inter(
+            label,
+            style: AppFonts.ui(
               fontSize: 10.5,
               fontWeight: FontWeight.w700,
               color: color,
@@ -961,10 +960,9 @@ class _CountdownCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.cardElevated, AppColors.card],
+          colors: [AppColors.card, AppColors.card],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -977,19 +975,18 @@ class _CountdownCard extends StatelessWidget {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Text(
-                      caption.toUpperCaseFor(context),
-                      style: GoogleFonts.inter(
-                        fontSize: 10.5,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.inkMute,
-                        letterSpacing: 0.8,
-                      ),
+                      caption,
+                      style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
                     ),
                     const SizedBox(height: 6),
                     // Tabular digits so the countdown doesn't jitter.
                     Text(
                       value,
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                         fontFeatures: const [FontFeature.tabularFigures()],
                         fontSize: 34,
                         fontWeight: FontWeight.w700,
@@ -1007,18 +1004,17 @@ class _CountdownCard extends StatelessWidget {
                     (t.gameType == 'chess'
                             ? 'arena_time_control'.tr()
                             : 'arena_rules'.tr())
-                        .toUpperCaseFor(context),
-                    style: GoogleFonts.inter(
-                      fontSize: 10.5,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.inkMute,
-                      letterSpacing: 0.8,
-                    ),
+                        ,
+                    style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
                   ),
                   const SizedBox(height: 6),
                   Text(
                     t.timeControlLabel,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: AppColors.ink,
@@ -1028,7 +1024,7 @@ class _CountdownCard extends StatelessWidget {
                   Text(
                     'arena_duration_min'
                         .tr(namedArgs: {'minutes': '${t.durationMinutes}'}),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontFeatures: const [FontFeature.tabularFigures()],
                       fontSize: 11,
                       color: AppColors.inkMute,
@@ -1067,7 +1063,7 @@ class _CountdownCard extends StatelessWidget {
                         'count': '${t.participantCount}',
                         'max': '${t.maxPlayers}',
                       }),
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontFeatures: const [FontFeature.tabularFigures()],
                   fontSize: 11.5,
                   color: AppColors.inkMute,
@@ -1116,7 +1112,7 @@ class _MyStatusCard extends StatelessWidget {
             children: [
               Text(
                 '#$rank',
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontFeatures: const [FontFeature.tabularFigures()],
                   fontSize: 22,
                   fontWeight: FontWeight.w700,
@@ -1130,7 +1126,7 @@ class _MyStatusCard extends StatelessWidget {
                       namedArgs: {'rank': '$rank', 'count': '$total'}),
                   maxLines: 1,
                   overflow: TextOverflow.ellipsis,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 12.5,
                     color: AppColors.inkDim,
                     fontWeight: FontWeight.w500,
@@ -1139,7 +1135,7 @@ class _MyStatusCard extends StatelessWidget {
               ),
               Text(
                 '${_fmtPts(me.score)} ${'points_short'.tr()}',
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontFeatures: const [FontFeature.tabularFigures()],
                   fontSize: 18,
                   fontWeight: FontWeight.w700,
@@ -1165,7 +1161,7 @@ class _MyStatusCard extends StatelessWidget {
                   const SizedBox(width: 4),
                   Text(
                     'arena_on_fire'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 11.5,
                       fontWeight: FontWeight.w700,
                       color: AppColors.bullet,
@@ -1219,7 +1215,7 @@ class _SearchingRow extends StatelessWidget {
               isPairing ? 'arena_pairing'.tr() : 'searching_opponent'.tr(),
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: accent,
@@ -1229,7 +1225,7 @@ class _SearchingRow extends StatelessWidget {
           if (!isPairing)
             Text(
               '0:${queueSeconds.clamp(0, 59).toString().padLeft(2, '0')}',
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontFeatures: const [FontFeature.tabularFigures()],
                 fontSize: 13,
                 color: AppColors.inkDim,
@@ -1242,7 +1238,7 @@ class _SearchingRow extends StatelessWidget {
                 size: 14, color: AppColors.inkDim),
             label: Text(
               'arena_pause'.tr(),
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.inkDim,
@@ -1267,7 +1263,7 @@ class _StandingsHeader extends StatelessWidget {
       children: [
         Text(
           'standings'.tr(),
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 18,
             fontWeight: FontWeight.w700,
             color: AppColors.ink,
@@ -1277,7 +1273,7 @@ class _StandingsHeader extends StatelessWidget {
         const Spacer(),
         Text(
           'arena_col_pts'.tr(),
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 11,
             fontWeight: FontWeight.w700,
             color: accent,
@@ -1313,7 +1309,7 @@ class _StandingsRow extends StatelessWidget {
   Widget build(BuildContext context) {
     final p = participant;
     final rankColor = rank == 1
-        ? AppColors.amber
+        ? AppColors.accent
         : rank <= 3
             ? AppColors.ink
             : AppColors.inkMute;
@@ -1335,7 +1331,7 @@ class _StandingsRow extends StatelessWidget {
             child: Text(
               '$rank',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontFeatures: const [FontFeature.tabularFigures()],
                 fontSize: 13.5,
                 fontWeight: FontWeight.w700,
@@ -1359,22 +1355,22 @@ class _StandingsRow extends StatelessWidget {
                         p.username,
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w600,
                           color: isMe ? accent : AppColors.ink,
                         ),
                       ),
                     ),
-                    if (p.isBot) ...[
+                    if (BotPool.isLabelledUid(p.uid)) ...[
                       const SizedBox(width: 5),
-                      const BotBadge(),
+                      const BotBadge(fontSize: 10),
                     ],
                     if (isMe) ...[
                       const SizedBox(width: 5),
                       Text(
                         '· ${'arena_you'.tr()}',
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 11,
                           fontWeight: FontWeight.w500,
                           color: accent,
@@ -1388,7 +1384,7 @@ class _StandingsRow extends StatelessWidget {
                   pointBased
                       ? '${p.rating} ${'points_short'.tr()}'
                       : '${p.rating}',
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontFeatures: const [FontFeature.tabularFigures()],
                     fontSize: 10.5,
                     color: AppColors.inkMute,
@@ -1412,7 +1408,7 @@ class _StandingsRow extends StatelessWidget {
                 ],
                 Text(
                   _fmtPts(p.score),
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontFeatures: const [FontFeature.tabularFigures()],
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
@@ -1426,8 +1422,8 @@ class _StandingsRow extends StatelessWidget {
       ),
     );
 
-    // People open their profile; bots have none.
-    if (p.isBot || isMe) return row;
+    // Everyone else opens their profile (a bot's comes from the bot pool).
+    if (isMe) return row;
     return GestureDetector(
       behavior: HitTestBehavior.opaque,
       onTap: () => context.push('/home/profile/${p.uid}'),
@@ -1478,7 +1474,7 @@ class _ResultChips extends StatelessWidget {
       ),
       child: Text(
         points,
-        style: GoogleFonts.inter(
+        style: AppFonts.ui(
           fontFeatures: const [FontFeature.tabularFigures()],
           fontSize: 10.5,
           fontWeight: FontWeight.w700,
@@ -1505,7 +1501,7 @@ class _WinnerCard extends StatelessWidget {
       );
     }
     const medalColors = [
-      Color(0xFFE8B960),
+      Color(0xFFF0A93B),
       Color(0xFFC0C4CC),
       Color(0xFFC98A5A),
     ];
@@ -1513,16 +1509,16 @@ class _WinnerCard extends StatelessWidget {
       width: double.infinity,
       padding: const EdgeInsets.all(16),
       decoration: BoxDecoration(
-        color: AppColors.amberGlow,
+        color: AppColors.accentGlow,
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.amber.withValues(alpha: 0.3)),
+        border: Border.all(color: AppColors.accent.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(
             'arena_finished_title'.tr(),
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
               fontSize: 18,
               fontWeight: FontWeight.w700,
               color: AppColors.ink,
@@ -1545,7 +1541,7 @@ class _WinnerCard extends StatelessWidget {
                     ),
                     child: Text(
                       '${i + 1}',
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                         fontSize: 12,
                         fontWeight: FontWeight.w700,
                         color: medalColors[i],
@@ -1557,25 +1553,25 @@ class _WinnerCard extends StatelessWidget {
                     child: Text(
                       top[i].username,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                         fontSize: 14,
                         fontWeight: i == 0 ? FontWeight.w700 : FontWeight.w500,
                         color: AppColors.ink,
                       ),
                     ),
                   ),
-                  if (top[i].isBot) ...[
+                  if (BotPool.isLabelledUid(top[i].uid)) ...[
                     const SizedBox(width: 6),
-                    const BotBadge(),
+                    const BotBadge(fontSize: 10),
                   ],
                   const Spacer(),
                   Text(
                     '${_fmtPts(top[i].score)} ${'points_short'.tr()}',
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontFeatures: const [FontFeature.tabularFigures()],
                       fontSize: 12,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.amber,
+                      color: AppColors.accent,
                     ),
                   ),
                 ],
@@ -1625,7 +1621,7 @@ class _CTAButton extends StatelessWidget {
             borderRadius: BorderRadius.circular(14),
             boxShadow: [
               BoxShadow(
-                color: color.withValues(alpha: 0.25),
+                color: Colors.black.withValues(alpha: 0.28),
                 blurRadius: 16,
                 offset: const Offset(0, 4),
               ),
@@ -1649,7 +1645,7 @@ class _CTAButton extends StatelessWidget {
                       child: Text(
                         label,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 15,
                           fontWeight: FontWeight.w700,
                           color: _kDark,

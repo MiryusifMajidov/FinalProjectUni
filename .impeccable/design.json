@@ -1,0 +1,509 @@
+{
+  "schemaVersion": 2,
+  "generatedAt": "2026-11-07T13:09:40+00:00",
+  "title": "Design System: CheckMate",
+  "extensions": {
+    "colorMeta": {
+      "felt": {
+        "role": "neutral",
+        "displayName": "Club Felt",
+        "canonical": "#111915",
+        "tonalRamp": [
+          "#212B26",
+          "#364940",
+          "#4B6859",
+          "#5E8873",
+          "#81A794",
+          "#A7BEB2",
+          "#CBD7D1",
+          "#EBEFED"
+        ]
+      },
+      "felt-surface": {
+        "role": "neutral",
+        "displayName": "Felt Surface",
+        "canonical": "#17211C",
+        "tonalRamp": [
+          "#222B26",
+          "#374940",
+          "#4B6759",
+          "#5F8673",
+          "#82A694",
+          "#A7BEB2",
+          "#CBD7D1",
+          "#EBEFED"
+        ]
+      },
+      "felt-card": {
+        "role": "neutral",
+        "displayName": "Felt Card",
+        "canonical": "#1D2923",
+        "tonalRamp": [
+          "#222B26",
+          "#374840",
+          "#4C6659",
+          "#608673",
+          "#83A594",
+          "#A8BDB2",
+          "#CBD7D1",
+          "#EBEFED"
+        ]
+      },
+      "felt-raised": {
+        "role": "neutral",
+        "displayName": "Felt Raised",
+        "canonical": "#26352D",
+        "tonalRamp": [
+          "#222B26",
+          "#38483F",
+          "#4D6658",
+          "#618572",
+          "#84A493",
+          "#A8BDB2",
+          "#CCD6D1",
+          "#EBEFED"
+        ]
+      },
+      "ink": {
+        "role": "neutral",
+        "displayName": "Bone Ink",
+        "canonical": "#EEF1EC",
+        "tonalRamp": [
+          "#252A22",
+          "#3E4738",
+          "#57654E",
+          "#6F8362",
+          "#91A385",
+          "#B1BCA9",
+          "#D0D6CC",
+          "#EDEFEB"
+        ]
+      },
+      "ink-dim": {
+        "role": "neutral",
+        "displayName": "Ink Dim",
+        "canonical": "#B4BEB8",
+        "tonalRamp": [
+          "#242826",
+          "#3C433F",
+          "#545F58",
+          "#6B7B71",
+          "#8D9B92",
+          "#AEB7B2",
+          "#CFD3D1",
+          "#ECEEED"
+        ]
+      },
+      "ink-mute": {
+        "role": "neutral",
+        "displayName": "Ink Mute",
+        "canonical": "#8D9993",
+        "tonalRamp": [
+          "#252826",
+          "#3D4240",
+          "#555E59",
+          "#6D7973",
+          "#8E9994",
+          "#AFB6B2",
+          "#CFD3D1",
+          "#EDEEED"
+        ]
+      },
+      "ink-faint": {
+        "role": "neutral",
+        "displayName": "Ink Faint",
+        "canonical": "#55615B",
+        "tonalRamp": [
+          "#252826",
+          "#3C4340",
+          "#545E59",
+          "#6C7A73",
+          "#8D9A94",
+          "#AEB7B2",
+          "#CFD3D1",
+          "#ECEEED"
+        ]
+      },
+      "butterscotch": {
+        "role": "primary",
+        "displayName": "Catalin Butterscotch",
+        "canonical": "#F0A93B",
+        "tonalRamp": [
+          "#3D2B10",
+          "#6A4915",
+          "#9B6817",
+          "#D18715",
+          "#E9A63F",
+          "#E8BE7D",
+          "#EDD7B5",
+          "#F7EFE4"
+        ]
+      },
+      "butterscotch-lip": {
+        "role": "primary",
+        "displayName": "Butterscotch Lip",
+        "canonical": "#B9761A",
+        "tonalRamp": [
+          "#3A2913",
+          "#65461B",
+          "#93621F",
+          "#C58020",
+          "#DFA049",
+          "#E2BA83",
+          "#EAD5B8",
+          "#F5EEE5"
+        ]
+      },
+      "on-butterscotch": {
+        "role": "primary",
+        "displayName": "Butterscotch Ink",
+        "canonical": "#241703",
+        "tonalRamp": [
+          "#3C2B10",
+          "#6A4916",
+          "#9B6718",
+          "#CF8616",
+          "#E8A640",
+          "#E8BE7D",
+          "#EDD7B5",
+          "#F6EFE4"
+        ]
+      },
+      "cherry": {
+        "role": "secondary",
+        "displayName": "Catalin Cherry",
+        "canonical": "#E2565E",
+        "tonalRamp": [
+          "#391416",
+          "#631D21",
+          "#902329",
+          "#C0252E",
+          "#DA4E56",
+          "#DF868B",
+          "#E8BABD",
+          "#F5E5E6"
+        ]
+      },
+      "jade": {
+        "role": "tertiary",
+        "displayName": "Catalin Jade",
+        "canonical": "#4CBF95",
+        "tonalRamp": [
+          "#1A332A",
+          "#285746",
+          "#357E63",
+          "#3FA781",
+          "#65C3A1",
+          "#95D0BB",
+          "#C2E1D5",
+          "#E8F2EF"
+        ]
+      },
+      "hint-violet": {
+        "role": "neutral",
+        "displayName": "Hint Violet",
+        "canonical": "#9D8CF2",
+        "tonalRamp": [
+          "#18113B",
+          "#261867",
+          "#301C97",
+          "#391BCA",
+          "#5F45E3",
+          "#9181E4",
+          "#C0B7EB",
+          "#E7E4F6"
+        ]
+      },
+      "win": {
+        "role": "neutral",
+        "displayName": "Win Green",
+        "canonical": "#7FCC8C",
+        "tonalRamp": [
+          "#1B321F",
+          "#2A5532",
+          "#387A43",
+          "#44A254",
+          "#69BF78",
+          "#98CDA1",
+          "#C3DFC8",
+          "#E8F2EA"
+        ]
+      },
+      "loss": {
+        "role": "neutral",
+        "displayName": "Loss Coral",
+        "canonical": "#F07A6E",
+        "tonalRamp": [
+          "#3C1511",
+          "#681F18",
+          "#98261B",
+          "#CC2A1A",
+          "#E55243",
+          "#E58980",
+          "#ECBBB7",
+          "#F6E6E4"
+        ]
+      },
+      "draw": {
+        "role": "neutral",
+        "displayName": "Draw Stone",
+        "canonical": "#B9B4A6",
+        "tonalRamp": [
+          "#292823",
+          "#46433A",
+          "#625E50",
+          "#807966",
+          "#A09A88",
+          "#BAB6AB",
+          "#D5D3CD",
+          "#EEEEEC"
+        ]
+      },
+      "live": {
+        "role": "neutral",
+        "displayName": "Live Red",
+        "canonical": "#FF6F61",
+        "tonalRamp": [
+          "#40110C",
+          "#71170E",
+          "#A61A0C",
+          "#E01905",
+          "#F74231",
+          "#F17F74",
+          "#F2B6B0",
+          "#F8E4E2"
+        ]
+      },
+      "bullet": {
+        "role": "neutral",
+        "displayName": "Bullet Orange",
+        "canonical": "#F28B4C",
+        "tonalRamp": [
+          "#3D2110",
+          "#6A3515",
+          "#9C4917",
+          "#D15C14",
+          "#EA7F3E",
+          "#E9A57C",
+          "#EDCAB5",
+          "#F7EBE4"
+        ]
+      },
+      "blitz": {
+        "role": "neutral",
+        "displayName": "Blitz Sky",
+        "canonical": "#72B6EA",
+        "tonalRamp": [
+          "#13293A",
+          "#1B4564",
+          "#206192",
+          "#227EC4",
+          "#4A9EDE",
+          "#84B9E1",
+          "#B9D4E9",
+          "#E5EEF5"
+        ]
+      },
+      "board-light": {
+        "role": "neutral",
+        "displayName": "Board Light",
+        "canonical": "#F0D9B5",
+        "tonalRamp": [
+          "#382A15",
+          "#61471F",
+          "#8C6526",
+          "#BB832A",
+          "#D6A252",
+          "#DCBC89",
+          "#E7D6BB",
+          "#F4EFE6"
+        ]
+      },
+      "board-dark": {
+        "role": "neutral",
+        "displayName": "Board Dark",
+        "canonical": "#B58863",
+        "tonalRamp": [
+          "#30251D",
+          "#513E2E",
+          "#75573E",
+          "#9A6F4C",
+          "#B79070",
+          "#C9B09C",
+          "#DDD0C5",
+          "#F1EDE9"
+        ]
+      }
+    },
+    "typographyMeta": {
+      "display": {
+        "displayName": "Display",
+        "purpose": "The rating on the Play tab."
+      },
+      "headline": {
+        "displayName": "Headline",
+        "purpose": "Sign-in statement, bot level names."
+      },
+      "title": {
+        "displayName": "Title",
+        "purpose": "Tile titles, buttons, section titles."
+      },
+      "body": {
+        "displayName": "Body",
+        "purpose": "Descriptions, captions, dialogs."
+      },
+      "label": {
+        "displayName": "Label",
+        "purpose": "Meta lines, chips, small section labels."
+      },
+      "clock": {
+        "displayName": "Clock",
+        "purpose": "Game clocks inside their block."
+      }
+    },
+    "shadows": [
+      {
+        "name": "moulded-lip",
+        "value": "inset 0 -4px 0 rgba(0,0,0,0.30)",
+        "purpose": "The thickness of a moulded control (3-5px); removed while pressed."
+      },
+      {
+        "name": "object-drop",
+        "value": "0 5px 12px rgba(0,0,0,0.30)",
+        "purpose": "Under physical illustrations only: board frame, draughtsman, domino."
+      }
+    ],
+    "motion": [
+      {
+        "name": "press-sink",
+        "value": "70ms linear",
+        "purpose": "Face drops onto the lip; instant with Remove animations."
+      },
+      {
+        "name": "hint-grow",
+        "value": "320ms cubic-bezier(0.215, 0.61, 0.355, 1)",
+        "purpose": "The hint arrow grows out of its origin; instant with Remove animations."
+      },
+      {
+        "name": "piece-slide",
+        "value": "220ms cubic-bezier(0.215, 0.61, 0.355, 1)",
+        "purpose": "Chess piece moves (user-adjustable)."
+      }
+    ],
+    "breakpoints": [
+      {
+        "name": "tablet",
+        "value": "600dp shortest side"
+      }
+    ]
+  },
+  "components": [
+    {
+      "name": "Primary Button",
+      "kind": "button",
+      "refersTo": "button-primary",
+      "description": "The one main action on a screen: a butterscotch moulded token whose lip sinks on press.",
+      "html": "<button class=\"ds-btn-primary\">Play now as guest</button>",
+      "css": ".ds-btn-primary { font-family: Geologica, Roboto, sans-serif; background: #F0A93B; color: #241703; font-size: 17px; font-weight: 800; height: 58px; padding: 0 24px; border: none; border-radius: 14px; box-shadow: inset 0 -5px 0 rgba(0,0,0,0.3); cursor: pointer; transition: transform 70ms, box-shadow 70ms; } .ds-btn-primary:active { transform: translateY(5px); box-shadow: none; } .ds-btn-primary:focus-visible { outline: 2px solid #EEF1EC; outline-offset: 3px; }"
+    },
+    {
+      "name": "Tonal Button",
+      "kind": "button",
+      "refersTo": "button-tonal",
+      "description": "Secondary actions (Play offline, Google, e-mail): a raised token of the surface itself.",
+      "html": "<button class=\"ds-btn-tonal\">Play offline</button>",
+      "css": ".ds-btn-tonal { font-family: Geologica, Roboto, sans-serif; background: #26352D; color: #EEF1EC; font-size: 16px; font-weight: 700; height: 54px; padding: 0 22px; border: none; border-radius: 14px; box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3); cursor: pointer; transition: transform 70ms, box-shadow 70ms; } .ds-btn-tonal:active { transform: translateY(4px); box-shadow: none; } .ds-btn-tonal:focus-visible { outline: 2px solid #F0A93B; outline-offset: 3px; }"
+    },
+    {
+      "name": "Game Chips",
+      "kind": "chip",
+      "refersTo": "game-chip-selected",
+      "description": "The game switcher: three catalin tokens, the active one filled with its game colour.",
+      "html": "<div class=\"ds-chips\"><button class=\"ds-chip ds-chip-on\">Chess</button><button class=\"ds-chip\"><span class=\"ds-dot ds-cherry\"></span>Draughts</button><button class=\"ds-chip\"><span class=\"ds-dot ds-jade\"></span>Dominoes</button></div>",
+      "css": ".ds-chips { display: flex; gap: 8px; } .ds-chip { font-family: Geologica, Roboto, sans-serif; flex: 1; height: 48px; border: none; border-radius: 12px; background: #1D2923; color: #B4BEB8; font-size: 14px; font-weight: 600; box-shadow: inset 0 -3px 0 rgba(0,0,0,0.3); display: flex; align-items: center; justify-content: center; gap: 7px; cursor: pointer; } .ds-chip-on { background: #F0A93B; color: #241703; font-weight: 700; } .ds-chip:active { transform: translateY(3px); box-shadow: none; } .ds-dot { width: 12px; height: 12px; border-radius: 50%; } .ds-cherry { background: #E2565E; } .ds-jade { background: #4CBF95; }"
+    },
+    {
+      "name": "Mode Tile",
+      "kind": "card",
+      "refersTo": "mode-tile",
+      "description": "A game mode on the Play tab: icon well, title, meta line, chevron, moulded.",
+      "html": "<button class=\"ds-tile\"><span class=\"ds-well\">&#9823;</span><span class=\"ds-txt\"><b>Play vs bot</b><small>6 difficulty levels</small></span><span class=\"ds-chev\">&#8250;</span></button>",
+      "css": ".ds-tile { font-family: Geologica, Roboto, sans-serif; width: 100%; display: flex; align-items: center; gap: 14px; padding: 12px 12px 12px 14px; background: #1D2923; color: #EEF1EC; border: none; border-radius: 14px; box-shadow: inset 0 -4px 0 rgba(0,0,0,0.3); text-align: left; cursor: pointer; } .ds-tile:active { transform: translateY(4px); box-shadow: none; } .ds-well { width: 42px; height: 42px; border-radius: 11px; background: #26352D; color: #F0A93B; display: grid; place-items: center; font-size: 22px; } .ds-txt { flex: 1; display: flex; flex-direction: column; } .ds-txt b { font-size: 16px; font-weight: 700; } .ds-txt small { font-size: 13px; color: #8D9993; } .ds-chev { color: #8D9993; font-size: 22px; }"
+    },
+    {
+      "name": "Game Clock",
+      "kind": "custom",
+      "refersTo": "clock-running",
+      "description": "The running clock is a butterscotch block; idle is a card block; under 20 s it turns coral.",
+      "html": "<div class=\"ds-clocks\"><span class=\"ds-clock ds-run\">04:56</span><span class=\"ds-clock\">05:00</span><span class=\"ds-clock ds-low\">00:14</span></div>",
+      "css": ".ds-clocks { display: flex; gap: 10px; } .ds-clock { font-family: Geologica, Roboto, sans-serif; font-variant-numeric: tabular-nums; font-size: 24px; font-weight: 700; padding: 5px 12px 6px; border-radius: 10px; background: #1D2923; color: #B4BEB8; } .ds-run { background: #F0A93B; color: #241703; } .ds-low { background: #F07A6E; color: #241703; }"
+    },
+    {
+      "name": "Text Field",
+      "kind": "input",
+      "refersTo": "input",
+      "description": "Filled felt-card field, no stroke; 2px butterscotch outline on focus.",
+      "html": "<label class=\"ds-field\"><span>Email</span><input placeholder=\"your@email.com\"></label>",
+      "css": ".ds-field { font-family: Geologica, Roboto, sans-serif; display: flex; flex-direction: column; gap: 6px; color: #B4BEB8; font-size: 14px; font-weight: 600; } .ds-field input { font-family: Geologica, Roboto, sans-serif; background: #1D2923; color: #EEF1EC; border: 2px solid transparent; border-radius: 12px; padding: 13px 14px; font-size: 15px; outline: none; } .ds-field input::placeholder { color: #8D9993; } .ds-field input:focus { border-color: #F0A93B; }"
+    },
+    {
+      "name": "Bottom Navigation",
+      "kind": "nav",
+      "description": "Material bottom bar on the felt surface; selected icon in a butterscotch-tinted pill.",
+      "html": "<nav class=\"ds-nav\"><a class=\"ds-on\"><i>&#8962;</i>Play</a><a><i>&#9733;</i>Arena</a><a><i>&#9993;</i>Chat</a><a><i>&#9786;</i>Profile</a></nav>",
+      "css": ".ds-nav { font-family: Geologica, Roboto, sans-serif; display: flex; height: 68px; background: #17211C; } .ds-nav a { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; font-size: 12px; font-weight: 500; color: #8D9993; text-decoration: none; cursor: pointer; } .ds-nav i { font-style: normal; width: 56px; height: 30px; border-radius: 15px; display: grid; place-items: center; font-size: 18px; } .ds-nav .ds-on { color: #EEF1EC; font-weight: 700; } .ds-nav .ds-on i { background: rgba(240,169,59,0.15); color: #F0A93B; }"
+    }
+  ],
+  "narrative": {
+    "northStar": "The Club Table",
+    "overview": "CheckMate is a table in a games club: dark green felt, a board in the middle, and pieces made of moulded catalin, the glossy plastic of old domino and draughts sets. The app follows the shape players already know from big chess apps (a Play tab led by the board and one large Play button, game modes as a list, bottom navigation), and puts its own material on it rather than copying anyone's colours.\n\nDensity is a working app's: tone steps separate surfaces, nothing is outlined, and every number that moves sits in tabular figures. The world shows in four places only: the felt, the type, the three catalin colours and the moulded controls. Layout, navigation and controls stay standard Material on Android.\n\nThe system replaced a near-black, gold-glow, Inter-everywhere look whose owners felt it read as AI-made; that look is the anti-reference.",
+    "keyCharacteristics": [
+      "Dark felt ground with three tone-stepped surfaces, never a neutral black.",
+      "One identity colour per game: butterscotch chess, cherry draughts, jade dominoes.",
+      "Moulded controls: a darker lip under every token, gone while pressed.",
+      "Geologica in sentence case, tabular figures for every number.",
+      "A real board (or tiles) shown before any statistic."
+    ],
+    "rules": [
+      {
+        "name": "The Three Pieces Rule",
+        "section": "colors",
+        "body": "Butterscotch, cherry and jade belong to chess, draughts and dominoes. A game's colour appears on that game's chip, its Play button and its selections, and nowhere it could be mistaken for another game."
+      },
+      {
+        "name": "The No Glow Rule",
+        "section": "colors",
+        "body": "Coloured shadows, gradients and halos are not part of this palette. Depth is a darker lip or a neutral drop shadow under a physical object."
+      },
+      {
+        "name": "The Sentence Case Rule",
+        "section": "typography",
+        "body": "No forced uppercase and no tracked text. AppFonts.ui caps positive letter-spacing at 0.2."
+      },
+      {
+        "name": "The Tabular Rule",
+        "section": "typography",
+        "body": "Every rating, clock, score and move number uses tabular figures."
+      },
+      {
+        "name": "The Tone Step Rule",
+        "section": "elevation",
+        "body": "Surfaces are separated by their fill, not by lines. A 1px border appears only as a divider between rows."
+      }
+    ],
+    "dos": [
+      "Do lead with the board: show a real board or tiles before any statistic.",
+      "Do build every new control from the moulded token (Moulded, AppButton, the themed Material buttons).",
+      "Do keep each game's colour to that game, and Hint Violet to engine suggestions.",
+      "Do keep every number tabular and every label in sentence case.",
+      "Do give every touch target 48dp and every icon button a tooltip."
+    ],
+    "donts": [
+      "Don't use coloured glows, gradients, glass or blurred halos.",
+      "Don't outline cards or stack bordered boxes; separate by tone.",
+      "Don't set labels in uppercase or add letter-spacing to small text.",
+      "Don't put an eyebrow or kicker label above a heading.",
+      "Don't invent a statistic the data does not hold (the old averaged \"Overall rating\")."
+    ]
+  }
+}

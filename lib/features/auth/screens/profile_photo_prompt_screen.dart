@@ -2,14 +2,13 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/photo_service.dart';
 
 import '../../../core/theme/app_colors.dart';
-import '../../../core/utils/text_case.dart';
+import '../../../core/theme/app_fonts.dart';
 // Session-level flag: true once the user has responded to the photo prompt
 // (uploaded or skipped). Prevents the home screen from re-showing the prompt
 // after the user dismisses it within the same app session.
@@ -112,8 +111,8 @@ class _ProfilePhotoPromptScreenState
                   // "WELCOME, USERNAME"
                   if (username.isNotEmpty)
                     Text(
-                      'photo_prompt_welcome'.tr(namedArgs: {'name': username}).toUpperCaseFor(context),
-                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                      'photo_prompt_welcome'.tr(namedArgs: {'name': username}),
+                      style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                         fontWeight: FontWeight.w700,
                         color: _kAmber,
                         letterSpacing: 1.4,
@@ -172,7 +171,7 @@ class _ProfilePhotoPromptScreenState
                                   username.isNotEmpty
                                       ? username[0].toUpperCase()
                                       : '?',
-                                  style: GoogleFonts.inter(fontWeight: FontWeight.w600, fontSize: 70,
+                                  style: AppFonts.ui(fontWeight: FontWeight.w600, fontSize: 70,
                                     color: _kAmber.withValues(alpha: 0.85),
                                     height: 1.0,
                                   ),
@@ -194,7 +193,7 @@ class _ProfilePhotoPromptScreenState
                             border: Border.all(color: _kBg, width: 4),
                             boxShadow: [
                               BoxShadow(
-                                color: _kAmber.withValues(alpha: 0.4),
+                                color: Colors.black.withValues(alpha: 0.28),
                                 blurRadius: 14,
                                 offset: const Offset(0, 6),
                               ),
@@ -203,7 +202,7 @@ class _ProfilePhotoPromptScreenState
                           child: Icon(
                             PhosphorIcons.camera(PhosphorIconsStyle.fill),
                             size: 18,
-                            color: const Color(0xFF1A1205),
+                            color: const Color(0xFF241703),
                           ),
                         ),
                       ),
@@ -214,7 +213,7 @@ class _ProfilePhotoPromptScreenState
 
                   Text(
                     'photo_prompt_title'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 30,
                       fontWeight: FontWeight.w600,
                       color: _kInk,
@@ -230,7 +229,7 @@ class _ProfilePhotoPromptScreenState
                     child: Text(
                       'photo_prompt_body'.tr(),
                       textAlign: TextAlign.center,
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                         fontSize: 14,
                         color: _kInkDim,
                         height: 1.55,
@@ -254,7 +253,7 @@ class _ProfilePhotoPromptScreenState
                                 height: 22,
                                 child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Color(0xFF1A1205),
+                                  color: Color(0xFF241703),
                                 ),
                               )
                             : Row(
@@ -264,15 +263,15 @@ class _ProfilePhotoPromptScreenState
                                     PhosphorIcons.camera(
                                         PhosphorIconsStyle.fill),
                                     size: 16,
-                                    color: const Color(0xFF1A1205),
+                                    color: const Color(0xFF241703),
                                   ),
                                   const SizedBox(width: 8),
                                   Text(
                                     'take_photo'.tr(),
-                                    style: GoogleFonts.inter(
+                                    style: AppFonts.ui(
                                       fontSize: 15,
                                       fontWeight: FontWeight.w700,
-                                      color: const Color(0xFF1A1205),
+                                      color: const Color(0xFF241703),
                                     ),
                                   ),
                                 ],
@@ -305,7 +304,7 @@ class _ProfilePhotoPromptScreenState
                               const SizedBox(width: 8),
                               Text(
                                 'choose_from_gallery'.tr(),
-                                style: GoogleFonts.inter(
+                                style: AppFonts.ui(
                                   fontSize: 14,
                                   fontWeight: FontWeight.w600,
                                   color: _uploading ? _kInkMute : _kInk,
@@ -323,7 +322,7 @@ class _ProfilePhotoPromptScreenState
                         onPressed: _uploading ? null : _done,
                         child: Text(
                           'skip'.tr(),
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 13,
                             fontWeight: FontWeight.w600,
                             color: _kInkMute,
@@ -364,7 +363,7 @@ class _AmberButton extends StatelessWidget {
           borderRadius: BorderRadius.circular(14),
           boxShadow: [
             BoxShadow(
-              color: _kAmber.withValues(alpha: 0.35),
+              color: Colors.black.withValues(alpha: 0.28),
               blurRadius: 20,
               offset: const Offset(0, 8),
             ),

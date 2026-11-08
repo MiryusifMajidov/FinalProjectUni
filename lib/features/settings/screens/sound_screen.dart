@@ -5,18 +5,17 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/services/cache_service.dart';
 import '../../../core/services/sound_service.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'settings_screen.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg           = AppColors.background;
 const _kSurface      = AppColors.surface;
 const _kCard         = AppColors.card;
-const _kCardElevated = AppColors.cardElevated;
-const _kAmber        = AppColors.amber;
-const _kAmberGlow    = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk          = AppColors.ink;
 const _kInkDim       = AppColors.inkDim;
 const _kInkMute      = AppColors.inkMute;
@@ -94,7 +93,6 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -106,7 +104,7 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'sound'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -131,10 +129,9 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
                         gradient: const LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [_kCardElevated, _kCard],
+                          colors: [_kCard, _kCard],
                         ),
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Column(
                         children: [
@@ -165,7 +162,7 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
                               Expanded(
                                 child: Text(
                                   'Master volume',
-                                  style: GoogleFonts.inter(
+                                  style: AppFonts.ui(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w600,
                                     color: _kInk,
@@ -225,7 +222,7 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
                             alignment: Alignment.centerRight,
                             child: Text(
                               '${(_masterVolume * 100).round()}/100',
-                              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                              style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                                 color: _kInkMute,
                               ),
                             ),
@@ -372,11 +369,10 @@ class _SoundScreenState extends ConsumerState<SoundScreen> {
       padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
       child: Text(
         label,
-        style: GoogleFonts.inter(
-          fontSize: 10,
-          fontWeight: FontWeight.w700,
-          color: _kInkMute,
-          letterSpacing: 1.2,
+        style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
         ),
       ),
     );
@@ -418,7 +414,6 @@ class _RadioRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: _kSurface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _kBorder),
                   ),
                   child: Center(
                     child: Icon(icon, color: _kAmber, size: 16),
@@ -432,7 +427,7 @@ class _RadioRow extends StatelessWidget {
                     children: [
                       Text(
                         label,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           color: _kInk,
@@ -442,7 +437,7 @@ class _RadioRow extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           sub!,
-                          style: GoogleFonts.inter(fontSize: 11, color: _kInkMute),
+                          style: AppFonts.ui(fontSize: 11, color: _kInkMute),
                         ),
                       ],
                     ],
@@ -466,7 +461,7 @@ class _RadioRow extends StatelessWidget {
                             width: 8,
                             height: 8,
                             decoration: const BoxDecoration(
-                              color: Color(0xFF1A1205),
+                              color: Color(0xFF241703),
                               shape: BoxShape.circle,
                             ),
                           ),
@@ -500,7 +495,6 @@ class _SettingsGroup extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: _kBorder),
       ),
       clipBehavior: Clip.hardEdge,
       child: Column(children: children),
@@ -541,7 +535,6 @@ class _SettingsRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: _kSurface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _kBorder),
                   ),
                   child: Center(
                     child: Icon(icon, color: _kAmber, size: 16),
@@ -555,7 +548,7 @@ class _SettingsRow extends StatelessWidget {
                     children: [
                       Text(
                         label,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           color: _kInk,
@@ -565,7 +558,7 @@ class _SettingsRow extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           sub!,
-                          style: GoogleFonts.inter(fontSize: 11, color: _kInkMute),
+                          style: AppFonts.ui(fontSize: 11, color: _kInkMute),
                         ),
                       ],
                     ],
@@ -619,7 +612,7 @@ class _DesignToggle extends StatelessWidget {
               width: 18,
               height: 18,
               decoration: BoxDecoration(
-                color: on ? const Color(0xFF1A1205) : _kInk,
+                color: on ? const Color(0xFF241703) : _kInk,
                 shape: BoxShape.circle,
               ),
             ),

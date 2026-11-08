@@ -1,0 +1,794 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CheckMate promo</title>
+<style>
+@font-face { font-family: Geo; src: url(../../assets/fonts/Geologica-Regular.ttf); font-weight: 400; }
+@font-face { font-family: Geo; src: url(../../assets/fonts/Geologica-Medium.ttf); font-weight: 500; }
+@font-face { font-family: Geo; src: url(../../assets/fonts/Geologica-SemiBold.ttf); font-weight: 600; }
+@font-face { font-family: Geo; src: url(../../assets/fonts/Geologica-Bold.ttf); font-weight: 700; }
+@font-face { font-family: Geo; src: url(../../assets/fonts/Geologica-ExtraBold.ttf); font-weight: 800; }
+html, body { margin: 0; background: #000; }
+#stage {
+  position: relative; width: 1080px; height: 1920px; overflow: hidden;
+  background: #111915; color: #EEF1EC;
+  font-family: Geo, 'Segoe UI', 'Nirmala UI', 'Microsoft YaHei', sans-serif;
+  font-variant-numeric: tabular-nums;
+}
+#felt { position: absolute; left: -60px; top: -60px; width: 1200px; height: 2040px;
+  background: url(felt-noise.png); }
+#vignette { position: absolute; inset: 0; pointer-events: none; z-index: 50;
+  background: radial-gradient(ellipse 75% 62% at 50% 46%, rgba(0,0,0,0) 55%, rgba(0,0,0,.5) 100%); }
+#fade { position: absolute; inset: 0; background: #000; z-index: 60; }
+.abs { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; }
+.line { position: absolute; left: 0; width: 1080px; text-align: center; white-space: nowrap;
+  font-weight: 800; letter-spacing: -0.025em; line-height: 1.05; }
+.word { display: inline-block; overflow: hidden; vertical-align: top; padding: 0 .02em .1em; margin-bottom: -.1em; }
+.word > span { display: inline-block; will-change: transform; }
+.persp { position: absolute; inset: 0; perspective: 1700px; perspective-origin: 50% 40%; }
+.p3d { transform-style: preserve-3d; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="felt"></div>
+  <div id="cam" class="abs" style="width:1080px;height:1920px"></div>
+  <div id="vignette"></div>
+  <div id="fade"></div>
+</div>
+<script>
+'use strict';
+// ─────────────────────────────────────────────────────────────────────────────
+// A 40-second promo for CheckMate, drawn frame by frame: render(t) puts every
+// element where it belongs at time t (seconds), so a renderer can step
+// through it at any frame rate. SFX lists the sound cues for the music.
+// ─────────────────────────────────────────────────────────────────────────────
+const W = 1080, H = 1920;
+const C = {
+  felt: '#111915', surface: '#17211C', card: '#1D2923', raised: '#26352D',
+  ink: '#EEF1EC', inkDim: '#B4BEB8', inkMute: '#8D9993',
+  amber: '#F0A93B', amberLip: '#B9761A', onAmber: '#241703',
+  cherry: '#E2565E', cherryLip: '#A8383F', jade: '#4CBF95', jadeLip: '#2F8A69',
+  ivory: '#F3EBDD', ivoryLip: '#C9BBA2', hint: '#9D8CF2',
+  light: '#F0D9B5', dark: '#B58863', wood: '#5B3B22',
+};
+const PIECES = '../../assets/pieces/cburnett/';
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const lerp = (a, b, t) => a + (b - a) * t;
+const prog = (t, a, b) => clamp((t - a) / (b - a));
+const E = {
+  in2: x => x * x,
+  in3: x => x * x * x,
+  out2: x => 1 - (1 - x) * (1 - x),
+  out3: x => 1 - Math.pow(1 - x, 3),
+  out5: x => 1 - Math.pow(1 - x, 5),
+  inOut3: x => x < .5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2,
+  outBack: x => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); },
+  outBackSoft: x => { const c1 = 1.1, c3 = c1 + 1; return 1 + c3 * Math.pow(x - 1, 3) + c1 * Math.pow(x - 1, 2); },
+  outExpo: x => x >= 1 ? 1 : 1 - Math.pow(2, -10 * x),
+};
+// Deterministic random.
+let seed = 20261108;
+const rand = () => { seed = (seed * 1664525 + 1013904223) >>> 0; return seed / 4294967296; };
+
+const SFX = [];
+const cue = (t, type, gain = 1) => SFX.push({ t: +t.toFixed(3), type, gain });
+
+const cam = document.getElementById('cam');
+function el(tag, style = {}, parent = cam, html) {
+  const e = document.createElement(tag);
+  e.className = 'abs';
+  Object.assign(e.style, style);
+  if (html !== undefined) e.innerHTML = html;
+  parent.appendChild(e);
+  return e;
+}
+// Puts a w×h element with its centre at (x, y).
+function put(e, x, y, w, h, { s = 1, sx, sy, r = 0, o = 1, extra = '' } = {}) {
+  e.style.transform = `translate(${(x - w / 2).toFixed(2)}px,${(y - h / 2).toFixed(2)}px) ${extra} rotate(${r.toFixed(3)}deg) scale(${(sx ?? s).toFixed(4)},${(sy ?? s).toFixed(4)})`;
+  e.style.opacity = o.toFixed(3);
+  e.style.visibility = o <= 0.002 ? 'hidden' : 'visible';
+}
+// Containers are switched with display: a child that sets its own
+// visibility would still show inside a hidden parent.
+function on_(e, v) {
+  if (e._disp === undefined) e._disp = e.style.display === 'none' ? '' : e.style.display;
+  e.style.display = v ? e._disp : 'none';
+}
+function show(e, o) { e.style.opacity = o.toFixed(3); e.style.visibility = o <= 0.002 ? 'hidden' : 'visible'; }
+
+// A centred line of text whose words rise out of a mask.
+function line(text, size, color = C.ink, weight = 800, parent = cam) {
+  const d = el('div', { fontSize: size + 'px', color, fontWeight: weight }, parent);
+  d.className = 'line';
+  d.innerHTML = text.split(' ').map(w => `<span class="word"><span>${w}</span></span>`).join(' ');
+  d._words = [...d.querySelectorAll('.word > span')];
+  d._size = size;
+  return d;
+}
+function lineAt(d, y, t, tin, tout = 1e9, { stagger = 0.06, dur = 0.5, dy = 0 } = {}) {
+  const hidden = t < tin - 0.01 || t > tout + 0.45;
+  d.style.visibility = hidden ? 'hidden' : 'visible';
+  if (hidden) return;
+  d.style.transform = `translateY(${(y - d._size * 0.55 + dy).toFixed(1)}px)`;
+  d._words.forEach((w, i) => {
+    const pin = E.out5(prog(t, tin + i * stagger, tin + i * stagger + dur));
+    const pout = E.in3(prog(t, tout + i * stagger * 0.5, tout + i * stagger * 0.5 + 0.32));
+    w.style.transform = `translateY(${((1 - pin) * 115 - pout * 115).toFixed(1)}%)`;
+  });
+}
+
+// ── Pieces ───────────────────────────────────────────────────────────────────
+function disc(size, face, lip, parent = cam, rings = 'rgba(0,0,0,.17)') {
+  const g = el('div', { width: size + 'px', height: size + 'px' }, parent);
+  el('div', { width: size + 'px', height: size + 'px', borderRadius: '50%', background: lip,
+    transform: `translateY(${size * 0.075}px)` }, g);
+  el('div', { width: size + 'px', height: size + 'px', borderRadius: '50%', background: face }, g);
+  for (const [f, wgt] of [[0.74, 0.035], [0.44, 0.03]]) {
+    const d = size * f;
+    el('div', { width: d + 'px', height: d + 'px', borderRadius: '50%', boxSizing: 'border-box',
+      border: `${size * wgt}px solid ${rings}`, transform: `translate(${(size - d) / 2}px,${(size - d) / 2}px)` }, g);
+  }
+  return g;
+}
+const PIPS = {
+  0: [], 1: [[.5, .5]], 2: [[.27, .27], [.73, .73]], 3: [[.27, .27], [.5, .5], [.73, .73]],
+  4: [[.27, .27], [.73, .27], [.27, .73], [.73, .73]],
+  5: [[.27, .27], [.73, .27], [.5, .5], [.27, .73], [.73, .73]],
+  6: [[.27, .25], [.73, .25], [.27, .5], [.73, .5], [.27, .75], [.73, .75]],
+};
+function dominoFace(w, h, a, b, parent, lip = true) {
+  const g = el('div', { width: w + 'px', height: h + 'px' }, parent);
+  if (lip) el('div', { width: w + 'px', height: h + 'px', borderRadius: w * 0.16 + 'px', background: C.ivoryLip,
+    transform: `translateY(${w * 0.07}px)` }, g);
+  el('div', { width: w + 'px', height: h + 'px', borderRadius: w * 0.16 + 'px', background: C.ivory }, g);
+  el('div', { width: w * 0.7 + 'px', height: Math.max(2, w * 0.03) + 'px', background: 'rgba(0,0,0,.28)',
+    transform: `translate(${w * 0.15}px,${h / 2 - w * 0.015}px)` }, g);
+  const pip = w * 0.15;
+  [[a, 0], [b, h / 2]].forEach(([v, oy]) => {
+    for (const [px, py] of PIPS[v]) {
+      el('div', { width: pip + 'px', height: pip + 'px', borderRadius: '50%', background: '#1E1A16',
+        transform: `translate(${px * w - pip / 2}px,${oy + py * (h / 2) - pip / 2}px)` }, g);
+    }
+  });
+  return g;
+}
+function shadow(w, h, blur = 22, alpha = .55) {
+  return el('div', { width: w + 'px', height: h + 'px', borderRadius: '50%',
+    background: `rgba(0,0,0,${alpha})`, filter: `blur(${blur}px)` });
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scene 1 · 0–4 s · Three pieces drop onto the felt.
+// ─────────────────────────────────────────────────────────────────────────────
+const S1 = (() => {
+  const items = [
+    { kind: 'knight', x: 360, y: 860, w: 540, h: 540, r0: -4, td: 0.55 },
+    { kind: 'disc', x: 810, y: 690, w: 330, h: 330, r0: 0, td: 1.05 },
+    { kind: 'tile', x: 790, y: 1150, w: 220, h: 440, r0: -14, td: 1.55 },
+  ];
+  for (const it of items) {
+    it.sh = shadow(it.w * 0.9, it.h * (it.kind === 'tile' ? 0.95 : 0.36), 26, .6);
+    if (it.kind === 'knight') {
+      it.e = el('img', { width: it.w + 'px', height: it.h + 'px' }); it.e.src = 'knight-butterscotch.svg';
+    } else if (it.kind === 'disc') it.e = disc(it.w, C.cherry, C.cherryLip);
+    else it.e = dominoFace(it.w, it.h, 6, 5, cam);
+    cue(it.td, 'drop', 1);
+  }
+  const l1 = line('One table.', 150);
+  const l2 = line('Three classics.', 150, C.inkDim);
+  cue(2.05, 'word', .5); cue(2.75, 'word', .5);
+  cue(3.55, 'whoosh', .8);
+  return t => {
+    const on = t < 4.1;
+    for (const it of items) {
+      it.e.style.visibility = it.sh.style.visibility = on ? 'visible' : 'hidden';
+      if (!on) continue;
+      const fall = 0.42;
+      let s = 2.5, o = 0, k = 0, r = it.r0 + 18;
+      if (t >= it.td - fall && t < it.td) {
+        const p = prog(t, it.td - fall, it.td); const e = p * p;
+        s = lerp(2.5, 1, e); o = clamp(p * 4); k = e; r = lerp(it.r0 + 18, it.r0, E.out2(p));
+      } else if (t >= it.td) {
+        const q = prog(t, it.td, it.td + 0.28);
+        s = 1 - Math.sin(q * Math.PI) * 0.045 * (1 - q); o = 1; k = 1; r = it.r0;
+      }
+      // Exit: lift off and fly apart.
+      const x0 = prog(t, 3.55, 4.05), xe = E.in3(x0);
+      const dx = it.kind === 'knight' ? -900 : it.kind === 'disc' ? 900 : 300;
+      const dy = it.kind === 'tile' ? 1300 : -500;
+      const dr = it.kind === 'knight' ? -35 : 40;
+      const lift = Math.sin(clamp(x0 * 2) * Math.PI / 2) * 0.12;
+      put(it.e, it.x + dx * xe, it.y + dy * xe, it.w, it.h, { s: s + lift, r: r + dr * xe, o: o * (1 - prog(t, 3.9, 4.05)) });
+      const shOff = lerp(150, 24, k) + lift * 300;
+      put(it.sh, it.x + dx * xe + shOff * 0.35, it.y + (it.kind === 'tile' ? 20 : it.h * 0.36) + shOff + dy * xe,
+        it.w * 0.9, it.h * (it.kind === 'tile' ? 0.95 : 0.36),
+        { s: lerp(1.7, 1, k) * (1 + lift), r: it.r0, o: lerp(0, .9, k) * (1 - xe) });
+    }
+    lineAt(l1, 1520, t, 2.05, 3.5);
+    lineAt(l2, 1690, t, 2.75, 3.55);
+  };
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scene 2 · 4–12 s · One board: chess, then draughts, then a domino chain.
+// ─────────────────────────────────────────────────────────────────────────────
+const S2 = (() => {
+  const BX = 540, BY = 980, SZ = 880, SQ = SZ / 8;
+  const persp = el('div', {}); persp.className = 'persp';
+  const boardShadow = el('div', { width: '900px', height: '900px', borderRadius: '30px', background: 'rgba(0,0,0,.6)', filter: 'blur(40px)' }, persp);
+  const board = el('div', { width: (SZ + 44) + 'px', height: (SZ + 44) + 'px' }, persp);
+  const frame = el('div', { width: (SZ + 44) + 'px', height: (SZ + 44) + 'px', borderRadius: '18px', background: C.wood }, board);
+  const sqs = [];
+  for (let r = 0; r < 8; r++) for (let c = 0; c < 8; c++) {
+    const e = el('div', { width: SQ + 'px', height: SQ + 'px', background: (r + c) % 2 ? C.dark : C.light,
+      left: (22 + c * SQ) + 'px', top: (22 + r * SQ) + 'px' }, board);
+    sqs.push({ e, r, c });
+  }
+  const layer = el('div', { width: SZ + 'px', height: SZ + 'px', left: '22px', top: '22px' }, board);
+  const sqCenter = (r, c) => [c * SQ + SQ / 2, r * SQ + SQ / 2];
+  const sqOf = n => [8 - +n[1], n.charCodeAt(0) - 97];
+
+  // Hint overlay (the app's on-board hint: tint under the piece, arrow, ring).
+  const svgNS = 'http://www.w3.org/2000/svg';
+  const hintTint = el('div', { width: SQ + 'px', height: SQ + 'px', background: 'rgba(157,140,242,.5)' }, layer);
+  const svg = document.createElementNS(svgNS, 'svg');
+  svg.setAttribute('width', SZ); svg.setAttribute('height', SZ);
+  svg.style.position = 'absolute'; svg.style.left = '0'; svg.style.top = '0'; svg.style.zIndex = 5;
+  svg.style.overflow = 'visible';
+  layer.appendChild(svg);
+  const mk = (tag, attrs) => { const n = document.createElementNS(svgNS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); svg.appendChild(n); return n; };
+  const arrow = mk('path', { fill: 'none', stroke: C.hint, 'stroke-width': 24, 'stroke-linecap': 'round', 'stroke-linejoin': 'round', opacity: .92 });
+  const head = mk('path', { fill: C.hint, opacity: .92 });
+  const ring = mk('circle', { fill: 'none', stroke: C.hint, 'stroke-width': 9, opacity: .92 });
+  function drawHint(pts, p, o) {
+    if (o <= 0.001 || p <= 0) { arrow.style.display = head.style.display = ring.style.display = 'none'; return; }
+    arrow.style.display = head.style.display = ring.style.display = '';
+    let len = 0; const segs = [];
+    for (let i = 1; i < pts.length; i++) { const l = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); segs.push(l); len += l; }
+    // Stop short of the final centre, leave room for the head.
+    const headL = 46, total = len - 26;
+    let want = total * p, d = `M${pts[0][0]},${pts[0][1]}`, end = pts[0], dir = [1, 0];
+    for (let i = 1; i < pts.length && want > 0; i++) {
+      const l = segs[i - 1], use = Math.min(l, want);
+      const ux = (pts[i][0] - pts[i - 1][0]) / l, uy = (pts[i][1] - pts[i - 1][1]) / l;
+      end = [pts[i - 1][0] + ux * use, pts[i - 1][1] + uy * use]; dir = [ux, uy];
+      d += ` L${end[0]},${end[1]}`; want -= use;
+    }
+    const base = [end[0] - dir[0] * headL * 0.6, end[1] - dir[1] * headL * 0.6];
+    arrow.setAttribute('d', d.replace(/L([\d.-]+),([\d.-]+)$/, `L${base[0]},${base[1]}`));
+    const nx = -dir[1], ny = dir[0];
+    head.setAttribute('d', `M${end[0] + dir[0] * 10},${end[1] + dir[1] * 10} L${base[0] + nx * 30},${base[1] + ny * 30} L${base[0] - nx * 30},${base[1] - ny * 30} Z`);
+    const last = pts[pts.length - 1];
+    ring.setAttribute('cx', last[0]); ring.setAttribute('cy', last[1]); ring.setAttribute('r', SQ * 0.4);
+    ring.setAttribute('opacity', (0.92 * clamp((p - 0.85) / 0.15)).toFixed(3));
+    arrow.setAttribute('opacity', (0.92 * o).toFixed(3)); head.setAttribute('opacity', (0.92 * o * clamp((p - 0.1) * 5)).toFixed(3));
+  }
+
+  // Chess pieces.
+  const start = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR';
+  const chess = [];
+  start.split('/').forEach((row, r) => {
+    let c = 0;
+    for (const ch of row) {
+      if (/\d/.test(ch)) { c += +ch; continue; }
+      const code = (ch === ch.toUpperCase() ? 'w' : 'b') + ch.toUpperCase();
+      const e = el('img', { width: (SQ * 0.94) + 'px', height: (SQ * 0.94) + 'px', zIndex: 2 }, layer); e.src = PIECES + code + '.svg';
+      chess.push({ e, r, c, code, moves: [], tin: 0 });
+      c++;
+    }
+  });
+  chess.forEach(p => { p.tin = 4.55 + (p.r < 2 ? (p.r * 8 + p.c) : (16 + (7 - p.r) * 8 + p.c)) * 0.024; });
+  cue(4.0, 'hit', 1);
+  for (let i = 0; i < 64; i += 4) cue(4.0 + i * 0.011, 'tick', .25);
+  for (let i = 0; i < 32; i += 2) cue(4.55 + i * 0.024 + 0.12, 'tick', .45);
+  const moveList = [['e2', 'e4', 5.75], ['e7', 'e5', 6.15], ['g1', 'f3', 6.55], ['b8', 'c6', 6.95], ['f1', 'b5', 7.42]];
+  for (const [f, to, tm] of moveList) {
+    const [r, c] = sqOf(f); const p = chess.find(q => q.r === r && q.c === c);
+    p.moves.push({ to: sqOf(to), tm }); cue(tm + 0.3, 'move', 1);
+  }
+  const chessHint = [sqCenter(...sqOf('f1')), sqCenter(...sqOf('b5'))];
+  cue(7.02, 'hint', .8);
+  chess.forEach((p, i) => { p.tout = 7.66 + ((i * 7) % 32) * 0.009; });
+  cue(7.66, 'whoosh', .5);
+
+  // Draughts.
+  const cherryMen = [[0, 1], [0, 3], [0, 5], [0, 7], [1, 0], [1, 4], [1, 6], [2, 1], [2, 3], [2, 7], [3, 4], [5, 2]];
+  const ivoryMen = [[4, 7], [5, 0], [5, 4], [5, 6], [6, 1], [6, 3], [6, 7], [7, 0], [7, 2], [7, 4], [7, 6]];
+  const men = [];
+  const mk2 = (list, face, lip) => list.forEach(([r, c]) => {
+    const e = disc(SQ * 0.8, face, lip, layer); e.style.zIndex = 2;
+    men.push({ e, r, c, face });
+  });
+  mk2(cherryMen, C.cherry, C.cherryLip); mk2(ivoryMen, C.ivory, C.ivoryLip);
+  men.forEach((m, i) => { m.tin = 7.86 + ((i * 5) % men.length) * 0.019; });
+  for (let i = 0; i < men.length; i += 2) cue(7.86 + i * 0.019 + 0.1, 'tick', .4);
+  const jumper = men.find(m => m.r === 6 && m.c === 1);
+  const cap1 = men.find(m => m.r === 5 && m.c === 2), cap2 = men.find(m => m.r === 3 && m.c === 4);
+  const hop = [[6, 1, 8.95], [4, 3, 9.32], [2, 5, 9.69]];
+  cue(8.55, 'hint', .8); cue(9.25, 'jump', 1); cue(9.62, 'jump', 1);
+  cue(9.85, 'whoosh', .7);
+
+  // Game chip + captions.
+  const chip = el('div', { width: '360px', height: '104px', borderRadius: '30px', background: C.amber,
+    boxShadow: `0 9px 0 ${C.amberLip}`, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '18px',
+    fontSize: '48px', fontWeight: 700, color: C.onAmber });
+  const chipIcon = el('div', { position: 'relative', width: '58px', height: '58px', transform: 'none' }, chip);
+  chipIcon.style.position = 'relative';
+  const chipLabel = el('div', { position: 'relative', transform: 'none' }, chip); chipLabel.style.position = 'relative';
+  const chipStates = [
+    { label: 'Chess', bg: C.amber, lip: C.amberLip, icon: `<img src="${PIECES}bN.svg" style="width:58px;height:58px">` },
+    { label: 'Draughts', bg: C.cherry, lip: C.cherryLip, icon: `<div style="width:50px;height:50px;margin:4px;border-radius:50%;background:${C.ivory};box-shadow:0 5px 0 ${C.ivoryLip}"></div>` },
+    { label: 'Dominoes', bg: C.jade, lip: C.jadeLip, icon: `<div style="width:30px;height:56px;margin:1px 14px;border-radius:7px;background:${C.ivory};box-shadow:0 4px 0 ${C.ivoryLip}"></div>` },
+  ];
+  let chipState = -1;
+  function setChip(i) {
+    if (chipState === i) return; chipState = i;
+    const s = chipStates[i];
+    chip.style.background = s.bg; chip.style.boxShadow = `0 9px 0 ${s.lip}`;
+    chipIcon.innerHTML = s.icon; chipLabel.textContent = s.label;
+  }
+  const caps = [
+    [line('Hints drawn right on the board.', 50, C.inkDim, 600), 6.95, 7.6],
+    [line('Six variants, Russian to German.', 50, C.inkDim, 600), 8.4, 9.75],
+    [line('Draw or block. Up to four players.', 50, C.inkDim, 600), 10.55, 11.8],
+  ];
+  cue(7.78, 'swap', .7); cue(10.02, 'swap', .7);
+
+  // A domino line laid out as in a game, tile by tile, ends matching.
+  const snake = el('div', { width: W + 'px', height: H + 'px' });
+  const L = 168, S = 84; // tile long and short side
+  // One line through the middle, doubles across it: [a, b, cx, cy, vertical].
+  const R1 = 980, X0 = 78;
+  const lay = [
+    [6, 6, X0, R1, 1], [6, 3, X0 + S / 2 + L / 2, R1, 0], [3, 3, X0 + S + L, R1, 1],
+    [3, 5, X0 + S * 1.5 + L * 1.5, R1, 0], [5, 1, X0 + S * 1.5 + L * 2.5, R1, 0],
+    [1, 1, X0 + S * 2 + L * 3, R1, 1], [1, 4, X0 + S * 2.5 + L * 3.5, R1, 0],
+  ];
+  const tiles = lay.map(([a, b, cx, cy, v], i) => {
+    const sh = shadow(S, L, 10, .55); snake.appendChild(sh);
+    const g = el('div', { width: S + 'px', height: L + 'px' }, snake);
+    dominoFace(S, L, a, b, g);
+    // Doubles stand across the line; the others lie along it, first value
+    // towards where the line came from.
+    const rot = v === 1 ? 0 : v === 2 ? 90 : -90;
+    const from = rand() * Math.PI * 2;
+    return { g, sh, cx, cy, rot, t0: 10.18 + i * 0.12, fx: Math.cos(from) * 900, fy: Math.sin(from) * 900, fr: (rand() - .5) * 140 };
+  });
+  tiles.forEach(tl => cue(tl.t0 + 0.2, 'clack', 0.8));
+  cue(12.0, 'hit', 1);
+
+  return t => {
+    const on = t >= 3.95 && t < 12.15;
+    on_(persp, on); on_(chip, on);
+    if (!on) on_(snake, false);
+    caps.forEach(([d, a, b]) => lineAt(d, 1610, t, a, b, { stagger: 0.03, dur: 0.45 }));
+    if (!on) return;
+
+    // Board: in, then tips away.
+    const bout = E.in3(prog(t, 9.85, 10.3));
+    const bin = E.out3(prog(t, 3.95, 4.4));
+    board.style.transform = `translate(${BX - (SZ + 44) / 2}px,${BY - (SZ + 44) / 2 + bout * 520}px) rotateX(${bout * 72}deg) scale(${lerp(0.94, 1, bin) * lerp(1, 0.8, bout)})`;
+    board.style.opacity = (clamp(prog(t, 3.95, 4.15)) * (1 - prog(t, 9.95, 10.2))).toFixed(3);
+    on_(board, t <= 10.32);
+    frame.style.opacity = bin.toFixed(3);
+    put(boardShadow, BX, BY + 60 + bout * 520, 900, 900, { o: 0.9 * bin * (1 - bout), s: 1 + bout * 0.2 });
+    for (const q of sqs) {
+      const p = E.outBackSoft(prog(t, 3.95 + (q.r + q.c) * 0.022, 3.95 + (q.r + q.c) * 0.022 + 0.32));
+      q.e.style.transform = `scale(${p.toFixed(3)})`;
+    }
+
+    // Chess pieces.
+    for (const p of chess) {
+      if (t < p.tin || t > p.tout + 0.3) { p.e.style.visibility = 'hidden'; continue; }
+      let [r, c] = [p.r, p.c], lift = 0;
+      for (const mv of p.moves) {
+        if (t >= mv.tm) {
+          const k = E.inOut3(prog(t, mv.tm, mv.tm + 0.3));
+          r = lerp(r, mv.to[0], k); c = lerp(c, mv.to[1], k);
+          lift = Math.max(lift, Math.sin(k * Math.PI) * (p.code[1] === 'N' ? 0.22 : 0.08));
+          if (k >= 1) { r = mv.to[0]; c = mv.to[1]; }
+        }
+      }
+      const pin = prog(t, p.tin, p.tin + 0.3), e = E.outBack(pin);
+      const pout = E.in3(prog(t, p.tout, p.tout + 0.26));
+      const [x, y] = sqCenter(r, c);
+      put(p.e, x, y - (1 - e) * 46, SQ * 0.94, SQ * 0.94, { s: lerp(1.35, 1, e) * (1 + lift) * (1 - pout), o: clamp(pin * 4) });
+    }
+    // Chess hint (f1 → b5), then the bishop follows it.
+    const hp = E.out3(prog(t, 7.02, 7.32)), ho = 1 - prog(t, 7.45, 7.66);
+    const [tx, ty] = chessHint[0];
+    put(hintTint, tx, ty, SQ, SQ, { o: (t >= 7.0 && t < 7.7) ? clamp(prog(t, 7.0, 7.12)) * ho : 0 });
+
+    // Draughts.
+    for (const m of men) {
+      if (t < m.tin) { m.e.style.visibility = 'hidden'; continue; }
+      let [r, c] = [m.r, m.c], lift = 0;
+      if (m === jumper) {
+        for (let i = 0; i + 1 < hop.length; i++) {
+          const k = E.inOut3(prog(t, hop[i][2] + 0, hop[i][2] + 0.3));
+          if (t >= hop[i][2]) { r = lerp(hop[i][0], hop[i + 1][0], k); c = lerp(hop[i][1], hop[i + 1][1], k); lift = Math.max(lift, Math.sin(k * Math.PI) * 0.3); }
+        }
+      }
+      let pop = 0;
+      if (m === cap1) pop = prog(t, 9.18, 9.32);
+      if (m === cap2) pop = prog(t, 9.55, 9.69);
+      const pin = prog(t, m.tin, m.tin + 0.3), e = E.outBack(pin);
+      const pout = E.in3(prog(t, 9.85, 10.1));
+      const [x, y] = sqCenter(r, c);
+      put(m.e, x, y, SQ * 0.8, SQ * 0.8, { s: e * (1 + lift + pop * 0.35) * (1 - pout * 0.2), o: clamp(pin * 3) * (1 - pop) });
+    }
+    if (t < 8.0) drawHint(chessHint, hp, ho);
+    else {
+      const mh = E.out3(prog(t, 8.55, 8.88)), mo = 1 - prog(t, 9.0, 9.3);
+      drawHint(hop.map(([r, c]) => sqCenter(r, c)), mh, mo);
+      const [jx, jy] = sqCenter(6, 1);
+      put(hintTint, jx, jy, SQ, SQ, { o: (t >= 8.5 && t < 9.3) ? clamp(prog(t, 8.5, 8.62)) * mo : 0 });
+    }
+
+    // Chip: in at 4.2, flips to draughts at 7.78 and dominoes at 10.02, out at 11.9.
+    const flips = [7.78, 10.02];
+    let idx = 0, sy = 1;
+    flips.forEach((f, i) => {
+      if (t >= f - 0.14) {
+        const k = prog(t, f - 0.14, f + 0.14);
+        if (k >= 0.5) idx = i + 1;
+        sy = Math.min(sy, Math.abs(Math.cos(k * Math.PI)));
+      }
+    });
+    setChip(idx);
+    const cin = E.outBack(prog(t, 4.15, 4.55)), cout = E.in3(prog(t, 11.85, 12.1));
+    put(chip, 540, 250 - cout * 300, 360, 104, { sx: cin, sy: cin * Math.max(sy, 0.02), o: clamp(prog(t, 4.15, 4.3)) });
+
+    // Domino line: each tile flies in and clacks into place; the camera
+    // starts close on the first double and pulls back to the whole line.
+    const dOn = t >= 10.1;
+    on_(snake, dOn);
+    if (dOn) {
+      const pull = E.inOut3(prog(t, 10.15, 11.75));
+      const z = lerp(1.9, 1, pull) * lerp(1, 1.06, prog(t, 11.0, 11.9)), fx = lerp(lay[0][2], 540, pull), fy = R1;
+      const dout = E.in3(prog(t, 11.85, 12.12));
+      snake.style.transform = `translate(${540 - fx * z}px,${980 - fy * z - dout * 900}px) scale(${z})`;
+      snake.style.transformOrigin = '0 0';
+      snake.style.opacity = (1 - dout).toFixed(3);
+      for (const tl of tiles) {
+        const k = prog(t, tl.t0, tl.t0 + 0.22), e = E.out3(k);
+        const land = prog(t, tl.t0 + 0.2, tl.t0 + 0.34);
+        const s = (k < 1 ? lerp(1.45, 1, e) : 1) - Math.sin(land * Math.PI) * 0.04;
+        put(tl.g, tl.cx + tl.fx * (1 - e), tl.cy + tl.fy * (1 - e), S, L, { r: tl.rot + tl.fr * (1 - e), s, o: clamp(k * 4) });
+        put(tl.sh, tl.cx + 10 + (1 - e) * 60 + tl.fx * (1 - e), tl.cy + 16 + (1 - e) * 90 + tl.fy * (1 - e), S, L,
+          { r: tl.rot + tl.fr * (1 - e), s: s * lerp(1.3, 1, e), o: clamp(k * 3) * 0.8 });
+      }
+    }
+  };
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scene 3 · 12–20 s · The app: pick a game and the app takes its colour.
+// ─────────────────────────────────────────────────────────────────────────────
+const S3 = (() => {
+  const persp = el('div', {}); persp.className = 'persp'; persp.style.perspective = '2200px';
+  const SW = 600, SH = 1172 + 52; // screen: status strip + screenshot (1080×2110 → 600×1172)
+  function phone(shots) {
+    const P = { w: SW + 36, h: SH + 36 };
+    const g = el('div', { width: P.w + 'px', height: P.h + 'px' }, persp);
+    el('div', { width: P.w + 'px', height: P.h + 'px', borderRadius: '78px', background: '#0A0E0C',
+      boxShadow: 'inset 0 0 0 3px #26352D' }, g);
+    const screen = el('div', { width: SW + 'px', height: SH + 'px', borderRadius: '62px', overflow: 'hidden',
+      background: C.felt, transform: 'translate(18px,18px)' }, g);
+    const status = el('div', { width: SW + 'px', height: '52px', fontSize: '24px', fontWeight: 600, color: C.ink }, screen);
+    status.innerHTML = `<span style="position:absolute;left:44px;top:14px">9:41</span>
+      <span style="position:absolute;right:44px;top:16px;display:flex;gap:7px;align-items:flex-end">
+        <i style="width:5px;height:8px;background:${C.ink};border-radius:1px"></i><i style="width:5px;height:12px;background:${C.ink};border-radius:1px"></i>
+        <i style="width:5px;height:16px;background:${C.ink};border-radius:1px"></i>
+        <i style="width:34px;height:16px;border:2px solid ${C.ink};border-radius:5px;margin-left:6px;box-sizing:border-box;padding:2px"><b style="display:block;width:70%;height:100%;background:${C.ink};border-radius:2px"></b></i></span>`;
+    el('div', { width: '120px', height: '34px', borderRadius: '17px', background: '#000', transform: `translate(${SW / 2 - 60}px,10px)` }, screen);
+    const imgs = shots.map(src => {
+      const im = el('img', { width: SW + 'px', height: '1172px', transform: 'translateY(52px)' }, screen);
+      im.src = 'shots/' + src; return im;
+    });
+    const tap = el('div', { width: '84px', height: '84px', borderRadius: '50%', background: 'rgba(238,241,236,.85)' }, screen);
+    const ripple = el('div', { width: '84px', height: '84px', borderRadius: '50%', boxSizing: 'border-box',
+      border: '5px solid rgba(238,241,236,.8)' }, screen);
+    const sh = shadow(P.w * 0.9, 160, 40, .7); persp.insertBefore(sh, g);
+    return { g, imgs, tap, ripple, sh, P };
+  }
+  const center = phone(['home-chess.jpg', 'home-draughts.jpg']);
+  const left = phone(['home-chess.jpg']);
+  const right = phone(['settings-dominoes.jpg']);
+  persp.appendChild(center.g); // centre phone on top
+  // Checkers chip on the home screen: (572, 252) in the cropped shot → screen coords.
+  const chipX = 572 * SW / 1080, chipY = 52 + 252 * SW / 1080;
+  const h1 = line('Pick a game.', 116), h2 = line('The app follows.', 116, C.amber);
+  const h3 = line('One app.', 116), h4 = line('Three colours.', 116);
+  const dots = [C.amber, C.cherry, C.jade].map(col => disc(46, col, 'rgba(0,0,0,.35)', cam, 'rgba(0,0,0,0)'));
+  cue(13.78, 'tap', 1); cue(13.82, 'swish', .8); cue(15.2, 'whoosh', .8);
+  [0, 1, 2].forEach(i => cue(15.95 + i * 0.12, 'pop', .6));
+  cue(19.6, 'whoosh', .7);
+
+  return t => {
+    const on = t >= 11.95 && t < 20.1;
+    on_(persp, on);
+    lineAt(h1, 230, t, 12.45, 15.15); lineAt(h2, 368, t, 12.75, 15.2);
+    h2.style.color = t >= 14.05 ? C.cherry : C.amber;
+    lineAt(h3, 230, t, 15.45, 19.55); lineAt(h4, 368, t, 15.6, 19.6);
+    dots.forEach((d, i) => {
+      const p = E.outBack(prog(t, 15.95 + i * 0.12, 16.25 + i * 0.12)), out = E.in3(prog(t, 19.6, 19.85));
+      put(d, 540 - 70 + i * 70, 470, 46, 46, { s: p * (1 - out), o: clamp(p * 3) * (1 - out) });
+    });
+    if (!on) return;
+    const out = E.in3(prog(t, 19.6, 20.05));
+    // Centre phone: rises in, then steps back for the fan.
+    const pin = E.outExpo(prog(t, 12.0, 12.9));
+    const fan = E.inOut3(prog(t, 15.2, 16.0));
+    const drift = Math.sin((t - 12) * 0.7) * 6;
+    const cy = lerp(2300, 1180, pin) + fan * 40 + drift + out * 1600;
+    const cs = lerp(1, 0.86, fan);
+    const crx = lerp(32, 7, pin) - fan * 4, crz = lerp(-10, -2.5, pin) + fan * 2.5;
+    center.g.style.transform = `translate(${540 - center.P.w / 2}px,${cy - center.P.h / 2}px) rotateX(${crx}deg) rotateZ(${crz}deg) scale(${cs})`;
+    put(center.sh, 540, cy + center.P.h / 2 * cs - 10, center.P.w * 0.9, 160, { o: 0.9 * pin * (1 - out), s: cs });
+    // The tap on "Checkers" and the colour wash across the screen.
+    const tp = prog(t, 13.5, 13.78), tr = prog(t, 13.78, 14.25);
+    put(center.tap, chipX, chipY, 84, 84, { s: lerp(1.25, 0.82, E.out3(tp)) * (1 - E.out3(prog(t, 13.85, 14.1))), o: clamp(tp * 3) * (1 - prog(t, 13.85, 14.1)) });
+    put(center.ripple, chipX, chipY, 84, 84, { s: 1 + E.out3(tr) * 2.2, o: (t >= 13.78 ? 1 - tr : 0) });
+    const wash = E.inOut3(prog(t, 13.82, 14.32));
+    center.imgs[1].style.clipPath = `circle(${(wash * 1500).toFixed(1)}px at ${chipX}px ${chipY - 52}px)`;
+    center.imgs[1].style.visibility = t >= 13.82 ? 'visible' : 'hidden';
+    // Side phones fan out from behind.
+    [[left, -1], [right, 1]].forEach(([ph, side]) => {
+      const k = E.outExpo(prog(t, 15.25, 16.1));
+      const x = 540 + side * lerp(0, 330, k), y = cy + 60 * k;
+      const rz = side * lerp(0, 9, k) + crz * 0.3;
+      ph.g.style.transform = `translate(${x - ph.P.w / 2}px,${y - ph.P.h / 2}px) rotateX(${crx}deg) rotateY(${-side * 10 * k}deg) rotateZ(${rz}deg) scale(${cs * 0.9})`;
+      ph.g.style.opacity = (k > 0.001 ? 1 : 0) * (1 - out);
+      on_(ph.g, k > 0.001);
+      put(ph.sh, x, y + ph.P.h / 2 * cs * 0.92 - 10, ph.P.w * 0.9, 160, { o: 0.7 * k * (1 - out), s: cs * 0.92 });
+      ph.tap.style.visibility = ph.ripple.style.visibility = 'hidden';
+    });
+  };
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scene 4 · 20–26 s · Arena standings that keep moving.
+// ─────────────────────────────────────────────────────────────────────────────
+const S4 = (() => {
+  const t1 = line('A new arena', 112), t2 = line('every 30 minutes.', 112, C.amber);
+  const sub = line('Two wins in a row and every win scores double.', 38, C.inkDim, 500);
+  const card = el('div', { width: '960px', height: '930px', borderRadius: '40px', background: C.surface });
+  const players = [
+    ['You', 6, C.amber], ['Kasia_S', 14, '#C8A2F0'], ['the_ivan', 12, '#72B6EA'], ['WildPin', 11, '#4CBF95'],
+    ['tural_chess', 9, '#E2565E'], ['Emily_X', 8, '#F28B4C'], ['doyun1705', 5, '#B9B4A6'], ['Hamza2006', 4, '#7FCC8C'],
+  ].map(([name, pts, col], i) => {
+    const row = el('div', { width: '900px', height: '98px', borderRadius: '24px', background: name === 'You' ? C.raised : C.card });
+    row.innerHTML = `
+      <div style="position:absolute;left:30px;top:24px;width:60px;font-size:40px;font-weight:700;color:${C.inkMute}" class="rk"></div>
+      <div style="position:absolute;left:104px;top:17px;width:64px;height:64px;border-radius:50%;background:${col};color:${C.onAmber};font-size:32px;font-weight:800;display:flex;align-items:center;justify-content:center">${name[0].toUpperCase()}</div>
+      <div style="position:absolute;left:192px;top:24px;font-size:40px;font-weight:${name === 'You' ? 800 : 600};color:${name === 'You' ? C.amber : C.ink}">${name}</div>
+      <div class="fire" style="position:absolute;top:28px;padding:4px 14px;border-radius:14px;background:${C.amber};color:${C.onAmber};font-size:28px;font-weight:800">×2</div>
+      <div class="pts" style="position:absolute;right:34px;top:20px;font-size:46px;font-weight:800;color:${C.ink}"></div>`;
+    const plus = el('div', { fontSize: '44px', fontWeight: 800, color: C.amber, width: '120px', textAlign: 'right' });
+    const nameW = name.length * 23 + (name === 'You' ? 8 : 0);
+    row.querySelector('.fire').style.left = (192 + nameW + 18) + 'px';
+    return { name, pts0: pts, row, plus, rk: row.querySelector('.rk'), pe: row.querySelector('.pts'), fire: row.querySelector('.fire'), i };
+  });
+  const events = [
+    [21.0, 'You', 2], [21.5, 'Emily_X', 2], [22.0, 'You', 2], [22.5, 'WildPin', 1], [23.0, 'You', 4],
+    [23.5, 'Kasia_S', 2], [24.0, 'You', 4], [24.5, 'the_ivan', 2], [25.0, 'You', 4],
+  ];
+  // Ranks after each event (ties keep the earlier order).
+  const order0 = [...players].sort((a, b) => b.pts0 - a.pts0 || a.i - b.i);
+  const snaps = [{ t: -1, pts: Object.fromEntries(players.map(p => [p.name, p.pts0])), rank: Object.fromEntries(order0.map((p, k) => [p.name, k])) }];
+  for (const [te, who, d] of events) {
+    const prev = snaps[snaps.length - 1];
+    const pts = { ...prev.pts, [who]: prev.pts[who] + d };
+    const ord = [...players].sort((a, b) => pts[b.name] - pts[a.name] || prev.rank[a.name] - prev.rank[b.name]);
+    snaps.push({ t: te, who, d, pts, rank: Object.fromEntries(ord.map((p, k) => [p.name, k])) });
+    cue(te, who === 'You' ? 'score' : 'tick', who === 'You' ? 1 : .5);
+  }
+  cue(20.0, 'hit', 1); cue(25.0, 'win', 1); cue(25.6, 'whoosh', .7);
+  const fireFrom = 22.0; // two wins in a row
+  return t => {
+    const on = t >= 19.95 && t < 26.1;
+    lineAt(t1, 250, t, 20.1, 25.55); lineAt(t2, 380, t, 20.25, 25.6); lineAt(sub, 500, t, 20.5, 25.6, { stagger: 0.02 });
+    card.style.visibility = on ? 'visible' : 'hidden';
+    players.forEach(p => { p.row.style.visibility = p.plus.style.visibility = on ? 'visible' : 'hidden'; });
+    if (!on) return;
+    const out = E.in3(prog(t, 25.6, 26.05));
+    const cin = E.outExpo(prog(t, 20.1, 20.7));
+    put(card, 540, 1120 + (1 - cin) * 300 + out * 1300, 960, 930, { o: clamp(prog(t, 20.1, 20.3)) });
+    let k = 0; while (k + 1 < snaps.length && snaps[k + 1].t <= t) k++;
+    const cur = snaps[k], prev = snaps[Math.max(0, k - 1)];
+    const mv = k === 0 ? 1 : E.inOut3(prog(t, cur.t, cur.t + 0.4));
+    players.forEach(p => {
+      const rk = k === 0 ? cur.rank[p.name] : lerp(prev.rank[p.name], cur.rank[p.name], mv);
+      const rin = E.outExpo(prog(t, 20.3 + p.i * 0.05, 20.9 + p.i * 0.05));
+      const y = 1120 - 930 / 2 + 30 + 49 + rk * 108;
+      const isYou = p.name === 'You';
+      const win = isYou ? E.outBack(prog(t, 25.0, 25.35)) * (1 - prog(t, 25.35, 25.6)) : 0;
+      put(p.row, 540 + (1 - rin) * 700, y + out * 1300, 900, 98, { s: 1 + win * 0.05, o: clamp(prog(t, 20.3 + p.i * 0.05, 20.5 + p.i * 0.05)) });
+      p.row.style.zIndex = isYou ? 3 : 2;
+      // Points roll up after an event.
+      let shown = cur.pts[p.name];
+      if (k > 0 && cur.who === p.name) shown = Math.round(lerp(prev.pts[p.name], cur.pts[p.name], E.out3(prog(t, cur.t, cur.t + 0.3))));
+      p.pe.textContent = shown;
+      p.rk.textContent = Math.round(rk) + 1;
+      p.rk.style.color = isYou && t >= 25.0 ? C.amber : C.inkMute;
+      p.fire.style.display = isYou && t >= fireFrom ? 'block' : 'none';
+      // The "+n" floater.
+      const evs = snaps.filter(s => s.who === p.name && t >= s.t && t < s.t + 0.6);
+      if (evs.length) {
+        const s = evs[evs.length - 1], f = prog(t, s.t, s.t + 0.6);
+        p.plus.textContent = '+' + s.d;
+        p.plus.style.color = isYou ? C.amber : C.inkDim;
+        put(p.plus, 540 + 300, y - 20 - f * 70 + out * 1300, 120, 50, { o: Math.sin(f * Math.PI) });
+      } else p.plus.style.visibility = 'hidden';
+    });
+  };
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scene 5 · 26–32 s · Ten languages, six bot levels.
+// ─────────────────────────────────────────────────────────────────────────────
+const S5 = (() => {
+  const top = line('Ten languages.', 104);
+  const words = [['Play', 'English'], ['Oyna', 'Azərbaycan · Türkçe'], ['Играть', 'Русский'], ['Spielen', 'Deutsch'],
+    ['Jugar', 'Español'], ['Jouer', 'Français'], ['खेलें', 'हिन्दी'], ['کھیلیں', 'اردو'], ['对局', '中文'], ['Play', '']];
+  const cols = [C.amber, C.cherry, C.jade];
+  // Two windows: the word and its language roll through them like a slot.
+  const winBig = el('div', { width: W + 'px', height: '300px', overflow: 'hidden' });
+  const winLab = el('div', { width: W + 'px', height: '70px', overflow: 'hidden' });
+  const big = words.map(([w], i) => { const d = el('div', { fontSize: '230px', fontWeight: 800, color: cols[i % 3], width: W + 'px', height: '300px', lineHeight: '300px', textAlign: 'center', letterSpacing: '-0.03em' }, winBig); d.textContent = w; return d; });
+  const lab = words.map(([, l]) => { const d = el('div', { fontSize: '46px', fontWeight: 600, color: C.inkDim, width: W + 'px', height: '70px', lineHeight: '70px', textAlign: 'center' }, winLab); d.textContent = l; return d; });
+  const T0 = 26.15, STEP = 0.27;
+  words.forEach((_, i) => cue(T0 + i * STEP, 'flick', 0.55));
+  const b1 = line('Six bot levels.', 104);
+  const names = ['Beginner', 'Casual', 'Intermediate', 'Advanced', 'Expert', 'Master'];
+  const tiles = names.map((n, i) => {
+    const d = el('div', { width: '440px', height: '176px', borderRadius: '34px', background: C.card });
+    d.innerHTML = `<div class="n" style="position:absolute;left:34px;top:24px;font-size:72px;font-weight:800">${i + 1}</div>
+      <div class="l" style="position:absolute;left:34px;top:112px;font-size:36px;font-weight:600">${n}</div>`;
+    return { d, n: d.querySelector('.n'), l: d.querySelector('.l'), i };
+  });
+  const LT = 29.45;
+  tiles.forEach((tl, i) => cue(LT + i * 0.25, 'level', 0.5 + i * 0.1));
+  cue(26.0, 'hit', 1); cue(29.0, 'swap', .6); cue(31.6, 'whoosh', .7);
+  return t => {
+    lineAt(top, 520, t, 26.05, 28.85);
+    const winOn = t >= 26.0 && t < 29.15;
+    on_(winBig, winOn); on_(winLab, winOn);
+    put(winBig, 540, 900, W, 300); put(winLab, 540, 1110, W, 70);
+    big.forEach((d, i) => {
+      const a = T0 + i * STEP, last = i === words.length - 1;
+      // In from below as the previous word leaves upwards, both in 0.18 s.
+      const pin = E.inOut3(prog(t, a, a + 0.18));
+      const pout = last ? E.in3(prog(t, 28.85, 29.1)) : E.inOut3(prog(t, a + STEP, a + STEP + 0.18));
+      const vis = t >= a && (last ? t < 29.1 : t < a + STEP + 0.18);
+      d.style.visibility = lab[i].style.visibility = vis ? 'visible' : 'hidden';
+      if (!vis) return;
+      d.style.transform = `translateY(${((1 - pin) * 300 - pout * 300).toFixed(1)}px)`;
+      lab[i].style.transform = `translateY(${((1 - pin) * 70 - pout * 70).toFixed(1)}px)`;
+    });
+    lineAt(b1, 480, t, 29.05, 31.6);
+    tiles.forEach(tl => {
+      const col = tl.i % 2, rowi = Math.floor(tl.i / 2);
+      const x = 540 + (col ? 235 : -235), y = 760 + rowi * 210;
+      const pin = E.outExpo(prog(t, 29.1 + tl.i * 0.05, 29.6 + tl.i * 0.05));
+      const out = E.in3(prog(t, 31.6, 32.0));
+      const lit = t >= LT + tl.i * 0.25;
+      const pop = E.outBack(prog(t, LT + tl.i * 0.25, LT + tl.i * 0.25 + 0.25));
+      tl.d.style.background = lit ? C.amber : C.card;
+      tl.d.style.boxShadow = lit ? `0 9px 0 ${C.amberLip}` : 'none';
+      tl.n.style.color = tl.l.style.color = lit ? C.onAmber : C.ink;
+      const vis = t >= 29.05 && t < 32.05;
+      tl.d.style.visibility = vis ? 'visible' : 'hidden';
+      if (!vis) return;
+      put(tl.d, x, y + (1 - pin) * 260 + out * 1400, 440, 176, { o: clamp(prog(t, 29.1 + tl.i * 0.05, 29.3 + tl.i * 0.05)), s: lit ? lerp(1.06, 1, pop) : 1 });
+    });
+  };
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scene 6 · 32–36 s · Eight cuts on the beat.
+// ─────────────────────────────────────────────────────────────────────────────
+const S6 = (() => {
+  const ic = {
+    trophy: `<svg viewBox="0 0 256 256" width="230" height="230"><path fill="currentColor" d="M232 64h-24V48a8 8 0 0 0-8-8H56a8 8 0 0 0-8 8v16H24A16 16 0 0 0 8 80v16a40 40 0 0 0 40 40h3.65A80.13 80.13 0 0 0 120 191.61V216H96a8 8 0 0 0 0 16h64a8 8 0 0 0 0-16h-24v-24.42c31.94-3.23 58.44-25.64 68.08-55.58H208a40 40 0 0 0 40-40V80a16 16 0 0 0-16-16ZM48 120a24 24 0 0 1-24-24V80h24v32q0 4 .39 8Zm184-24a24 24 0 0 1-24 24h-.5a81.81 81.81 0 0 0 .5-8.9V80h24Z"/></svg>`,
+    users: `<svg viewBox="0 0 256 256" width="230" height="230"><path fill="currentColor" d="M117.25 157.92a60 60 0 1 0-66.5 0 95.83 95.83 0 0 0-47.22 37.71 8 8 0 1 0 13.4 8.74 80 80 0 0 1 134.14 0 8 8 0 0 0 13.4-8.74 95.83 95.83 0 0 0-47.22-37.71ZM40 108a44 44 0 1 1 44 44 44.05 44.05 0 0 1-44-44Zm210.14 98.7a8 8 0 0 1-11.07-2.33A79.83 79.83 0 0 0 172 168a8 8 0 0 1 0-16 44 44 0 1 0-16.34-84.87 8 8 0 1 1-5.94-14.85 60 60 0 0 1 55.53 105.64 95.83 95.83 0 0 1 47.22 37.71 8 8 0 0 1-2.33 11.07Z"/></svg>`,
+    arrow: `<svg viewBox="0 0 256 256" width="230" height="230"><path fill="none" stroke="currentColor" stroke-width="26" stroke-linecap="round" stroke-linejoin="round" d="M64 192 192 64M96 64h96v96"/></svg>`,
+  };
+  const cuts = [
+    ['Chess.', C.amber, C.onAmber, `<img src="${PIECES}bN.svg" width="250" height="250">`],
+    ['Draughts.', C.cherry, C.onAmber, `<div style="width:200px;height:200px;border-radius:50%;background:${C.ivory};box-shadow:0 16px 0 ${C.ivoryLip};margin:20px auto"></div>`],
+    ['Dominoes.', C.jade, C.onAmber, `<div style="width:120px;height:230px;border-radius:22px;background:${C.ivory};box-shadow:0 12px 0 ${C.ivoryLip};margin:0 auto"></div>`],
+    ['Arenas.', C.surface, C.ink, `<div style="color:${C.amber}">${ic.trophy}</div>`],
+    ['Friends.', C.card, C.ink, `<div style="color:${C.jade}">${ic.users}</div>`],
+    ['Hints.', C.hint, C.onAmber, `<div style="color:${C.onAmber}">${ic.arrow}</div>`],
+    ['No ads.', C.felt, C.ink, ''],
+    ['Free.', C.amber, C.onAmber, ''],
+  ].map(([word, bg, fg, icon], i) => {
+    const panel = el('div', { width: W + 'px', height: H + 'px', background: bg, zIndex: 20 });
+    const ico = el('div', { width: W + 'px', height: '260px', textAlign: 'center', color: fg }, panel); ico.innerHTML = icon;
+    const w = el('div', { width: W + 'px', fontSize: '200px', fontWeight: 800, color: fg, textAlign: 'center', letterSpacing: '-0.035em', lineHeight: '1' }, panel);
+    w.textContent = word;
+    return { panel, ico, w, i, t0: 32.0 + i * 0.5, hasIcon: !!icon };
+  });
+  cuts.forEach(c => cue(c.t0, 'stab', c.i === 7 ? 1.2 : 1));
+  return t => {
+    cuts.forEach(c => {
+      const vis = t >= c.t0 - 0.12 && t < (c.i === 7 ? 36.25 : c.t0 + 0.5);
+      on_(c.panel, vis);
+      if (!vis) return;
+      const wipe = E.out3(prog(t, c.t0 - 0.12, c.t0 + 0.02));
+      const dir = c.i % 2 ? 1 : -1;
+      const exit = c.i === 7 ? E.in3(prog(t, 36.0, 36.25)) : 0;
+      c.panel.style.transform = `translateX(${(dir * (1 - wipe) * W).toFixed(1)}px) translateY(${(-exit * H).toFixed(1)}px)`;
+      c.panel.style.zIndex = 20 + c.i;
+      const slam = E.out3(prog(t, c.t0, c.t0 + 0.14));
+      const yW = c.hasIcon ? 1050 : 900;
+      put(c.w, 540, yW, W, 210, { s: lerp(1.35, 1, slam), o: clamp(slam * 2), r: lerp(dir * -4, 0, slam) });
+      put(c.ico, 540, 720, W, 260, { s: E.outBack(prog(t, c.t0 + 0.03, c.t0 + 0.3)), o: 1 });
+    });
+  };
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Scene 7 · 36–40 s · The end card.
+// ─────────────────────────────────────────────────────────────────────────────
+const S7 = (() => {
+  const sh = shadow(330, 120, 30, .7);
+  const icon = el('img', { width: '380px', height: '380px', borderRadius: '86px' }); icon.src = '../../assets/images/app_icon_store_512.png';
+  const word = line('CheckMate', 136);
+  word.innerHTML = 'CheckMate'.split('').map(ch => `<span class="word"><span>${ch}</span></span>`).join('');
+  word._words = [...word.querySelectorAll('.word > span')];
+  const tag = line('Chess · Draughts · Dominoes', 50, C.inkDim, 600);
+  const pill = el('div', { width: '640px', height: '128px', borderRadius: '38px', background: C.amber, boxShadow: `0 10px 0 ${C.amberLip}`,
+    color: C.onAmber, fontSize: '54px', fontWeight: 800, display: 'flex', alignItems: 'center', justifyContent: 'center' });
+  pill.textContent = 'Free on Google Play';
+  cue(36.0, 'boom', 1); cue(36.5, 'word', .4); cue(37.45, 'pop', 1);
+  return t => {
+    const on = t >= 35.95;
+    [sh, icon, pill].forEach(e => e.style.visibility = on ? 'visible' : 'hidden');
+    lineAt(word, 1110, t, 36.42, 1e9, { stagger: 0.035, dur: 0.45 });
+    lineAt(tag, 1240, t, 36.95, 1e9, { stagger: 0.05 });
+    if (!on) return;
+    const k = prog(t, 36.0, 36.4), e = E.outBack(k);
+    put(icon, 540, 760, 380, 380, { s: lerp(1.9, 1, E.in2(Math.min(1, k * 1.15))) * (k >= 0.87 ? lerp(0.96, 1, E.out3(prog(t, 36.35, 36.5))) : 1), o: clamp(k * 3) });
+    put(sh, 560, 990, 330, 120, { o: 0.8 * clamp(k * 1.4), s: lerp(1.8, 1, E.in2(k)) });
+    const pp = E.outBack(prog(t, 37.45, 37.8));
+    put(pill, 540, 1450, 640, 128, { s: pp, o: clamp(prog(t, 37.45, 37.55)) });
+  };
+})();
+
+// ─────────────────────────────────────────────────────────────────────────────
+const fade = document.getElementById('fade');
+const vignette = document.getElementById('vignette');
+const felt = document.getElementById('felt');
+function render(t) {
+  seed = 1;
+  show(fade, 1 - E.out3(prog(t, 0, 0.45)));
+  // Camera: slow pushes; a short shake when a piece lands or a scene hits.
+  let shake = 0;
+  for (const c of SFX) if ((c.type === 'drop' || c.type === 'boom' || c.type === 'stab') && t >= c.t && t < c.t + 0.3) shake += (c.type === 'stab' ? 3 : 8) * Math.exp(-(t - c.t) * 22);
+  const push = t < 4 ? lerp(1.06, 1, E.out3(prog(t, 0, 4))) : t >= 36 ? lerp(1, 1.035, E.out2(prog(t, 36, 40))) : 1;
+  cam.style.transform = `translate(${(Math.sin(t * 97) * shake).toFixed(2)}px,${(Math.cos(t * 83) * shake).toFixed(2)}px) scale(${push.toFixed(4)})`;
+  // The vignette reads as a spotlight on the bright colour cuts: ease it off.
+  show(vignette, 1 - 0.8 * prog(t, 31.85, 32.0) * (1 - prog(t, 36.0, 36.3)));
+  felt.style.transform = `translate(${(-t * 3).toFixed(1)}px,${(-t * 1.5).toFixed(1)}px)`;
+  S1(t); S2(t); S3(t); S4(t); S5(t); S6(t); S7(t);
+}
+window.render = render;
+window.SFX = SFX.sort((a, b) => a.t - b.t);
+window.DURATION = 40;
+window.ready = Promise.all([
+  document.fonts.ready,
+  ...[...document.images].map(im => im.complete ? Promise.resolve() : new Promise(r => { im.onload = im.onerror = r; })),
+]).then(() => { render(0); return true; });
+// For a quick look in a browser: ?t=12.3 shows that moment; ?play plays it.
+const q = new URLSearchParams(location.search);
+if (q.has('t')) window.ready.then(() => render(+q.get('t')));
+if (q.has('play')) window.ready.then(() => { const t0 = performance.now(); const f = () => { const t = (performance.now() - t0) / 1000; render(t % 40); requestAnimationFrame(f); }; f(); });
+</script>
+</body>
+</html>

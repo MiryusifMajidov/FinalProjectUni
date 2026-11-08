@@ -2,7 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../features/auth/widgets/apple_sign_in_button.dart'
@@ -12,12 +11,13 @@ import '../../features/auth/widgets/google_sign_in_button.dart'
 import '../services/auth_service.dart';
 import '../theme/app_colors.dart';
 import '../utils/email_validator.dart';
+import '../theme/app_fonts.dart';
 
 // Everything a guest (anonymous) account needs to be told: it works fully,
 // but lives only on this device until an e-mail, Google or Apple sign-in is
 // linked to it. Deleting the app — or signing out — loses it for good.
 
-const _kDark = Color(0xFF1A1205);
+const _kDark = Color(0xFF241703);
 
 /// Set by "Play as guest" so the home screen shows [showGuestWelcomeDialog]
 /// once, right after the guest account is created.
@@ -85,9 +85,9 @@ class _GuestDialog extends StatelessWidget {
   final bool secondaryDanger;
   final bool showCancel;
 
-  const _GuestDialog({
+  _GuestDialog({
     required this.icon,
-    this.iconColor = AppColors.amber,
+    Color? iconColor,
     required this.title,
     required this.body,
     required this.primaryLabel,
@@ -96,7 +96,7 @@ class _GuestDialog extends StatelessWidget {
     required this.onSecondary,
     this.secondaryDanger = false,
     this.showCancel = false,
-  });
+  }) : iconColor = iconColor ?? AppColors.accent;
 
   @override
   Widget build(BuildContext context) {
@@ -125,7 +125,7 @@ class _GuestDialog extends StatelessWidget {
             Text(
               title,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 21,
                 fontWeight: FontWeight.w700,
                 color: AppColors.ink,
@@ -136,7 +136,7 @@ class _GuestDialog extends StatelessWidget {
             Text(
               body,
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 14,
                 color: AppColors.inkDim,
                 height: 1.5,
@@ -149,16 +149,11 @@ class _GuestDialog extends StatelessWidget {
               child: ElevatedButton(
                 onPressed: onPrimary,
                 style: ElevatedButton.styleFrom(
-                  backgroundColor: AppColors.amber,
-                  foregroundColor: _kDark,
-                  elevation: 0,
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(12),
-                  ),
-                ),
+                  backgroundColor: AppColors.accent,
+                  foregroundColor: _kDark,),
                 child: Text(
                   primaryLabel,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                       fontSize: 15, fontWeight: FontWeight.w700),
                 ),
               ),
@@ -168,7 +163,7 @@ class _GuestDialog extends StatelessWidget {
               onPressed: onSecondary,
               child: Text(
                 secondaryLabel,
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 14,
                   fontWeight: FontWeight.w600,
                   color: secondaryDanger ? AppColors.loss : AppColors.inkDim,
@@ -180,7 +175,7 @@ class _GuestDialog extends StatelessWidget {
                 onPressed: () => Navigator.of(context).pop(),
                 child: Text(
                   'cancel'.tr(),
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                       fontSize: 14, color: AppColors.inkMute),
                 ),
               ),
@@ -211,11 +206,10 @@ class GuestBanner extends ConsumerWidget {
 
     return Container(
       margin: margin,
-      padding: const EdgeInsets.fromLTRB(14, 12, 6, 12),
+      padding: const EdgeInsets.fromLTRB(14, 14, 6, 14),
       decoration: BoxDecoration(
-        color: AppColors.amberGlow,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.amber.withValues(alpha: 0.35)),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(16),
       ),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -223,7 +217,7 @@ class GuestBanner extends ConsumerWidget {
           Padding(
             padding: const EdgeInsets.only(top: 2),
             child: Icon(PhosphorIcons.warningCircle(PhosphorIconsStyle.fill),
-                color: AppColors.amber, size: 20),
+                color: AppColors.accent, size: 20),
           ),
           const SizedBox(width: 10),
           Expanded(
@@ -232,8 +226,8 @@ class GuestBanner extends ConsumerWidget {
               children: [
                 Text(
                   'guest_banner_title'.tr(),
-                  style: GoogleFonts.inter(
-                    fontSize: 14,
+                  style: AppFonts.ui(
+                    fontSize: 16,
                     fontWeight: FontWeight.w700,
                     color: AppColors.ink,
                   ),
@@ -241,33 +235,28 @@ class GuestBanner extends ConsumerWidget {
                 const SizedBox(height: 3),
                 Text(
                   'guest_banner_body'.tr(),
-                  style: GoogleFonts.inter(
-                    fontSize: 12.5,
+                  style: AppFonts.ui(
+                    fontSize: 14,
                     color: AppColors.inkDim,
-                    height: 1.45,
+                    height: 1.4,
                   ),
                 ),
-                const SizedBox(height: 10),
+                const SizedBox(height: 12),
                 SizedBox(
-                  height: 36,
+                  height: 44,
                   child: ElevatedButton.icon(
                     onPressed: () => showLinkAccountSheet(context),
                     icon: Icon(PhosphorIcons.shieldCheck(PhosphorIconsStyle.bold),
                         size: 16),
                     label: Text(
                       'guest_secure_account'.tr(),
-                      style: GoogleFonts.inter(
-                          fontSize: 13, fontWeight: FontWeight.w700),
+                      style: AppFonts.ui(
+                          fontSize: 15, fontWeight: FontWeight.w700),
                     ),
                     style: ElevatedButton.styleFrom(
-                      backgroundColor: AppColors.amber,
+                      backgroundColor: AppColors.accent,
                       foregroundColor: _kDark,
-                      elevation: 0,
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(10),
-                      ),
-                    ),
+                      padding: const EdgeInsets.symmetric(horizontal: 14),),
                   ),
                 ),
               ],
@@ -382,7 +371,7 @@ class _LinkAccountSheetState extends ConsumerState<_LinkAccountSheet> {
   InputDecoration _decoration(String hint, IconData icon, {Widget? suffix}) =>
       InputDecoration(
         hintText: hint,
-        hintStyle: GoogleFonts.inter(fontSize: 15, color: AppColors.inkMute),
+        hintStyle: AppFonts.ui(fontSize: 15, color: AppColors.inkMute),
         filled: true,
         fillColor: AppColors.surface,
         prefixIcon: Icon(icon, size: 18, color: AppColors.inkMute),
@@ -394,7 +383,7 @@ class _LinkAccountSheetState extends ConsumerState<_LinkAccountSheet> {
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(12),
-          borderSide: const BorderSide(color: AppColors.amber, width: 1.5),
+          borderSide: BorderSide(color: AppColors.accent, width: 1.5),
         ),
       );
 
@@ -432,7 +421,7 @@ class _LinkAccountSheetState extends ConsumerState<_LinkAccountSheet> {
               const SizedBox(height: 18),
               Text(
                 'link_title'.tr(),
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 23,
                   fontWeight: FontWeight.w700,
                   color: AppColors.ink,
@@ -441,7 +430,7 @@ class _LinkAccountSheetState extends ConsumerState<_LinkAccountSheet> {
               const SizedBox(height: 6),
               Text(
                 'link_subtitle'.tr(),
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                     fontSize: 13, color: AppColors.inkDim, height: 1.5),
               ),
               const SizedBox(height: 18),
@@ -452,7 +441,7 @@ class _LinkAccountSheetState extends ConsumerState<_LinkAccountSheet> {
                 autocorrect: false,
                 autofillHints: const [AutofillHints.email],
                 textInputAction: TextInputAction.next,
-                style: GoogleFonts.inter(fontSize: 15, color: AppColors.ink),
+                style: AppFonts.ui(fontSize: 15, color: AppColors.ink),
                 decoration: _decoration('your@email.com',
                     PhosphorIcons.envelopeSimple(PhosphorIconsStyle.regular)),
               ),
@@ -464,7 +453,7 @@ class _LinkAccountSheetState extends ConsumerState<_LinkAccountSheet> {
                 autofillHints: const [AutofillHints.newPassword],
                 textInputAction: TextInputAction.done,
                 onSubmitted: (_) => _linkEmail(),
-                style: GoogleFonts.inter(fontSize: 15, color: AppColors.ink),
+                style: AppFonts.ui(fontSize: 15, color: AppColors.ink),
                 decoration: _decoration(
                   'link_password_hint'.tr(),
                   PhosphorIcons.lock(PhosphorIconsStyle.regular),
@@ -496,7 +485,7 @@ class _LinkAccountSheetState extends ConsumerState<_LinkAccountSheet> {
                   ),
                   child: Text(
                     _error!,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                         fontSize: 13, color: AppColors.loss, height: 1.4),
                   ),
                 ),
@@ -508,15 +497,10 @@ class _LinkAccountSheetState extends ConsumerState<_LinkAccountSheet> {
                 child: ElevatedButton(
                   onPressed: busy ? null : _linkEmail,
                   style: ElevatedButton.styleFrom(
-                    backgroundColor: AppColors.amber,
+                    backgroundColor: AppColors.accent,
                     disabledBackgroundColor:
-                        AppColors.amber.withValues(alpha: 0.5),
-                    foregroundColor: _kDark,
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(12),
-                    ),
-                  ),
+                        AppColors.accent.withValues(alpha: 0.5),
+                    foregroundColor: _kDark,),
                   child: _busy == 'email'
                       ? const SizedBox(
                           width: 20,
@@ -526,7 +510,7 @@ class _LinkAccountSheetState extends ConsumerState<_LinkAccountSheet> {
                         )
                       : Text(
                           'link_save_account'.tr(),
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                               fontSize: 15, fontWeight: FontWeight.w700),
                         ),
                 ),
@@ -539,7 +523,7 @@ class _LinkAccountSheetState extends ConsumerState<_LinkAccountSheet> {
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: Text(
                       'or_divider'.tr(),
-                      style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.inkMute),
+                      style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.inkMute),
                     ),
                   ),
                   const Expanded(child: Divider(color: AppColors.border)),
@@ -596,17 +580,13 @@ class _ProviderButton extends StatelessWidget {
       height: 50,
       child: OutlinedButton(
         onPressed: onTap,
-        style: OutlinedButton.styleFrom(
-          side: const BorderSide(color: AppColors.borderStrong),
-          shape:
-              RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-        ),
+        style: OutlinedButton.styleFrom(),
         child: loading
-            ? const SizedBox(
+            ? SizedBox(
                 width: 20,
                 height: 20,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2, color: AppColors.amber),
+                    strokeWidth: 2, color: AppColors.accent),
               )
             : Row(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -617,7 +597,7 @@ class _ProviderButton extends StatelessWidget {
                     child: Text(
                       label,
                       overflow: TextOverflow.ellipsis,
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: AppColors.ink,

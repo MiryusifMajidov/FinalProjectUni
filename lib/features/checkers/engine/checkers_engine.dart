@@ -1,5 +1,5 @@
 // ── Checkers Engine ─────────────────────────────────────────────────────────
-// Supports five variants:
+// Supports six variants:
 //   • Standard (American 8×8)  – diagonal, forward capture only, single-step
 //     kings, promotion ends a capture chain
 //   • International (10×10)    – diagonal, backward capture, flying kings,
@@ -9,12 +9,16 @@
 //   • Brazilian (8×8)           – international rules on an 8×8 board
 //   • Russian (8×8)             – backward capture, flying kings, free choice
 //     of capture sequence, man promotes mid-chain and continues as a king
+//   • German (8×8, "Dame")      – the rules printed in German game boxes:
+//     men move and capture forwards only, flying kings, capture compulsory
+//     but free choice of which, a man crowned by a capture stops there
 
 import 'dart:math';
 
 // ── Enums ───────────────────────────────────────────────────────────────────
 
-enum CheckersVariant { standard, international, turkish, brazilian, russian }
+// New variants go at the end: the index is sent to the bot isolate.
+enum CheckersVariant { standard, international, turkish, brazilian, russian, german }
 
 enum CheckersPiece { empty, white, black, whiteKing, blackKing }
 
@@ -73,12 +77,19 @@ class VariantRules {
     promoteDuringCapture: true, deadPiecesRemain: true,
   );
 
+  // German box rules (Noris, Schmidt; de.wikipedia "Dame (Spiel)").
+  static const german = VariantRules(
+    boardSize: 8, piecesPerSide: 12,
+    flyingKings: true, promotionEndsCapture: true, deadPiecesRemain: true,
+  );
+
   static VariantRules fromVariant(CheckersVariant v) => switch (v) {
     CheckersVariant.standard      => standard,
     CheckersVariant.international => international,
     CheckersVariant.turkish       => turkish,
     CheckersVariant.brazilian     => brazilian,
     CheckersVariant.russian       => russian,
+    CheckersVariant.german        => german,
   };
 }
 

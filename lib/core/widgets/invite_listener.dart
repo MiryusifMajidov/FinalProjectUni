@@ -14,6 +14,7 @@ import '../models/game_model.dart';
 import '../models/game_type.dart';
 import '../services/auth_service.dart';
 import '../services/notification_service.dart';
+import '../services/cache_service.dart';
 import '../services/realtime_game_service.dart';
 
 /// Wraps any widget that should listen for incoming game invites.
@@ -61,8 +62,13 @@ class _InviteListenerState extends ConsumerState<InviteListener> {
 
     // Ask for notification permission now that the player is in the app
     // (not before the first frame), then save / refresh the FCM token so
-    // senders can reach this device when offline.
-    NotificationService().requestPermission().whenComplete(() {
+    // senders can reach this device when offline. Not on the very first run:
+    // there the prompt landed on top of the guest welcome dialog. First-run
+    // players are asked when they look for an online opponent instead.
+    final ask = ref.read(cacheServiceProvider).isFirstSession
+        ? Future<void>.value()
+        : NotificationService().requestPermission();
+    ask.whenComplete(() {
       if (mounted) _saveFcmToken(uid);
     });
 
@@ -450,7 +456,7 @@ class _InviteOverlayState extends State<_InviteOverlay>
             ),
             boxShadow: [
               BoxShadow(
-                color: AppColors.primary.withOpacity(0.12),
+                color: Colors.black.withValues(alpha: 0.28),
                 blurRadius: 24,
                 spreadRadius: 2,
                 offset: const Offset(0, 4),

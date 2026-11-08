@@ -2,7 +2,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/auth_service.dart';
@@ -10,6 +9,7 @@ import '../../../core/services/cache_service.dart';
 import '../../../core/models/game_model.dart';
 import '../engine/chess_engine.dart';
 import '../widgets/chess_board_widget.dart';
+import '../../../core/theme/app_fonts.dart';
 
 /// A finished chess game, move by move.
 ///
@@ -108,7 +108,6 @@ class _GameReplayScreenState extends ConsumerState<GameReplayScreen> {
                         decoration: BoxDecoration(
                           color: AppColors.card,
                           borderRadius: BorderRadius.circular(10),
-                          border: Border.all(color: AppColors.border),
                         ),
                         child: Icon(
                           PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -121,7 +120,7 @@ class _GameReplayScreenState extends ConsumerState<GameReplayScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'replay'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 20,
                       fontWeight: FontWeight.w700,
                       color: AppColors.ink,
@@ -138,7 +137,7 @@ class _GameReplayScreenState extends ConsumerState<GameReplayScreen> {
                       ? Center(
                           child: Text(
                             'game_not_found'.tr(),
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                                 fontSize: 14, color: AppColors.inkDim),
                           ),
                         )
@@ -193,7 +192,7 @@ class _GameReplayScreenState extends ConsumerState<GameReplayScreen> {
               ? 'replay_start'.tr()
               : 'replay_move_of'.tr(
                   namedArgs: {'n': '$_index', 'total': '$totalMoves'}),
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontFeatures: const [FontFeature.tabularFigures()],
             fontSize: 12.5,
             fontWeight: FontWeight.w600,
@@ -256,7 +255,7 @@ class _ResultBanner extends StatelessWidget {
               '${game.whiteUsername ?? 'white'.tr()} – ${game.blackUsername ?? 'black'.tr()}',
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 13,
                 fontWeight: FontWeight.w600,
                 color: AppColors.ink,
@@ -272,7 +271,7 @@ class _ResultBanner extends StatelessWidget {
             ),
             child: Text(
               label,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 11.5,
                 fontWeight: FontWeight.w600,
                 color: color,
@@ -314,7 +313,7 @@ class _PlayerLabel extends StatelessWidget {
               name,
               maxLines: 1,
               overflow: TextOverflow.ellipsis,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 13.5,
                 fontWeight: FontWeight.w600,
                 color: AppColors.ink,
@@ -475,7 +474,7 @@ class _MoveListState extends State<_MoveList> {
               padding: const EdgeInsets.only(right: 3),
               child: Text(
                 '${pairIdx + 1}.',
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontFeatures: const [FontFeature.tabularFigures()],
                   fontSize: 11.5,
                   color: AppColors.inkMute,
@@ -527,10 +526,10 @@ class _MoveChip extends StatelessWidget {
         ),
         child: Text(
           san,
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 12,
             fontWeight: active ? FontWeight.w700 : FontWeight.w500,
-            color: active ? const Color(0xFF1A1205) : AppColors.inkDim,
+            color: active ? const Color(0xFF241703) : AppColors.inkDim,
           ),
         ),
       ),

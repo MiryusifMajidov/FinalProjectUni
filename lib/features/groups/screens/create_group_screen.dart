@@ -3,7 +3,6 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
@@ -11,19 +10,18 @@ import '../../../core/theme/app_colors.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/group_service.dart';
 import '../../../core/models/group_model.dart';
+import '../../../core/theme/app_fonts.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg           = AppColors.background;
 const _kSurface      = AppColors.surface;
 const _kCard         = AppColors.card;
-const _kAmber        = AppColors.amber;
-const _kAmberDeep    = AppColors.amberDeep;
-const _kAmberGlow    = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk          = AppColors.ink;
 const _kInkDim       = AppColors.inkDim;
 const _kInkMute      = AppColors.inkMute;
 const _kBorder       = AppColors.border;
-const _kBorderStrong = AppColors.borderStrong;
 
 class CreateGroupScreen extends ConsumerStatefulWidget {
   const CreateGroupScreen({super.key});
@@ -123,7 +121,6 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -135,7 +132,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'create_group'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -192,7 +189,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                                         const SizedBox(height: 4),
                                         Text(
                                           'Photo',
-                                          style: GoogleFonts.inter(
+                                          style: AppFonts.ui(
                                             fontSize: 11,
                                             color: _kAmber,
                                             fontWeight: FontWeight.w500,
@@ -218,7 +215,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                                     child: Icon(
                                       PhosphorIcons.pencilSimple(PhosphorIconsStyle.bold),
                                       size: 12,
-                                      color: const Color(0xFF1A1205),
+                                      color: const Color(0xFF241703),
                                     ),
                                   ),
                                 ),
@@ -248,18 +245,17 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: TextField(
                         controller: _descCtrl,
                         maxLines: 3,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 14,
                           color: _kInk,
                         ),
                         decoration: InputDecoration(
                           hintText: 'What is this group about?',
-                          hintStyle: GoogleFonts.inter(
+                          hintStyle: AppFonts.ui(
                             fontSize: 14,
                             color: _kInkMute,
                           ),
@@ -312,7 +308,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                         ),
                         child: Text(
                           _error!,
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 13,
                             color: AppColors.loss,
                           ),
@@ -331,10 +327,10 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                         decoration: BoxDecoration(
                           gradient: _loading
                               ? null
-                              : const LinearGradient(
+                              : LinearGradient(
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
-                                  colors: [_kAmber, _kAmberDeep],
+                                  colors: [_kAmber, _kAmber],
                                 ),
                           color: _loading ? _kCard : null,
                           borderRadius: BorderRadius.circular(14),
@@ -342,7 +338,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                               ? null
                               : [
                                   BoxShadow(
-                                    color: _kAmber.withOpacity(0.25),
+                                    color: Colors.black.withValues(alpha: 0.28),
                                     blurRadius: 16,
                                     offset: const Offset(0, 4),
                                   ),
@@ -350,7 +346,7 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                         ),
                         child: Center(
                           child: _loading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 22,
                                   height: 22,
                                   child: CircularProgressIndicator(
@@ -360,10 +356,10 @@ class _CreateGroupScreenState extends ConsumerState<CreateGroupScreen> {
                                 )
                               : Text(
                                   'create_group'.tr(),
-                                  style: GoogleFonts.inter(
+                                  style: AppFonts.ui(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF1A1205),
+                                    color: const Color(0xFF241703),
                                   ),
                                 ),
                         ),
@@ -390,12 +386,11 @@ class _Label extends StatelessWidget {
   Widget build(BuildContext context) {
     return Text(
       text,
-      style: GoogleFonts.inter(
-        fontSize: 11,
-        fontWeight: FontWeight.w600,
-        color: _kInkMute,
-        letterSpacing: 0.6,
-      ),
+      style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
     );
   }
 }
@@ -420,7 +415,6 @@ class _DesignField extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _kBorder),
       ),
       child: Row(
         children: [
@@ -430,10 +424,10 @@ class _DesignField extends StatelessWidget {
           Expanded(
             child: TextField(
               controller: controller,
-              style: GoogleFonts.inter(fontSize: 14, color: _kInk),
+              style: AppFonts.ui(fontSize: 14, color: _kInk),
               decoration: InputDecoration(
                 hintText: hint,
-                hintStyle: GoogleFonts.inter(fontSize: 14, color: _kInkMute),
+                hintStyle: AppFonts.ui(fontSize: 14, color: _kInkMute),
                 border: InputBorder.none,
                 enabledBorder: InputBorder.none,
                 focusedBorder: InputBorder.none,
@@ -501,7 +495,7 @@ class _PrivacyCard extends StatelessWidget {
             const SizedBox(height: 10),
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 13,
                 fontWeight: FontWeight.w700,
                 color: selected ? _kAmber : _kInk,
@@ -510,7 +504,7 @@ class _PrivacyCard extends StatelessWidget {
             const SizedBox(height: 2),
             Text(
               desc,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 11,
                 color: selected ? _kAmber.withOpacity(0.7) : _kInkMute,
               ),

@@ -2,25 +2,23 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
+import '../../../core/widgets/bot_badge.dart';
+import '../../../core/services/bot_pool.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/friends_service.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/widgets/user_avatar.dart';
+import '../../../core/theme/app_fonts.dart';
 
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg      = AppColors.background;
 const _kCard    = AppColors.card;
-const _kSurface = AppColors.surface;
-const _kAmber   = AppColors.amber;
-const _kAmberDeep = AppColors.amberDeep;
-const _kAmberGlow = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
 const _kInk     = AppColors.ink;
 const _kInkDim  = AppColors.inkDim;
 const _kInkMute = AppColors.inkMute;
-const _kBorder  = AppColors.border;
 const _kWin     = AppColors.win;
 const _kWinSoft = AppColors.winSoft;
 
@@ -136,7 +134,6 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -147,7 +144,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                   const SizedBox(width: 14),
                   Text(
                     'add_friend'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -171,7 +168,6 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Row(
                         children: [
@@ -184,10 +180,10 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                           Expanded(
                             child: TextField(
                               controller: _ctrl,
-                              style: GoogleFonts.inter(fontSize: 14, color: _kInk),
+                              style: AppFonts.ui(fontSize: 14, color: _kInk),
                               decoration: InputDecoration(
                                 hintText: 'search_players'.tr(),
-                                hintStyle: GoogleFonts.inter(
+                                hintStyle: AppFonts.ui(
                                   fontSize: 14, color: _kInkMute,
                                 ),
                                 border: InputBorder.none,
@@ -233,10 +229,10 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                         decoration: BoxDecoration(
                           gradient: _loading
                               ? null
-                              : const LinearGradient(
+                              : LinearGradient(
                                   begin: Alignment.topLeft,
                                   end: Alignment.bottomRight,
-                                  colors: [_kAmber, _kAmberDeep],
+                                  colors: [_kAmber, _kAmber],
                                 ),
                           color: _loading ? _kCard : null,
                           borderRadius: BorderRadius.circular(14),
@@ -244,7 +240,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                               ? null
                               : [
                                   BoxShadow(
-                                    color: _kAmber.withOpacity(0.25),
+                                    color: Colors.black.withValues(alpha: 0.28),
                                     blurRadius: 16,
                                     offset: const Offset(0, 4),
                                   ),
@@ -252,7 +248,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                         ),
                         child: Center(
                           child: _loading
-                              ? const SizedBox(
+                              ? SizedBox(
                                   width: 18, height: 18,
                                   child: CircularProgressIndicator(
                                     strokeWidth: 2.5, color: _kAmber,
@@ -260,10 +256,10 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                                 )
                               : Text(
                                   'Search',
-                                  style: GoogleFonts.inter(
+                                  style: AppFonts.ui(
                                     fontSize: 15,
                                     fontWeight: FontWeight.w700,
-                                    color: const Color(0xFF1A1205),
+                                    color: const Color(0xFF241703),
                                   ),
                                 ),
                         ),
@@ -283,7 +279,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                         ),
                         child: Text(
                           _error!,
-                          style: GoogleFonts.inter(fontSize: 13, color: AppColors.loss),
+                          style: AppFonts.ui(fontSize: 13, color: AppColors.loss),
                         ),
                       ),
                     ],
@@ -308,7 +304,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                             const SizedBox(width: 8),
                             Text(
                               _successMsg!,
-                              style: GoogleFonts.inter(fontSize: 13, color: _kWin),
+                              style: AppFonts.ui(fontSize: 13, color: _kWin),
                             ),
                           ],
                         ),
@@ -320,12 +316,11 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                       const SizedBox(height: 24),
                       Text(
                         'RECENTLY SEARCHED',
-                        style: GoogleFonts.inter(
-                          fontSize: 10,
-                          fontWeight: FontWeight.w700,
-                          color: _kInkMute,
-                          letterSpacing: 1.0,
-                        ),
+                        style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
                       ),
                       const SizedBox(height: 10),
                       ..._recentSearches.map((u) => GestureDetector(
@@ -350,17 +345,28 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                               ),
                               const SizedBox(width: 10),
                               Expanded(
-                                child: Text(
-                                  u.username,
-                                  style: GoogleFonts.inter(
-                                    fontSize: 13,
-                                    color: _kInkDim,
-                                  ),
+                                child: Row(
+                                  children: [
+                                    Flexible(
+                                      child: Text(
+                                        u.username,
+                                        overflow: TextOverflow.ellipsis,
+                                        style: AppFonts.ui(
+                                          fontSize: 13,
+                                          color: _kInkDim,
+                                        ),
+                                      ),
+                                    ),
+                                    if (BotPool.isLabelledUid(u.uid)) ...[
+                                      const SizedBox(width: 6),
+                                      const BotBadge(fontSize: 10),
+                                    ],
+                                  ],
                                 ),
                               ),
                               Text(
                                 '${u.overallRating}',
-                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                                   color: _kInkMute,
                                 ),
                               ),
@@ -380,7 +386,6 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                           decoration: BoxDecoration(
                             color: _kCard,
                             borderRadius: BorderRadius.circular(16),
-                            border: Border.all(color: _kBorder),
                           ),
                           child: Row(
                             children: [
@@ -394,19 +399,31 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                                 child: Column(
                                   crossAxisAlignment: CrossAxisAlignment.start,
                                   children: [
-                                    Text(
-                                      _result!.username,
-                                      style: GoogleFonts.inter(
-                                        fontSize: 15,
-                                        fontWeight: FontWeight.w700,
-                                        color: _kInk,
-                                      ),
+                                    Row(
+                                      children: [
+                                        Flexible(
+                                          child: Text(
+                                            _result!.username,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: AppFonts.ui(
+                                              fontSize: 15,
+                                              fontWeight: FontWeight.w700,
+                                              color: _kInk,
+                                            ),
+                                          ),
+                                        ),
+                                        if (BotPool.isLabelledUid(
+                                            _result!.uid)) ...[
+                                          const SizedBox(width: 6),
+                                          const BotBadge(fontSize: 10),
+                                        ],
+                                      ],
                                     ),
                                     const SizedBox(height: 2),
                                     Text(
                                       '${_result!.overallRating} ELO'
                                       '${_result!.skillLevel != null ? ' · ${_result!.skillLevel}' : ''}',
-                                      style: GoogleFonts.inter(
+                                      style: AppFonts.ui(
                                         fontSize: 12,
                                         color: _kInkMute,
                                       ),
@@ -425,7 +442,7 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                                   ),
                                   child: Text(
                                     'Friends',
-                                    style: GoogleFonts.inter(
+                                    style: AppFonts.ui(
                                       fontSize: 12,
                                       fontWeight: FontWeight.w600,
                                       color: _kWin,
@@ -439,10 +456,10 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 14, vertical: 8),
                                     decoration: BoxDecoration(
-                                      gradient: const LinearGradient(
+                                      gradient: LinearGradient(
                                         begin: Alignment.topLeft,
                                         end: Alignment.bottomRight,
-                                        colors: [_kAmber, _kAmberDeep],
+                                        colors: [_kAmber, _kAmber],
                                       ),
                                       borderRadius: BorderRadius.circular(10),
                                     ),
@@ -452,15 +469,15 @@ class _UserSearchScreenState extends ConsumerState<UserSearchScreen> {
                                         Icon(
                                           PhosphorIcons.userPlus(PhosphorIconsStyle.regular),
                                           size: 14,
-                                          color: const Color(0xFF1A1205),
+                                          color: const Color(0xFF241703),
                                         ),
                                         const SizedBox(width: 6),
                                         Text(
                                           'add'.tr(),
-                                          style: GoogleFonts.inter(
+                                          style: AppFonts.ui(
                                             fontSize: 13,
                                             fontWeight: FontWeight.w700,
-                                            color: const Color(0xFF1A1205),
+                                            color: const Color(0xFF241703),
                                           ),
                                         ),
                                       ],

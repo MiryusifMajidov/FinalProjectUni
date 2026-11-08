@@ -2,9 +2,9 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
+import '../../../core/models/game_type.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/services/auth_service.dart';
@@ -14,20 +14,18 @@ import '../../../core/models/chat_message_model.dart';
 import '../../../core/models/group_model.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../../core/widgets/keyed_stream_builder.dart';
+import '../../../core/theme/app_fonts.dart';
 
 // ── Design tokens (local) ──────────────────────────────────────────────────────
 const _kBg            = AppColors.background;
-const _kSurface       = AppColors.surface;
 const _kCard          = AppColors.card;
-const _kAmber         = AppColors.amber;
-const _kAmberDeep     = AppColors.amberDeep;
-const _kAmberGlow     = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kWin           = AppColors.win;
 const _kInk           = AppColors.ink;
 const _kInkDim        = AppColors.inkDim;
 const _kInkMute       = AppColors.inkMute;
 const _kBorder        = AppColors.border;
-const _kBorderStrong  = AppColors.borderStrong;
 
 // ── Shared chats stream provider ───────────────────────────────────────────────
 //
@@ -73,9 +71,12 @@ class _ChatListScreenState extends ConsumerState<ChatListScreen>
 
   @override
   Widget build(BuildContext context) {
+    // Rebuilt when the selected game changes: this tab wears its colour
+    // (AppColors.accent).
+    ref.watch(activeGameProvider);
     final myUid = ref.watch(currentUserProvider).valueOrNull?.uid;
     if (myUid == null) {
-      return const Scaffold(
+      return Scaffold(
         backgroundColor: _kBg,
         body: Center(child: CircularProgressIndicator(color: _kAmber)),
       );
@@ -130,7 +131,7 @@ class _Header extends ConsumerWidget {
             children: [
               Text(
                 'Messages',
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 28,
                   fontWeight: FontWeight.w600,
                   color: _kInk,
@@ -140,7 +141,7 @@ class _Header extends ConsumerWidget {
               if (totalUnread > 0)
                 Text(
                   '$totalUnread unread',
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 12,
                     color: _kInkMute,
                   ),
@@ -179,7 +180,6 @@ class _IconBtn extends StatelessWidget {
         decoration: BoxDecoration(
           color: _kCard,
           borderRadius: BorderRadius.circular(8),
-          border: Border.all(color: _kBorder),
         ),
         child: Icon(icon, color: _kInkDim, size: 17),
       ),
@@ -260,7 +260,7 @@ class _Tab extends StatelessWidget {
           children: [
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 14,
                 fontWeight: FontWeight.w600,
                 color: selected ? _kAmber : _kInkMute,
@@ -276,7 +276,7 @@ class _Tab extends StatelessWidget {
                 ),
                 child: Text(
                   badge! > 99 ? '99+' : '$badge',
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                  style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                     fontWeight: FontWeight.w700,
                     color: _kBg,
                     height: 1.2,
@@ -303,7 +303,7 @@ class _ChatsTab extends ConsumerWidget {
 
     return chatsAsync.when(
       loading: () =>
-          const Center(child: CircularProgressIndicator(color: _kAmber)),
+          Center(child: CircularProgressIndicator(color: _kAmber)),
       error: (_, __) => _emptyState(),
       data: (chats) {
         if (chats.isEmpty) return _emptyState();
@@ -328,7 +328,7 @@ class _ChatsTab extends ConsumerWidget {
           const SizedBox(height: 16),
           Text(
             'no_messages_yet'.tr(),
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
               fontSize: 18,
               fontWeight: FontWeight.w600,
               color: _kInkDim,
@@ -337,7 +337,7 @@ class _ChatsTab extends ConsumerWidget {
           const SizedBox(height: 8),
           Text(
             'Visit a profile to start a conversation',
-            style: GoogleFonts.inter(fontSize: 13, color: _kInkMute),
+            style: AppFonts.ui(fontSize: 13, color: _kInkMute),
           ),
         ],
       ),
@@ -390,7 +390,7 @@ class _ChatTile extends ConsumerWidget {
                     children: [
                       Text(
                         username,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 14.5,
                           fontWeight: FontWeight.w600,
                           color: _kInk,
@@ -403,7 +403,7 @@ class _ChatTile extends ConsumerWidget {
                         chat.lastMessage ?? '',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 12.5,
                           color: _kInkMute,
                           fontWeight:
@@ -422,7 +422,7 @@ class _ChatTile extends ConsumerWidget {
                     if (chat.lastMessageAt != null)
                       Text(
                         _formatTime(chat.lastMessageAt!),
-                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                        style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                           color: hasUnread ? _kAmber : _kInkMute,
                         ),
                       ),
@@ -431,14 +431,14 @@ class _ChatTile extends ConsumerWidget {
                       Container(
                         width: 18,
                         height: 18,
-                        decoration: const BoxDecoration(
+                        decoration: BoxDecoration(
                           color: _kAmber,
                           shape: BoxShape.circle,
                         ),
                         child: Center(
                           child: Text(
                             unread > 99 ? '99+' : '$unread',
-                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
+                            style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                               fontWeight: FontWeight.w700,
                               color: _kBg,
                             ),
@@ -565,7 +565,7 @@ class _SquircleAvatar extends StatelessWidget {
       child: Center(
         child: Text(
           initial,
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: size * 0.38,
             fontWeight: FontWeight.w700,
             color: Colors.white,
@@ -590,7 +590,7 @@ class _GroupsTab extends ConsumerWidget {
       create: () => ref.read(groupServiceProvider).watchMyGroups(myUid),
       builder: (context, snap) {
         if (snap.connectionState == ConnectionState.waiting) {
-          return const Center(child: CircularProgressIndicator(color: _kAmber));
+          return Center(child: CircularProgressIndicator(color: _kAmber));
         }
         final groups = snap.data ?? [];
         if (groups.isEmpty) {
@@ -606,7 +606,7 @@ class _GroupsTab extends ConsumerWidget {
                 const SizedBox(height: 16),
                 Text(
                   'No groups yet',
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 18,
                     fontWeight: FontWeight.w600,
                     color: _kInkDim,
@@ -615,7 +615,7 @@ class _GroupsTab extends ConsumerWidget {
                 const SizedBox(height: 8),
                 Text(
                   'Create or join a group to get started',
-                  style: GoogleFonts.inter(fontSize: 13, color: _kInkMute),
+                  style: AppFonts.ui(fontSize: 13, color: _kInkMute),
                 ),
                 const SizedBox(height: 20),
                 GestureDetector(
@@ -630,7 +630,7 @@ class _GroupsTab extends ConsumerWidget {
                     ),
                     child: Text(
                       'create_group'.tr(),
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                         fontSize: 14,
                         fontWeight: FontWeight.w600,
                         color: _kAmber,
@@ -677,7 +677,6 @@ class _GroupTile extends StatelessWidget {
         decoration: BoxDecoration(
           color: _kAmberGlow,
           borderRadius: BorderRadius.circular(48 / 3),
-          border: Border.all(color: _kBorder),
         ),
         child: Center(
           child: Text(
@@ -703,7 +702,7 @@ class _GroupTile extends StatelessWidget {
                 children: [
                   Text(
                     group.name,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 14.5,
                       fontWeight: FontWeight.w600,
                       color: _kInk,
@@ -716,7 +715,7 @@ class _GroupTile extends StatelessWidget {
                     group.lastMessage ?? 'No messages yet',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 12.5,
                       color: _kInkMute,
                       fontWeight:
@@ -734,7 +733,7 @@ class _GroupTile extends StatelessWidget {
                 if (group.lastMessageAt != null)
                   Text(
                     _formatTime(group.lastMessageAt!),
-                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                    style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                       color: hasUnread ? _kAmber : _kInkMute,
                     ),
                   ),
@@ -743,14 +742,14 @@ class _GroupTile extends StatelessWidget {
                   Container(
                     width: 18,
                     height: 18,
-                    decoration: const BoxDecoration(
+                    decoration: BoxDecoration(
                       color: _kAmber,
                       shape: BoxShape.circle,
                     ),
                     child: Center(
                       child: Text(
                         unread > 99 ? '99+' : '$unread',
-                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
+                        style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
                           fontWeight: FontWeight.w700,
                           color: _kBg,
                         ),

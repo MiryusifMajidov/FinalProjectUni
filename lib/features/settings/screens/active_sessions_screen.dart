@@ -3,18 +3,18 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/services/auth_service.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/keyed_stream_builder.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kSurface   = AppColors.surface;
 const _kCard      = AppColors.card;
-const _kAmber     = AppColors.amber;
-const _kAmberGlow = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk       = AppColors.ink;
 const _kInkDim    = AppColors.inkDim;
 const _kInkMute   = AppColors.inkMute;
@@ -51,7 +51,6 @@ class ActiveSessionsScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -63,7 +62,7 @@ class ActiveSessionsScreen extends ConsumerWidget {
                   Expanded(
                     child: Text(
                       'active_sessions'.tr(),
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                         fontSize: 22,
                         fontWeight: FontWeight.w700,
                         color: _kInk,
@@ -80,7 +79,7 @@ class ActiveSessionsScreen extends ConsumerWidget {
                 create: () => ref.read(firestoreServiceProvider).watchSessions(uid),
                 builder: (context, snap) {
                   if (snap.connectionState == ConnectionState.waiting) {
-                    return const Center(
+                    return Center(
                       child: CircularProgressIndicator(color: _kAmber),
                     );
                   }
@@ -99,12 +98,12 @@ class ActiveSessionsScreen extends ConsumerWidget {
                           const SizedBox(height: 12),
                           Text(
                             'no_sessions_yet'.tr(),
-                            style: GoogleFonts.inter(fontSize: 14, color: _kInkMute),
+                            style: AppFonts.ui(fontSize: 14, color: _kInkMute),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             'sessions_appear_after_login'.tr(),
-                            style: GoogleFonts.inter(fontSize: 12, color: _kInkMute),
+                            style: AppFonts.ui(fontSize: 12, color: _kInkMute),
                             textAlign: TextAlign.center,
                           ),
                         ],
@@ -117,17 +116,17 @@ class ActiveSessionsScreen extends ConsumerWidget {
                     children: [
                       Text(
                         'sessions_device_count'.tr(namedArgs: {'count': sessions.length.toString()}),
-                        style: GoogleFonts.inter(
-                          fontSize: 10, fontWeight: FontWeight.w700,
-                          color: _kInkMute, letterSpacing: 1.2,
-                        ),
+                        style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
                       ),
                       const SizedBox(height: 8),
                       Container(
                         decoration: BoxDecoration(
                           color: _kCard,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: _kBorder),
                         ),
                         clipBehavior: Clip.hardEdge,
                         child: Column(
@@ -169,7 +168,7 @@ class ActiveSessionsScreen extends ConsumerWidget {
                             child: Center(
                               child: Text(
                                 'sign_out_all_others'.tr(),
-                                style: GoogleFonts.inter(
+                                style: AppFonts.ui(
                                   fontSize: 13,
                                   fontWeight: FontWeight.w600,
                                   color: _kLoss,
@@ -183,7 +182,7 @@ class ActiveSessionsScreen extends ConsumerWidget {
                       const SizedBox(height: 16),
                       Text(
                         'sessions_expire_info'.tr(),
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                             fontSize: 11, color: _kInkMute, height: 1.5),
                         textAlign: TextAlign.center,
                       ),
@@ -226,7 +225,7 @@ class ActiveSessionsScreen extends ConsumerWidget {
             const SizedBox(height: 12),
             Text(
               'Sign out all other devices?',
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 18, fontWeight: FontWeight.w700,
                 color: _kInk,
               ),
@@ -235,7 +234,7 @@ class ActiveSessionsScreen extends ConsumerWidget {
             Text(
               'This will remove all sessions except the current one.',
               textAlign: TextAlign.center,
-              style: GoogleFonts.inter(fontSize: 13, color: _kInkMute, height: 1.5),
+              style: AppFonts.ui(fontSize: 13, color: _kInkMute, height: 1.5),
             ),
             const SizedBox(height: 20),
             Row(
@@ -248,11 +247,10 @@ class ActiveSessionsScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: _kSurface,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Center(
                         child: Text('cancel'.tr(),
-                            style: GoogleFonts.inter(color: _kInkDim, fontSize: 13)),
+                            style: AppFonts.ui(color: _kInkDim, fontSize: 13)),
                       ),
                     ),
                   ),
@@ -278,7 +276,7 @@ class ActiveSessionsScreen extends ConsumerWidget {
                       child: Center(
                         child: Text(
                           'sign_out'.tr(),
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 13, fontWeight: FontWeight.w600,
                             color: _kLoss,
                           ),
@@ -355,7 +353,7 @@ class _SessionTile extends StatelessWidget {
                         Expanded(
                           child: Text(
                             device,
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 14,
                               fontWeight: FontWeight.w500,
                               color: _kInk,
@@ -374,7 +372,7 @@ class _SessionTile extends StatelessWidget {
                             ),
                             child: Text(
                               'this_device'.tr(),
-                              style: GoogleFonts.inter(
+                              style: AppFonts.ui(
                                 fontSize: 10,
                                 fontWeight: FontWeight.w600,
                                 color: _kWin,
@@ -386,12 +384,12 @@ class _SessionTile extends StatelessWidget {
                     const SizedBox(height: 3),
                     Text(
                       '$os  ·  Logged in $loginStr',
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                           fontSize: 11, color: _kInkMute),
                     ),
                     Text(
                       'Last active: $activeStr',
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                           fontSize: 11, color: _kInkMute),
                     ),
                   ],

@@ -2,22 +2,20 @@ import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/widgets/user_avatar.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
-const _kSurface   = AppColors.surface;
 const _kCard      = AppColors.card;
-const _kAmber     = AppColors.amber;
+Color get _kAmber => AppColors.accent;
 const _kInk       = AppColors.ink;
 const _kInkDim    = AppColors.inkDim;
 const _kInkMute   = AppColors.inkMute;
-const _kBorder    = AppColors.border;
 const _kLoss      = AppColors.loss;
 
 /// Provider that fetches UserModel objects for each blocked UID.
@@ -56,7 +54,6 @@ class BlockedUsersScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -67,7 +64,7 @@ class BlockedUsersScreen extends ConsumerWidget {
                   const SizedBox(width: 14),
                   Text(
                     'block_list'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -79,12 +76,12 @@ class BlockedUsersScreen extends ConsumerWidget {
 
             Expanded(
               child: listAsync.when(
-                loading: () => const Center(
+                loading: () => Center(
                   child: CircularProgressIndicator(color: _kAmber),
                 ),
                 error: (e, _) => Center(
                   child: Text(e.toString(),
-                      style: GoogleFonts.inter(color: _kInkMute)),
+                      style: AppFonts.ui(color: _kInkMute)),
                 ),
                 data: (blocked) {
                   if (blocked.isEmpty) {
@@ -99,14 +96,14 @@ class BlockedUsersScreen extends ConsumerWidget {
                           const SizedBox(height: 12),
                           Text(
                             'no_blocked_users'.tr(),
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                                 fontSize: 15, color: _kInkMute),
                           ),
                           const SizedBox(height: 6),
                           Text(
                             'When you block someone they can\'t\nmessage or challenge you.',
                             textAlign: TextAlign.center,
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                                 fontSize: 12, color: _kInkMute, height: 1.5),
                           ),
                         ],
@@ -123,10 +120,11 @@ class BlockedUsersScreen extends ConsumerWidget {
                           padding: const EdgeInsets.only(bottom: 8),
                           child: Text(
                             '${blocked.length} BLOCKED',
-                            style: GoogleFonts.inter(
-                              fontSize: 10, fontWeight: FontWeight.w700,
-                              color: _kInkMute, letterSpacing: 1.2,
-                            ),
+                            style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
                           ),
                         );
                       }
@@ -174,7 +172,6 @@ class _BlockedTile extends StatelessWidget {
       decoration: BoxDecoration(
         color: _kCard,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: _kBorder),
       ),
       child: Row(
         children: [
@@ -186,7 +183,7 @@ class _BlockedTile extends StatelessWidget {
               children: [
                 Text(
                   user.username,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 14,
                     fontWeight: FontWeight.w500,
                     color: _kInk,
@@ -194,7 +191,7 @@ class _BlockedTile extends StatelessWidget {
                 ),
                 Text(
                   '${user.overallRating} ELO',
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                       fontSize: 11, color: _kInkMute),
                 ),
               ],
@@ -211,7 +208,7 @@ class _BlockedTile extends StatelessWidget {
               ),
               child: Text(
                 'unblock_user'.tr(),
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 12,
                   fontWeight: FontWeight.w600,
                   color: _kLoss,

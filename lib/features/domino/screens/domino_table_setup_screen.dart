@@ -2,7 +2,6 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/theme/app_colors.dart';
@@ -13,6 +12,7 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/realtime_game_service.dart';
 import '../../../core/widgets/user_avatar.dart';
 import '../../../core/services/bot_pool.dart';
+import '../../../core/theme/app_fonts.dart';
 
 /// 2v2 domino table with friends: the host picks up to three friends
 /// (partner sits across — seats 0&2 vs 1&3), empty chairs are filled with
@@ -28,7 +28,7 @@ class DominoTableSetupScreen extends ConsumerStatefulWidget {
 
 class _DominoTableSetupScreenState
     extends ConsumerState<DominoTableSetupScreen> {
-  static const _accent = Color(0xFF5FD4A3);
+  static const _accent = Color(0xFF4CBF95);
 
   final _searchCtrl = TextEditingController();
   Timer? _debounce;
@@ -80,7 +80,7 @@ class _DominoTableSetupScreenState
       final me = ref.read(currentUserProvider).valueOrNull;
       final results = await ref
           .read(firestoreServiceProvider)
-          .searchUsers(q, excludeUid: me?.uid);
+          .searchUsers(q, excludeUid: me?.uid, includeBots: false);
       if (!mounted) return;
       final pickedUids = _selected.map((u) => u.uid).toSet();
       setState(() {
@@ -226,7 +226,6 @@ class _DominoTableSetupScreenState
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -237,7 +236,7 @@ class _DominoTableSetupScreenState
                   const SizedBox(width: 14),
                   Text(
                     '2v2 Table',
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22, fontWeight: FontWeight.w700,
                       color: AppColors.ink,
                     ),
@@ -255,7 +254,7 @@ class _DominoTableSetupScreenState
                     Text(
                       'Partners sit across the table — you & your partner '
                       'vs the other two. Empty chairs are filled by AI.',
-                      style: GoogleFonts.inter(
+                      style: AppFonts.ui(
                           fontSize: 13, color: AppColors.inkMute),
                     ),
                     const SizedBox(height: 18),
@@ -283,7 +282,7 @@ class _DominoTableSetupScreenState
                       label: 'OPPONENT · TEAM B',
                       name: _opponent1?.username,
                       photoUrl: _opponent1?.photoUrl,
-                      accent: const Color(0xFFF07079),
+                      accent: const Color(0xFFF07A6E),
                       onClear: _opponent1 == null
                           ? null
                           : () => setState(() => _opponent1 = null),
@@ -293,7 +292,7 @@ class _DominoTableSetupScreenState
                       label: 'OPPONENT · TEAM B',
                       name: _opponent2?.username,
                       photoUrl: _opponent2?.photoUrl,
-                      accent: const Color(0xFFF07079),
+                      accent: const Color(0xFFF07A6E),
                       onClear: _opponent2 == null
                           ? null
                           : () => setState(() => _opponent2 = null),
@@ -305,25 +304,25 @@ class _DominoTableSetupScreenState
                     if (_selected.length < 3) ...[
                       Text(
                         'INVITE FRIENDS',
-                        style: GoogleFonts.inter(
-                          fontSize: 11, fontWeight: FontWeight.w700,
-                          color: AppColors.inkMute, letterSpacing: 1.0,
-                        ),
+                        style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
                       ),
                       const SizedBox(height: 10),
                       Container(
                         decoration: BoxDecoration(
                           color: AppColors.cardElevated,
                           borderRadius: BorderRadius.circular(14),
-                          border: Border.all(color: AppColors.border),
                         ),
                         child: TextField(
                           controller: _searchCtrl,
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                               fontSize: 14, color: AppColors.ink),
                           decoration: InputDecoration(
                             hintText: 'Search by username…',
-                            hintStyle: GoogleFonts.inter(
+                            hintStyle: AppFonts.ui(
                                 fontSize: 14, color: AppColors.inkMute),
                             prefixIcon: Icon(
                               PhosphorIcons.magnifyingGlass(
@@ -355,7 +354,6 @@ class _DominoTableSetupScreenState
                           decoration: BoxDecoration(
                             color: AppColors.card,
                             borderRadius: BorderRadius.circular(14),
-                            border: Border.all(color: AppColors.border),
                           ),
                           child: Column(
                             children: [
@@ -369,7 +367,7 @@ class _DominoTableSetupScreenState
                                   ),
                                   title: Text(
                                     u.username,
-                                    style: GoogleFonts.inter(
+                                    style: AppFonts.ui(
                                         fontSize: 14, color: AppColors.ink),
                                   ),
                                   trailing: Icon(
@@ -389,10 +387,11 @@ class _DominoTableSetupScreenState
                     // ── Rules ───────────────────────────────────────────
                     Text(
                       'RULESET',
-                      style: GoogleFonts.inter(
-                        fontSize: 11, fontWeight: FontWeight.w700,
-                        color: AppColors.inkMute, letterSpacing: 1.0,
-                      ),
+                      style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
                     ),
                     const SizedBox(height: 10),
                     Row(
@@ -414,10 +413,11 @@ class _DominoTableSetupScreenState
                     const SizedBox(height: 16),
                     Text(
                       'MATCH TO',
-                      style: GoogleFonts.inter(
-                        fontSize: 11, fontWeight: FontWeight.w700,
-                        color: AppColors.inkMute, letterSpacing: 1.0,
-                      ),
+                      style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
                     ),
                     const SizedBox(height: 10),
                     Row(
@@ -461,25 +461,20 @@ class _DominoTableSetupScreenState
                     backgroundColor: _accent,
                     disabledBackgroundColor:
                         _accent.withValues(alpha: 0.25),
-                    foregroundColor: const Color(0xFF0A0A0B),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
+                    foregroundColor: const Color(0xFF111915),),
                   child: _creating
                       ? const SizedBox(
                           width: 20, height: 20,
                           child: CircularProgressIndicator(
-                              strokeWidth: 2, color: Color(0xFF0A0A0B)),
+                              strokeWidth: 2, color: Color(0xFF111915)),
                         )
                       : Text(
                           _selected.isEmpty
                               ? 'Invite at least one friend'
                               : 'Create Table & Send Invites',
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 16, fontWeight: FontWeight.w600,
-                            color: const Color(0xFF0A0A0B),
+                            color: const Color(0xFF111915),
                           ),
                         ),
                 ),
@@ -534,7 +529,6 @@ class _SeatCard extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: AppColors.card,
                     shape: BoxShape.circle,
-                    border: Border.all(color: AppColors.border),
                   ),
                   child: Icon(
                     PhosphorIcons.robot(PhosphorIconsStyle.regular),
@@ -548,7 +542,7 @@ class _SeatCard extends StatelessWidget {
               children: [
                 Text(
                   label,
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w600,
+                  style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w600,
                     color: accent.withValues(alpha: 0.9),
                     letterSpacing: 0.8,
                   ),
@@ -556,7 +550,7 @@ class _SeatCard extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   name ?? 'AI stand-in',
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 14,
                     fontWeight: filled ? FontWeight.w600 : FontWeight.w400,
                     color: filled ? AppColors.ink : AppColors.inkMute,
@@ -612,7 +606,7 @@ class _Chip extends StatelessWidget {
         ),
         child: Text(
           label,
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 13,
             fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
             color: selected ? accent : AppColors.inkDim,

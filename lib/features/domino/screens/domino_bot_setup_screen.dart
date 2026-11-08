@@ -1,12 +1,12 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../../../core/utils/text_case.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
+import '../../../core/theme/moulded.dart';
 
 /// Domino game setup — players, ruleset variant (Draw / Block), target score
 /// and 2v2 partnership. There is no difficulty tier: the AI always plays its
@@ -19,8 +19,8 @@ class DominoBotSetupScreen extends StatefulWidget {
 }
 
 class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
-  static const _accent = Color(0xFF5FD4A3);
-  static const _accentSoft = Color(0x245FD4A3);
+  static const _accent = Color(0xFF4CBF95);
+  static const _accentSoft = Color(0x244CBF95);
 
   int _playerCount = 2;     // 2 or 4
   bool _teams = false;      // 4P only: 2v2 partnership
@@ -37,7 +37,7 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
         scrolledUnderElevation: 0,
         leading: IconButton(
           icon: Icon(
-            PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
+            PhosphorIcons.arrowLeft(PhosphorIconsStyle.bold),
             color: AppColors.ink,
           ),
           onPressed: () => Navigator.pop(context),
@@ -47,7 +47,7 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
           children: [
             Text(
               'play_vs_bot'.tr(),
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: AppColors.ink,
@@ -55,7 +55,6 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
             ),
           ],
         ),
-        centerTitle: true,
       ),
       body: SafeArea(
         child: Column(
@@ -183,7 +182,7 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
                     Expanded(
                       child: Text(
                         'domino_rules_summary'.tr(args: ['$_target']),
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 12, color: _accent,
                           fontWeight: FontWeight.w500,
                         ),
@@ -217,18 +216,13 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
                   onPressed: _startGame,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _accent,
-                    foregroundColor: const Color(0xFF0A0A0B),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
+                    foregroundColor: const Color(0xFF111915),),
                   child: Text(
                     'start_game'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF0A0A0B),
+                      color: const Color(0xFF111915),
                     ),
                   ),
                 ),
@@ -241,12 +235,11 @@ class _DominoBotSetupScreenState extends State<DominoBotSetupScreen> {
   }
 
   Widget _sectionLabel(String text) => Text(
-        text.toUpperCaseFor(context),
-        style: GoogleFonts.inter(
-          fontSize: 11,
+        text,
+        style: AppFonts.ui(
+          fontSize: 17,
           fontWeight: FontWeight.w700,
-          color: AppColors.inkMute,
-          letterSpacing: 1.0,
+          color: AppColors.ink,
         ),
       );
 
@@ -285,48 +278,40 @@ class _ChoiceButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: GestureDetector(
+      child: Moulded(
+        color: selected ? accent : AppColors.card,
+        selected: selected,
+        radius: 14,
+        lip: 3,
+        semanticLabel: label,
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
-          alignment: Alignment.center,
-          decoration: BoxDecoration(
-            color: selected
-                ? accent.withValues(alpha: 0.12)
-                : AppColors.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: selected
-                  ? accent.withValues(alpha: 0.4)
-                  : AppColors.border,
-              width: selected ? 1.5 : 1,
+        padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              label,
+              textAlign: TextAlign.center,
+              style: AppFonts.ui(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: selected ? AppColors.onAmber : AppColors.ink,
+              ),
             ),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
+            if (sublabel != null) ...[
+              const SizedBox(height: 3),
               Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 14,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  color: selected ? accent : AppColors.ink,
+                sublabel!,
+                textAlign: TextAlign.center,
+                style: AppFonts.ui(
+                  fontSize: 12,
+                  color: selected
+                      ? AppColors.onAmber.withValues(alpha: 0.75)
+                      : AppColors.inkMute,
                 ),
               ),
-              if (sublabel != null) ...[
-                const SizedBox(height: 3),
-                Text(
-                  sublabel!,
-                  textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
-                    fontSize: 10,
-                    color: selected ? accent.withValues(alpha: 0.8) : AppColors.inkMute,
-                  ),
-                ),
-              ],
             ],
-          ),
+          ],
         ),
       ),
     );

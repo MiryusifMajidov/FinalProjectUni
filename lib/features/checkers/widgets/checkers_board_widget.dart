@@ -1,5 +1,7 @@
 import 'package:flutter/material.dart';
 import '../engine/checkers_engine.dart';
+import '../../../core/widgets/hint_arrow.dart';
+import '../../../core/theme/app_colors.dart';
 
 import 'package:phosphor_icons/phosphor_icons.dart';
 /// Renders an N×N checkers board (8×8 or 10×10) with disc-shaped pieces,
@@ -27,6 +29,10 @@ class CheckersBoardWidget extends StatelessWidget {
   final Color lightSquareColor;
   final Color darkSquareColor;
 
+  /// The move the Hint button suggested (cells in order, jumps included),
+  /// drawn as an arrow on the board.
+  final List<int>? hintPath;
+
   const CheckersBoardWidget({
     super.key,
     required this.engine,
@@ -39,22 +45,23 @@ class CheckersBoardWidget extends StatelessWidget {
     this.flipped = false,
     this.lightSquareColor = _lightSquare,
     this.darkSquareColor = _darkSquare,
+    this.hintPath,
   });
 
   // ── Colours ──────────────────────────────────────────────────────────────
   static const _lightSquare = Color(0xFFE8D8B6);
   static const _darkSquare  = Color(0xFF8B6B3A);
-  static const _selectedSquare = Color(0x806FB4E0);
-  static const _legalDot = Color(0x606FB4E0);
-  static const _captureHint = Color(0x80F07079);
-  static const _forcedRing = Color(0xCC6FB4E0);
-  static const _lastMoveTint = Color(0x336FB4E0);
+  static const _selectedSquare = Color(0x80E2565E);
+  static const _legalDot = Color(0x60E2565E);
+  static const _captureHint = Color(0x80F07A6E);
+  static const _forcedRing = Color(0xCCE2565E);
+  static const _lastMoveTint = Color(0x33E2565E);
 
   static const _whitePiece = Color(0xFFF5F0E0);
   static const _whitePieceEdge = Color(0xFFD4C5A9);
   static const _blackPiece = Color(0xFF2A2017);
   static const _blackPieceEdge = Color(0xFF1A1410);
-  static const _checkerAccent = Color(0xFF6FB4E0);
+  static const _checkerAccent = Color(0xFFE2565E);
 
   @override
   Widget build(BuildContext context) {
@@ -77,13 +84,44 @@ class CheckersBoardWidget extends StatelessWidget {
                 dark: darkSquareColor,
               ),
             ),
+            if (hintPath != null && hintPath!.isNotEmpty)
+              Builder(builder: (_) {
+                final o = _center(hintPath!.first, cellSize, n);
+                return Positioned(
+                  left: o.dx - cellSize / 2,
+                  top: o.dy - cellSize / 2,
+                  width: cellSize,
+                  height: cellSize,
+                  child: IgnorePointer(
+                    child: ColoredBox(
+                      color: AppColors.hint.withValues(alpha: 0.45),
+                    ),
+                  ),
+                );
+              }),
             for (int r = 0; r < n; r++)
               for (int c = 0; c < n; c++)
                 _buildCell(r, c, cellSize, n),
+            if (hintPath != null && hintPath!.length >= 2)
+              Positioned.fill(
+                child: HintArrow(
+                  cell: cellSize,
+                  points: [for (final i in hintPath!) _center(i, cellSize, n)],
+                ),
+              ),
           ],
         );
       }),
     );
+  }
+
+  /// Centre of [cellIdx] on screen (the board may be flipped).
+  Offset _center(int cellIdx, double cellSize, int n) {
+    final last = n - 1;
+    final dr = cellIdx ~/ n, dc = cellIdx % n;
+    final r = flipped ? last - dr : dr;
+    final c = flipped ? last - dc : dc;
+    return Offset((c + 0.5) * cellSize, (r + 0.5) * cellSize);
   }
 
   Widget _buildCell(int r, int c, double cellSize, int n) {

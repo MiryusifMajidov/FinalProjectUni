@@ -2,7 +2,6 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/theme/app_colors.dart';
@@ -12,6 +11,7 @@ import '../../../core/models/game_type.dart';
 import '../../../core/services/auth_service.dart';
 
 import '../../../core/widgets/game_icon.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Chapter title list (short display names) ──────────────────────────────────
 
 const List<String> _chapterTitles = [
@@ -182,7 +182,7 @@ TextStyle _mono({
   Color color = AppColors.inkMute,
   double letterSpacing = 0.6,
 }) =>
-    GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: size,
+    AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: size,
       fontWeight: weight,
       color: color,
       letterSpacing: letterSpacing,
@@ -196,7 +196,7 @@ TextStyle _display({
   Color color = AppColors.ink,
   double letterSpacing = 0,
 }) =>
-    GoogleFonts.inter(
+    AppFonts.ui(
       fontSize: size,
       fontWeight: weight,
       color: color,
@@ -208,7 +208,7 @@ TextStyle _inter({
   FontWeight weight = FontWeight.w400,
   Color color = AppColors.ink,
 }) =>
-    GoogleFonts.inter(fontSize: size, fontWeight: weight, color: color);
+    AppFonts.ui(fontSize: size, fontWeight: weight, color: color);
 
 // ── Screen ────────────────────────────────────────────────────────────────────
 
@@ -242,7 +242,6 @@ class CampaignChapterScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: AppColors.border),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -372,12 +371,12 @@ class CampaignChapterScreen extends ConsumerWidget {
                       height: 50,
                       decoration: BoxDecoration(
                         gradient: LinearGradient(
-                          colors: [accent, accent.withValues(alpha: 0.85)],
+                          colors: [accent, accent],
                         ),
                         borderRadius: BorderRadius.circular(14),
                         boxShadow: [
                           BoxShadow(
-                            color: accent.withValues(alpha: 0.25),
+                            color: Colors.black.withValues(alpha: 0.28),
                             blurRadius: 12,
                             offset: const Offset(0, 4),
                           ),
@@ -389,7 +388,7 @@ class CampaignChapterScreen extends ConsumerWidget {
                         style: _inter(
                           size: 15,
                           weight: FontWeight.w700,
-                          color: const Color(0xFF1A1205),
+                          color: const Color(0xFF241703),
                         ),
                       ),
                     ),
@@ -406,7 +405,6 @@ class CampaignChapterScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: Colors.transparent,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.border),
                       ),
                       alignment: Alignment.center,
                       child: Text(
@@ -475,10 +473,9 @@ class _PiecePortraitCard extends StatelessWidget {
         gradient: const LinearGradient(
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
-          colors: [AppColors.cardElevated, AppColors.card],
+          colors: [AppColors.card, AppColors.card],
         ),
         borderRadius: BorderRadius.circular(16),
-        border: Border.all(color: AppColors.border),
       ),
       child: Row(
         children: [
@@ -489,19 +486,19 @@ class _PiecePortraitCard extends StatelessWidget {
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               gradient: RadialGradient(
-                colors: [accent, accent.withValues(alpha: 0.7)],
+                colors: [accent, accent],
                 radius: 0.85,
               ),
             ),
             alignment: Alignment.center,
             child: _chapterIcon(chapter, gameType,
-                size: 40, color: const Color(0xFF1A1205)),
+                size: 40, color: const Color(0xFF241703)),
           ),
           const SizedBox(width: 14),
           Expanded(
             child: Text(
               flavorText,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 13,
                 color: AppColors.inkDim,
                 height: 1.5,
@@ -580,7 +577,6 @@ class _StatCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.card,
         borderRadius: BorderRadius.circular(12),
-        border: Border.all(color: AppColors.border),
       ),
       child: Column(
         children: [
@@ -588,7 +584,7 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 6),
           Text(
             label,
-            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
+            style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5,
               color: AppColors.inkMute,
               letterSpacing: 0.5,
             ),
@@ -596,7 +592,7 @@ class _StatCard extends StatelessWidget {
           const SizedBox(height: 2),
           Text(
             value,
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
               fontSize: 14,
               fontWeight: FontWeight.w700,
               color: valueColor ?? AppColors.ink,
@@ -632,7 +628,6 @@ class _ObjectiveRow extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.card,
           borderRadius: BorderRadius.circular(12),
-          border: Border.all(color: AppColors.border),
         ),
         child: Row(
           children: [
@@ -650,7 +645,7 @@ class _ObjectiveRow extends StatelessWidget {
             Expanded(
               child: Text(
                 label,
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 13,
                   color: AppColors.inkDim,
                   fontWeight: FontWeight.w400,
@@ -665,7 +660,7 @@ class _ObjectiveRow extends StatelessWidget {
               ),
               child: Text(
                 xp,
-                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                   fontWeight: FontWeight.w600,
                   color: accent,
                 ),

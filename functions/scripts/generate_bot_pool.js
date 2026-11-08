@@ -1,6 +1,6 @@
 'use strict';
 
-// Generates the pool of 2000 arena / matchmaking bots.
+// Generates the pool of 2500 arena / matchmaking bots.
 //
 //   node scripts/generate_bot_pool.js
 //
@@ -8,15 +8,19 @@
 // functions) and assets/data/bots.json (used by the app's matchmaking
 // fallback), so a bot has the same name, flag and ratings everywhere.
 //
-// Bots are always shown with a "BOT" badge and never appear in the world
-// ranking: they have no users/ document. The output is deterministic (fixed
-// seed), so re-running the script only changes the files when this script
-// changes.
+// The first 2000 (bot_0001 … bot_2000) play under their names like any
+// player; the 500 after them (bot_2001 … bot_2500) carry a "Bot" badge
+// everywhere their name shows (BotPool.isLabelledUid in the app). None of
+// them appear in the world ranking: they have no users/ document. The output
+// is deterministic (fixed seed) and the labelled bots are drawn after the
+// first 2000, so adding them left bot_0001 … bot_2000 unchanged.
 
 const fs = require('fs');
 const path = require('path');
 
-const COUNT = 2000;
+const UNLABELLED = 2000;
+const LABELLED = 500;
+const COUNT = UNLABELLED + LABELLED;
 const SEED = 20261104;
 
 function mulberry32(seed) {

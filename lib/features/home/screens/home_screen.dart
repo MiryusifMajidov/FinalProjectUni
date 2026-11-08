@@ -2,20 +2,21 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:chess/chess.dart' as ch;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
-import 'package:flutter_animate/flutter_animate.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
-import 'package:google_fonts/google_fonts.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
+import '../../../core/services/online_count.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/chat_service.dart';
 import '../../../core/services/photo_service.dart';
 import '../../../core/models/user_model.dart';
+import '../../profile/screens/profile_screen.dart';
 import '../../auth/screens/profile_photo_prompt_screen.dart'
     show photoPromptDismissedProvider;
 import '../../../core/models/game_model.dart';
@@ -30,8 +31,10 @@ import '../../../core/widgets/invite_listener.dart';
 import '../../../core/constants/countries.dart';
 import '../../../core/models/game_type.dart';
 import '../../../core/widgets/game_switch.dart';
-import '../../../core/utils/text_case.dart';
 import '../../../core/widgets/app_logo.dart';
+import '../../../core/theme/app_fonts.dart';
+import '../../../core/theme/moulded.dart';
+import '../../../core/widgets/table_pieces.dart';
 // Bot setup screens navigated via GoRouter (activeGame.botSetupRoute)
 
 // ── Global rank provider ───────────────────────────────────────────────────────
@@ -39,17 +42,20 @@ import '../../../core/widgets/app_logo.dart';
 // Key: "fieldPath:rating" e.g. "blitzStats.rating:1200"
 // Cached (no autoDispose) — avoids re-querying every time the user
 // switches back to the home tab.
-final _globalRankProvider =
-    FutureProvider.family<int, String>((ref, key) async {
+final _globalRankProvider = FutureProvider.family<int, String>((
+  ref,
+  key,
+) async {
   final parts = key.split(':');
   final field = parts[0];
   final rating = int.tryParse(parts[1]) ?? 1200;
   try {
-    final agg = await FirebaseFirestore.instance
-        .collection('users')
-        .where(field, isGreaterThan: rating)
-        .count()
-        .get();
+    final agg =
+        await FirebaseFirestore.instance
+            .collection('users')
+            .where(field, isGreaterThan: rating)
+            .count()
+            .get();
     return (agg.count ?? 0) + 1;
   } catch (_) {
     return 0; // 0 = unknown / fallback
@@ -59,8 +65,10 @@ final _globalRankProvider =
 /// Sums rating changes from online rated games in the last 30 days.
 /// Returns null when no qualifying games are found (badge hidden in that case).
 /// Cached (no autoDispose) — reuses _recentGamesProvider, and updates with it.
-final _monthlyRatingChangeProvider =
-    FutureProvider.family<int?, String>((ref, uid) async {
+final _monthlyRatingChangeProvider = FutureProvider.family<int?, String>((
+  ref,
+  uid,
+) async {
   try {
     final games = await ref.watch(_recentGamesProvider(uid).future);
     final cutoff = DateTime.now().subtract(const Duration(days: 30));
@@ -184,7 +192,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     try {
       final permission = await Geolocator.checkPermission();
       if (permission == LocationPermission.denied ||
-          permission == LocationPermission.deniedForever) return;
+          permission == LocationPermission.deniedForever)
+        return;
 
       _locationSub = Geolocator.getPositionStream(
         locationSettings: const LocationSettings(
@@ -244,22 +253,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.dispose();
   }
 
+  /// Profile is a tab like the others (it used to open as a separate page
+  /// over the home screen, which hid the navigation bar).
   void _onNavTap(int index) {
-    if (index == 3) {
-      final myUid = ref.read(currentUserProvider).valueOrNull?.uid;
-      if (myUid != null && myUid.isNotEmpty) {
-        context.push('/home/profile/$myUid');
-      }
-    } else {
-      setState(() {
-        _selectedIndex = index;
-        _visitedTabs.add(index);
-      });
-    }
+    setState(() {
+      _selectedIndex = index;
+      _visitedTabs.add(index);
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    // The navigation and the tabs wear the selected game's colour
+    // (AppColors.accent), so they rebuild when it changes.
+    ref.watch(activeGameProvider);
     final userAsync = ref.watch(currentUserProvider);
     final authUser = ref.watch(authStateProvider).valueOrNull;
     final myUid = userAsync.valueOrNull?.uid;
@@ -272,9 +279,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // showOnMap toggling is handled inside _onPositionUpdate — no need to
     // start/stop the stream when the setting changes.
 
-    final chatUnreadCount = myUid != null
-        ? ref.watch(_chatUnreadProvider(myUid))
-        : const AsyncValue.data(0);
+    final chatUnreadCount =
+        myUid != null
+            ? ref.watch(_chatUnreadProvider(myUid))
+            : const AsyncValue.data(0);
 
     // Lazy tab loading: only build a tab's real content after it's been
     // visited at least once. This prevents IndexedStack from firing all
@@ -287,14 +295,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           Expanded(
             child: userAsync.when(
               loading: () => const _HomeShimmer(),
-              error: (e, _) => Center(
-                child: Text('Error: $e',
-                    style: AppTextStyles.bodyMedium
-                        .copyWith(color: AppColors.error)),
-              ),
-              data: (user) => user == null
-                  ? const Center(child: CircularProgressIndicator())
-                  : _HomeContent(user: user),
+              error:
+                  (e, _) => Center(
+                    child: Text(
+                      'Error: $e',
+                      style: AppTextStyles.bodyMedium.copyWith(
+                        color: AppColors.error,
+                      ),
+                    ),
+                  ),
+              data:
+                  (user) =>
+                      user == null
+                          ? const Center(child: CircularProgressIndicator())
+                          : _HomeContent(user: user),
             ),
           ),
         ],
@@ -309,44 +323,55 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         const ChatListScreen()
       else
         const SizedBox.shrink(),
+      // Tab 3: your profile — deferred until first visit
+      if (_visitedTabs.contains(3) && myUid != null && myUid.isNotEmpty)
+        ProfileScreen(uid: myUid, asTab: true)
+      else
+        const SizedBox.shrink(),
     ];
 
     final isTablet = context.isTablet;
 
-    return InviteListener(
-      child: Scaffold(
-        backgroundColor: AppColors.background,
-        body: isTablet
-            ? Row(
-                children: [
-                  // ── Side Navigation Rail (tablet) ──────────────────────────
-                  _SideNav(
+    // Back from another tab returns to Play before it leaves the app.
+    return PopScope(
+      canPop: _selectedIndex == 0,
+      onPopInvokedWithResult: (didPop, _) {
+        if (!didPop) setState(() => _selectedIndex = 0);
+      },
+      child: InviteListener(
+        child: Scaffold(
+          backgroundColor: AppColors.background,
+          body:
+              isTablet
+                  ? Row(
+                    children: [
+                      // ── Side Navigation Rail (tablet) ──────────────────────────
+                      _SideNav(
+                        selectedIndex: _selectedIndex,
+                        chatUnread: chatUnreadCount.valueOrNull ?? 0,
+                        onTap: _onNavTap,
+                      ),
+                      // Divider
+                      Container(width: 1, color: AppColors.border),
+                      // ── Content ───────────────────────────────────────────────
+                      Expanded(
+                        child: IndexedStack(
+                          index: _selectedIndex,
+                          children: tabs,
+                        ),
+                      ),
+                    ],
+                  )
+                  : IndexedStack(index: _selectedIndex, children: tabs),
+          bottomNavigationBar:
+              isTablet
+                  ? null
+                  : _BottomNav(
                     selectedIndex: _selectedIndex,
                     chatUnread: chatUnreadCount.valueOrNull ?? 0,
                     onTap: _onNavTap,
                   ),
-                  // Divider
-                  Container(width: 1, color: AppColors.border),
-                  // ── Content ───────────────────────────────────────────────
-                  Expanded(
-                    child: IndexedStack(
-                      index: _selectedIndex,
-                      children: tabs,
-                    ),
-                  ),
-                ],
-              )
-            : IndexedStack(
-                index: _selectedIndex,
-                children: tabs,
-              ),
-        bottomNavigationBar: isTablet
-            ? null
-            : _BottomNav(
-                selectedIndex: _selectedIndex,
-                chatUnread: chatUnreadCount.valueOrNull ?? 0,
-                onTap: _onNavTap,
-              ),
+        ),
       ),
     );
   }
@@ -368,16 +393,11 @@ class _BottomNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        border: const Border(
-          top: BorderSide(color: AppColors.border, width: 1),
-        ),
-      ),
+      decoration: const BoxDecoration(color: AppColors.surface),
       child: SafeArea(
         top: false,
         child: SizedBox(
-          height: 64,
+          height: 68,
           child: Row(
             children: [
               _NavItem(
@@ -406,7 +426,7 @@ class _BottomNav extends StatelessWidget {
                 icon: PhosphorIcons.userCircle(PhosphorIconsStyle.regular),
                 iconFill: PhosphorIcons.userCircle(PhosphorIconsStyle.fill),
                 label: 'profile'.tr(),
-                selected: false,
+                selected: selectedIndex == 3,
                 onTap: () => onTap(3),
               ),
             ],
@@ -445,37 +465,40 @@ class _NavItem extends StatelessWidget {
           children: [
             // Icon pill
             Container(
-              width: 44,
-              height: 28,
+              width: 56,
+              height: 30,
               decoration: BoxDecoration(
-                color: selected ? AppColors.amberGlow : Colors.transparent,
-                borderRadius: BorderRadius.circular(14),
+                color: selected ? AppColors.accentGlow : Colors.transparent,
+                borderRadius: BorderRadius.circular(15),
               ),
               child: Center(
-                child: badge > 0 && !selected
-                    ? _NavBadge(
-                        count: badge,
-                        child: Icon(
+                child:
+                    badge > 0 && !selected
+                        ? _NavBadge(
+                          count: badge,
+                          child: Icon(
+                            selected ? iconFill : icon,
+                            color:
+                                selected ? AppColors.accent : AppColors.inkMute,
+                            size: 22,
+                          ),
+                        )
+                        : Icon(
                           selected ? iconFill : icon,
-                          color: selected ? AppColors.amber : AppColors.inkMute,
-                          size: 20,
+                          color: selected ? AppColors.accent : AppColors.inkMute,
+                          size: 22,
                         ),
-                      )
-                    : Icon(
-                        selected ? iconFill : icon,
-                        color: selected ? AppColors.amber : AppColors.inkMute,
-                        size: 20,
-                      ),
               ),
             ),
-            const SizedBox(height: 3),
+            const SizedBox(height: 4),
             Text(
               label,
-              style: GoogleFonts.inter(
-                fontSize: 10.5,
-                fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                color: selected ? AppColors.amber : AppColors.inkMute,
-                letterSpacing: 0.3,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: AppFonts.ui(
+                fontSize: 12,
+                fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                color: selected ? AppColors.ink : AppColors.inkMute,
               ),
             ),
           ],
@@ -501,18 +524,30 @@ class _SideNav extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final items = [
-      (PhosphorIcons.house(PhosphorIconsStyle.regular),
-       PhosphorIcons.house(PhosphorIconsStyle.fill),
-       'play'.tr(), 0),
-      (PhosphorIcons.trophy(PhosphorIconsStyle.regular),
-       PhosphorIcons.trophy(PhosphorIconsStyle.fill),
-       'arena'.tr(), 0),
-      (PhosphorIcons.chatCircle(PhosphorIconsStyle.regular),
-       PhosphorIcons.chatCircle(PhosphorIconsStyle.fill),
-       'chat'.tr(), chatUnread),
-      (PhosphorIcons.userCircle(PhosphorIconsStyle.regular),
-       PhosphorIcons.userCircle(PhosphorIconsStyle.fill),
-       'profile'.tr(), 0),
+      (
+        PhosphorIcons.house(PhosphorIconsStyle.regular),
+        PhosphorIcons.house(PhosphorIconsStyle.fill),
+        'play'.tr(),
+        0,
+      ),
+      (
+        PhosphorIcons.trophy(PhosphorIconsStyle.regular),
+        PhosphorIcons.trophy(PhosphorIconsStyle.fill),
+        'arena'.tr(),
+        0,
+      ),
+      (
+        PhosphorIcons.chatCircle(PhosphorIconsStyle.regular),
+        PhosphorIcons.chatCircle(PhosphorIconsStyle.fill),
+        'chat'.tr(),
+        chatUnread,
+      ),
+      (
+        PhosphorIcons.userCircle(PhosphorIconsStyle.regular),
+        PhosphorIcons.userCircle(PhosphorIconsStyle.fill),
+        'profile'.tr(),
+        0,
+      ),
     ];
 
     return Container(
@@ -537,7 +572,8 @@ class _SideNav extends StatelessWidget {
                     width: 64,
                     padding: const EdgeInsets.symmetric(vertical: 10),
                     decoration: BoxDecoration(
-                      color: selected ? AppColors.amberGlow : Colors.transparent,
+                      color:
+                          selected ? AppColors.accentGlow : Colors.transparent,
                       borderRadius: BorderRadius.circular(14),
                     ),
                     child: Column(
@@ -545,25 +581,33 @@ class _SideNav extends StatelessWidget {
                       children: [
                         badge > 0 && !selected
                             ? _NavBadge(
-                                count: badge,
-                                child: Icon(
-                                  selected ? iconFill : icon,
-                                  color: selected ? AppColors.amber : AppColors.inkMute,
-                                  size: 22,
-                                ),
-                              )
-                            : Icon(
+                              count: badge,
+                              child: Icon(
                                 selected ? iconFill : icon,
-                                color: selected ? AppColors.amber : AppColors.inkMute,
+                                color:
+                                    selected
+                                        ? AppColors.accent
+                                        : AppColors.inkMute,
                                 size: 22,
                               ),
+                            )
+                            : Icon(
+                              selected ? iconFill : icon,
+                              color:
+                                  selected
+                                      ? AppColors.accent
+                                      : AppColors.inkMute,
+                              size: 22,
+                            ),
                         const SizedBox(height: 4),
                         Text(
                           label,
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 9.5,
-                            fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                            color: selected ? AppColors.amber : AppColors.inkMute,
+                            fontWeight:
+                                selected ? FontWeight.w600 : FontWeight.w400,
+                            color:
+                                selected ? AppColors.accent : AppColors.inkMute,
                           ),
                         ),
                       ],
@@ -604,9 +648,10 @@ class _PhotoOnboardingSheetState extends ConsumerState<_PhotoOnboardingSheet>
       vsync: this,
       duration: const Duration(milliseconds: 1800),
     )..repeat(reverse: true);
-    _pulseAnim = Tween<double>(begin: 1.0, end: 1.06).animate(
-      CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut),
-    );
+    _pulseAnim = Tween<double>(
+      begin: 1.0,
+      end: 1.06,
+    ).animate(CurvedAnimation(parent: _pulseCtrl, curve: Curves.easeInOut));
   }
 
   @override
@@ -617,9 +662,8 @@ class _PhotoOnboardingSheetState extends ConsumerState<_PhotoOnboardingSheet>
 
   @override
   Widget build(BuildContext context) {
-    final initial = widget.username.isNotEmpty
-        ? widget.username[0].toUpperCase()
-        : '?';
+    final initial =
+        widget.username.isNotEmpty ? widget.username[0].toUpperCase() : '?';
     final bottom = MediaQuery.of(context).padding.bottom;
 
     return Container(
@@ -628,10 +672,7 @@ class _PhotoOnboardingSheetState extends ConsumerState<_PhotoOnboardingSheet>
           begin: Alignment.topCenter,
           end: Alignment.bottomCenter,
           stops: const [0.0, 0.35],
-          colors: [
-            AppColors.amberGlow,
-            AppColors.surface,
-          ],
+          colors: [AppColors.accentGlow, AppColors.surface],
         ),
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       ),
@@ -655,10 +696,11 @@ class _PhotoOnboardingSheetState extends ConsumerState<_PhotoOnboardingSheet>
             onTap: _uploading ? null : _pickPhoto,
             child: AnimatedBuilder(
               animation: _pulseAnim,
-              builder: (_, child) => Transform.scale(
-                scale: _uploading ? 1.0 : _pulseAnim.value,
-                child: child,
-              ),
+              builder:
+                  (_, child) => Transform.scale(
+                    scale: _uploading ? 1.0 : _pulseAnim.value,
+                    child: child,
+                  ),
               child: Stack(
                 alignment: Alignment.center,
                 children: [
@@ -669,8 +711,7 @@ class _PhotoOnboardingSheetState extends ConsumerState<_PhotoOnboardingSheet>
                       shape: BoxShape.circle,
                       boxShadow: [
                         BoxShadow(
-                          color: AppColors.amber.withOpacity(
-                              _uploading ? 0.15 : 0.38),
+                          color: Colors.black.withValues(alpha: 0.28),
                           blurRadius: 48,
                         ),
                       ],
@@ -689,10 +730,10 @@ class _PhotoOnboardingSheetState extends ConsumerState<_PhotoOnboardingSheet>
                       child: Center(
                         child: Text(
                           initial,
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 44,
                             fontWeight: FontWeight.w700,
-                            color: const Color(0xFF0A0A0B),
+                            color: const Color(0xFF111915),
                             height: 1.0,
                           ),
                         ),
@@ -721,7 +762,7 @@ class _PhotoOnboardingSheetState extends ConsumerState<_PhotoOnboardingSheet>
             child: Text(
               'Tap to choose',
               style: AppTextStyles.labelSmall.copyWith(
-                color: AppColors.amber.withOpacity(0.7),
+                color: AppColors.accent.withOpacity(0.7),
                 fontSize: 11,
               ),
             ),
@@ -752,25 +793,28 @@ class _PhotoOnboardingSheetState extends ConsumerState<_PhotoOnboardingSheet>
             child: ElevatedButton(
               onPressed: _uploading ? null : _pickPhoto,
               style: ElevatedButton.styleFrom(
-                backgroundColor: AppColors.amber,
-                foregroundColor: const Color(0xFF0A0A0B),
-                disabledBackgroundColor: AppColors.amber.withOpacity(0.5),
-                elevation: 0,
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                backgroundColor: AppColors.accent,
+                foregroundColor: const Color(0xFF111915),
+                disabledBackgroundColor: AppColors.accent.withOpacity(0.5),
               ),
               child: AnimatedSwitcher(
                 duration: const Duration(milliseconds: 200),
-                child: _uploading
-                    ? Text('uploading'.tr(),
-                        key: const ValueKey('uploading'),
-                        style: AppTextStyles.buttonLarge.copyWith(
-                          color: const Color(0xFF0A0A0B).withOpacity(0.7),
-                        ))
-                    : Text('upload_photo'.tr(),
-                        key: const ValueKey('idle'),
-                        style: AppTextStyles.buttonLarge
-                            .copyWith(color: const Color(0xFF0A0A0B))),
+                child:
+                    _uploading
+                        ? Text(
+                          'uploading'.tr(),
+                          key: const ValueKey('uploading'),
+                          style: AppTextStyles.buttonLarge.copyWith(
+                            color: const Color(0xFF111915).withOpacity(0.7),
+                          ),
+                        )
+                        : Text(
+                          'upload_photo'.tr(),
+                          key: const ValueKey('idle'),
+                          style: AppTextStyles.buttonLarge.copyWith(
+                            color: const Color(0xFF111915),
+                          ),
+                        ),
               ),
             ),
           ),
@@ -830,61 +874,47 @@ class _HomeContent extends ConsumerWidget {
 
   // ── Tablet: two-column layout ─────────────────────────────────────────────
 
-  Widget _buildTabletLayout(BuildContext context, bool isOnline, double hp, WidgetRef ref, GameType activeGame) {
+  Widget _buildTabletLayout(
+    BuildContext context,
+    bool isOnline,
+    double hp,
+    WidgetRef ref,
+    GameType activeGame,
+  ) {
     return Row(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        // Left column — greeting + ELO + play modes
         Expanded(
           flex: 5,
           child: CustomScrollView(
             slivers: [
               _buildAppBar(context, hp, showLogo: false),
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(hp, 18, hp / 2, 32),
+                padding: EdgeInsets.fromLTRB(hp, 12, hp / 2, 32),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
                     const GameSwitch(),
                     const SizedBox(height: 16),
-                    _buildGreeting(context),
+                    _PlayerPanel(user: user, activeGame: activeGame),
+                    const SizedBox(height: 18),
+                    _buildPlaySection(context, ref, isOnline, activeGame),
                     const GuestBanner(margin: EdgeInsets.only(top: 16)),
-                    const SizedBox(height: 20),
-                    _HeroRatingCard(user: user, activeGame: activeGame)
-                        .animate(delay: 80.ms)
-                        .fadeIn(duration: 350.ms),
-                    const SizedBox(height: 12),
-                    if (activeGame == GameType.chess) _buildRatingPills(context),
-                    _ArenaTeaser(gameType: activeGame),
-                    const SizedBox(height: 24),
-                    _buildPlaySection(context, isOnline, activeGame),
-                    const SizedBox(height: 32),
                   ]),
                 ),
               ),
             ],
           ),
         ),
-        // Vertical divider
-        Container(width: 1, color: AppColors.border),
-        // Right column — recent games
         Expanded(
           flex: 4,
           child: CustomScrollView(
             slivers: [
               SliverPadding(
-                padding: EdgeInsets.fromLTRB(hp / 2, 24, hp, 32),
+                padding: EdgeInsets.fromLTRB(hp / 2, 28, hp, 32),
                 sliver: SliverList(
                   delegate: SliverChildListDelegate([
-                    Text(
-                      'recent_games'.tr(),
-                      style: GoogleFonts.inter(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w600,
-                        color: AppColors.ink,
-                        letterSpacing: -0.5,
-                      ),
-                    ).animate(delay: 500.ms).fadeIn(),
-                    const SizedBox(height: 14),
+                    _SectionTitle('recent_games'.tr()),
+                    const SizedBox(height: 10),
                     _RecentGames(uid: user.uid),
                   ]),
                 ),
@@ -898,42 +928,32 @@ class _HomeContent extends ConsumerWidget {
 
   // ── Phone: single-column layout ───────────────────────────────────────────
 
-  Widget _buildPhoneLayout(BuildContext context, bool isOnline, double hp, WidgetRef ref, GameType activeGame) {
+  Widget _buildPhoneLayout(
+    BuildContext context,
+    bool isOnline,
+    double hp,
+    WidgetRef ref,
+    GameType activeGame,
+  ) {
     return CustomScrollView(
       slivers: [
         _buildAppBar(context, hp, showLogo: true),
         SliverPadding(
-          padding: EdgeInsets.symmetric(horizontal: hp),
+          padding: EdgeInsets.fromLTRB(hp, 6, hp, 32),
           sliver: SliverList(
             delegate: SliverChildListDelegate([
-              const SizedBox(height: 14),
               const GameSwitch(),
+              const SizedBox(height: 14),
+              _PlayerPanel(user: user, activeGame: activeGame),
               const SizedBox(height: 16),
-              _buildGreeting(context),
+              _buildPlaySection(context, ref, isOnline, activeGame),
+              // Below the Play button, not above it: the guest's risk is
+              // worth a card, not worth pushing the game off the screen.
               const GuestBanner(margin: EdgeInsets.only(top: 16)),
-              const SizedBox(height: 20),
-              _HeroRatingCard(user: user, activeGame: activeGame)
-                  .animate(delay: 80.ms)
-                  .fadeIn(duration: 350.ms)
-                  .slideY(begin: 0.1),
-              const SizedBox(height: 12),
-              if (activeGame == GameType.chess) _buildRatingPills(context),
-              _ArenaTeaser(gameType: activeGame),
-              const SizedBox(height: 24),
-              _buildPlaySection(context, isOnline, activeGame),
               const SizedBox(height: 28),
-              Text(
-                'recent_games'.tr(),
-                style: GoogleFonts.inter(
-                  fontSize: 20,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.ink,
-                  letterSpacing: -0.5,
-                ),
-              ).animate(delay: 500.ms).fadeIn(),
-              const SizedBox(height: 12),
+              _SectionTitle('recent_games'.tr()),
+              const SizedBox(height: 10),
               _RecentGames(uid: user.uid),
-              const SizedBox(height: 32),
             ]),
           ),
         ),
@@ -943,7 +963,11 @@ class _HomeContent extends ConsumerWidget {
 
   // ── Shared sub-widgets ────────────────────────────────────────────────────
 
-  SliverAppBar _buildAppBar(BuildContext context, double hp, {required bool showLogo}) {
+  SliverAppBar _buildAppBar(
+    BuildContext context,
+    double hp, {
+    required bool showLogo,
+  }) {
     return SliverAppBar(
       backgroundColor: AppColors.background,
       floating: true,
@@ -951,27 +975,41 @@ class _HomeContent extends ConsumerWidget {
       elevation: 0,
       scrolledUnderElevation: 0,
       automaticallyImplyLeading: false,
-      toolbarHeight: 60,
+      titleSpacing: 0,
+      toolbarHeight: 64,
       title: Padding(
-        padding: EdgeInsets.symmetric(horizontal: hp - 16),
+        padding: EdgeInsets.symmetric(horizontal: hp),
         child: Row(
           children: [
             if (showLogo) ...[
-              const AppLogo(size: 36),
+              const AppLogo(size: 30),
+              const SizedBox(width: 10),
+              Text(
+                'CheckMate',
+                style: AppFonts.ui(
+                  fontSize: 19,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.ink,
+                  letterSpacing: -0.3,
+                ),
+              ),
             ],
             const Spacer(),
             _NavButton(
-              icon: PhosphorIcons.trophy(PhosphorIconsStyle.regular),
+              icon: PhosphorIcons.ranking(PhosphorIconsStyle.bold),
+              tooltip: 'leaderboard'.tr(),
               onTap: () => context.push('/home/leaderboard'),
             ),
             const SizedBox(width: 8),
             _NavButton(
-              icon: PhosphorIcons.mapTrifold(PhosphorIconsStyle.regular),
+              icon: PhosphorIcons.mapPin(PhosphorIconsStyle.bold),
+              tooltip: 'map'.tr(),
               onTap: () => context.push('/home/map'),
             ),
             const SizedBox(width: 8),
             _NavButton(
-              icon: PhosphorIcons.gear(PhosphorIconsStyle.regular),
+              icon: PhosphorIcons.gear(PhosphorIconsStyle.bold),
+              tooltip: 'settings'.tr(),
               onTap: () => context.push('/home/settings'),
             ),
           ],
@@ -980,147 +1018,123 @@ class _HomeContent extends ConsumerWidget {
     );
   }
 
-  Widget _buildGreeting(BuildContext context) {
-    final isTablet = context.isTablet;
+  Widget _buildPlaySection(
+    BuildContext context,
+    WidgetRef ref,
+    bool isOnline,
+    GameType activeGame,
+  ) {
+    final accent = activeGame.accent;
+    // Players online now: the same number as on the player map.
+    final online = ref.watch(onlineCountProvider).valueOrNull;
+    final playSub = !isOnline
+        ? 'offline'.tr()
+        : online == null
+            ? 'ranked_online'.tr()
+            : '${'rated_game'.tr()} · ${'online_now_n'.tr(namedArgs: {
+                'count': NumberFormat.decimalPattern(context.locale.toString())
+                    .format(online),
+              })}';
+    final progress = switch (activeGame) {
+      GameType.checkers => user.checkersCampaignProgress,
+      GameType.domino => user.dominoCampaignProgress,
+      GameType.chess => user.campaignProgress,
+    };
+    final chapters = activeGame.identity.questChapters;
     return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
+      crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
-        Text(
-          DateTime.now().difference(user.createdAt).inHours < 24
-              ? 'welcome_new'.tr()
-              : 'welcome_back'.tr(),
-          style: GoogleFonts.inter(
-            fontSize: 13,
-            fontWeight: FontWeight.w500,
-            color: AppColors.inkMute,
-            letterSpacing: 0.3,
+        // ── The one big action ────────────────────────────────────────────
+        SizedBox(
+          height: 68,
+          child: Moulded(
+            color: accent,
+            radius: 16,
+            lip: 5,
+            semanticLabel: 'play_online'.tr(),
+            onTap: isOnline ? () => context.push('/home/matchmaking') : null,
+            padding: const EdgeInsets.symmetric(horizontal: 18),
+            child: Row(
+              children: [
+                Icon(
+                  PhosphorIcons.globeHemisphereWest(PhosphorIconsStyle.fill),
+                  color: AppColors.onAmber,
+                  size: 26,
+                ),
+                const SizedBox(width: 14),
+                Expanded(
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'play_online'.tr(),
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.ui(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: AppColors.onAmber,
+                          letterSpacing: -0.2,
+                        ),
+                      ),
+                      Text(
+                        playSub,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: AppFonts.ui(
+                          fontSize: 13,
+                          fontWeight: FontWeight.w600,
+                          color: AppColors.onAmber,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                Icon(
+                  PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+                  color: AppColors.onAmber,
+                  size: 20,
+                ),
+              ],
+            ),
           ),
         ),
-        const SizedBox(height: 4),
-        Text(
-          user.username,
-          style: GoogleFonts.inter(
-            fontSize: isTablet ? 38 : 34,
-            fontWeight: FontWeight.w600,
-            color: AppColors.ink,
-            letterSpacing: -1,
-            height: 1.05,
-          ),
-        ).animate().fadeIn(duration: 400.ms).slideY(begin: 0.08),
-      ],
-    );
-  }
-
-  Widget _buildRatingPills(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          child: _RatingPill(
-            label: 'bullet'.tr(),
-            icon: PhosphorIcons.lightning(PhosphorIconsStyle.fill),
-            color: AppColors.bullet,
-            rating: user.bulletStats.rating,
-            trend: 0,
-            delay: 150,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _RatingPill(
-            label: 'blitz'.tr(),
-            icon: PhosphorIcons.fire(PhosphorIconsStyle.fill),
-            color: AppColors.blitz,
-            rating: user.blitzStats.rating,
-            trend: 0,
-            delay: 200,
-          ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          child: _RatingPill(
-            label: 'rapid'.tr(),
-            icon: PhosphorIcons.timer(PhosphorIconsStyle.fill),
-            color: AppColors.rapid,
-            rating: user.rapidStats.rating,
-            trend: 0,
-            delay: 250,
-          ),
-        ),
-      ],
-    );
-  }
-
-  Widget _buildPlaySection(BuildContext context, bool isOnline, GameType activeGame) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          'play'.tr().toUpperCaseFor(context),
-          style: GoogleFonts.inter(
-            fontSize: 11,
-            fontWeight: FontWeight.w700,
-            color: AppColors.inkMute,
-            letterSpacing: 1.0,
-          ),
-        ),
-        const SizedBox(height: 10),
-        // ── Bot card (per-game accent) ──────────────────────────────────
-        _PlayVsBotCard(
-          delay: 300,
-          gameType: activeGame,
+        const SizedBox(height: 12),
+        _ModeTile(
+          icon: PhosphorIcons.robot(PhosphorIconsStyle.bold),
+          accent: accent,
+          title: 'play_vs_bot'.tr(),
+          subtitle: 'bot_tiers'.tr(),
           onTap: () => context.push(activeGame.botSetupRoute),
         ),
-        const SizedBox(height: 10),
-        Row(
-          children: [
-            Expanded(
-              child: _ModeCard(
-                title: 'matchmaking'.tr(),
-                subtitle: isOnline ? 'ranked_online'.tr() : 'offline'.tr(),
-                icon: PhosphorIcons.globe(PhosphorIconsStyle.regular),
-                bgColor: activeGame == GameType.chess
-                    ? const Color(0xFF1e2a26)
-                    : activeGame == GameType.checkers
-                        ? const Color(0xFF0a1620)
-                        : const Color(0xFF0a1f16),
-                delay: 360,
-                disabled: !isOnline,
-                onTap: () => context.push('/home/matchmaking'),
-              ),
-            ),
-            const SizedBox(width: 10),
-            Expanded(
-              child: _ModeCard(
-                title: 'friends'.tr(),
-                subtitle: isOnline ? 'invite_or_local'.tr() : 'local_only'.tr(),
-                icon: PhosphorIcons.users(PhosphorIconsStyle.regular),
-                bgColor: activeGame == GameType.chess
-                    ? const Color(0xFF2a211e)
-                    : activeGame == GameType.checkers
-                        ? const Color(0xFF102a3d)
-                        : const Color(0xFF0f3329),
-                delay: 410,
-                onTap: () => _showFriendOptions(context, isOnline, activeGame),
-              ),
-            ),
-          ],
+        const SizedBox(height: 8),
+        _ModeTile(
+          icon: PhosphorIcons.usersThree(PhosphorIconsStyle.bold),
+          accent: accent,
+          title: 'play_friend'.tr(),
+          subtitle: isOnline ? 'invite_or_local'.tr() : 'local_only'.tr(),
+          onTap: () => _showFriendOptions(context, isOnline, activeGame),
         ),
-        const SizedBox(height: 10),
-        _SoloQuestCard(
-          progress: switch (activeGame) {
-            GameType.checkers => user.checkersCampaignProgress,
-            GameType.domino   => user.dominoCampaignProgress,
-            GameType.chess    => user.campaignProgress,
-          },
-          delay: 460,
-          gameType: activeGame,
+        const SizedBox(height: 8),
+        _ModeTile(
+          icon: PhosphorIcons.path(PhosphorIconsStyle.bold),
+          accent: accent,
+          title: activeGame.identity.questTitle,
+          subtitle: '${'campaign'.tr()} · $progress/$chapters',
+          progress: chapters == 0 ? 0 : progress / chapters,
           onTap: () => context.push('/home/campaign'),
         ),
+        _ArenaTeaser(gameType: activeGame),
       ],
     );
   }
 
-  void _showFriendOptions(BuildContext context, bool isOnline, GameType activeGame) {
+  void _showFriendOptions(
+    BuildContext context,
+    bool isOnline,
+    GameType activeGame,
+  ) {
     final accent = activeGame.identity.accent;
     showModalBottomSheet(
       context: context,
@@ -1128,221 +1142,269 @@ class _HomeContent extends ConsumerWidget {
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
-      builder: (ctx) => Container(
-        decoration: BoxDecoration(
-          color: AppColors.cardElevated,
-          borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-          border: Border.all(color: AppColors.borderStrong),
-          boxShadow: const [
-            BoxShadow(color: Color(0x800A0A0B), blurRadius: 50, offset: Offset(0, -20)),
-          ],
-        ),
-        padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            // Drag handle
-            Container(
-              width: 36, height: 4,
-              decoration: BoxDecoration(
-                color: AppColors.borderStrong,
-                borderRadius: BorderRadius.circular(2),
-              ),
+      builder:
+          (ctx) => Container(
+            decoration: const BoxDecoration(
+              color: AppColors.surface,
+              borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
             ),
-            const SizedBox(height: 16),
-            Text(
-              'play_with_friend'.tr(),
-              style: GoogleFonts.inter(
-                fontSize: 22, fontWeight: FontWeight.w600,
-                color: AppColors.ink,
-                letterSpacing: -0.5,
-              ),
-            ),
-            const SizedBox(height: 4),
-            Text(
-              'Two ways to start · no queue',
-              style: GoogleFonts.inter(fontSize: 12, color: AppColors.inkMute),
-            ),
-            const SizedBox(height: 20),
-            // Same Device option
-            GestureDetector(
-              onTap: () {
-                Navigator.pop(ctx);
-                context.push('/home/local-setup');
-              },
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44, height: 44,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.13),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: accent.withValues(alpha: 0.2)),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          PhosphorIcons.usersFour(PhosphorIconsStyle.regular),
-                          color: accent, size: 20),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('same_device'.tr(),
-                            style: GoogleFonts.inter(
-                              fontSize: 16, fontWeight: FontWeight.w700,
-                              color: AppColors.ink, letterSpacing: -0.2)),
-                          const SizedBox(height: 2),
-                          Text('same_device_subtitle'.tr(),
-                            style: GoogleFonts.inter(
-                              fontSize: 11, color: AppColors.inkMute)),
-                        ],
-                      ),
-                    ),
-                    Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.regular),
-                        color: AppColors.inkMute, size: 16),
-                  ],
-                ),
-              ),
-            ),
-            const SizedBox(height: 10),
-            // Invite by Username option
-            GestureDetector(
-              onTap: isOnline
-                  ? () {
-                      Navigator.pop(ctx);
-                      context.push('/home/invite');
-                    }
-                  : () {
-                      Navigator.pop(ctx);
-                      ScaffoldMessenger.of(context).showSnackBar(
-                        SnackBar(content: Text('no_internet'.tr())));
-                    },
-              child: Container(
-                padding: const EdgeInsets.all(14),
-                decoration: BoxDecoration(
-                  color: AppColors.card,
-                  borderRadius: BorderRadius.circular(14),
-                  border: Border.all(color: AppColors.border),
-                ),
-                child: Row(
-                  children: [
-                    Container(
-                      width: 44, height: 44,
-                      decoration: BoxDecoration(
-                        color: accent.withValues(alpha: 0.13),
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(color: accent.withValues(alpha: 0.2)),
-                      ),
-                      child: Center(
-                        child: Icon(Icons.wifi_rounded,
-                            color: accent, size: 20),
-                      ),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('invite_by_username'.tr(),
-                            style: GoogleFonts.inter(
-                              fontSize: 16, fontWeight: FontWeight.w700,
-                              color: AppColors.ink, letterSpacing: -0.2)),
-                          const SizedBox(height: 2),
-                          Text(
-                            isOnline
-                                ? 'invite_subtitle'.tr()
-                                : 'requires_internet'.tr(),
-                            style: GoogleFonts.inter(
-                              fontSize: 11,
-                              color: isOnline ? AppColors.inkMute : AppColors.error)),
-                        ],
-                      ),
-                    ),
-                    Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.regular),
-                        color: AppColors.inkMute, size: 16),
-                  ],
-                ),
-              ),
-            ),
-            // 2v2 table with friends — domino only (classic partnership play)
-            if (activeGame == GameType.domino) ...[
-              const SizedBox(height: 10),
-              GestureDetector(
-                onTap: isOnline
-                    ? () {
-                        Navigator.pop(ctx);
-                        context.push('/home/domino-table');
-                      }
-                    : () {
-                        Navigator.pop(ctx);
-                        ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('no_internet'.tr())));
-                      },
-                child: Container(
-                  padding: const EdgeInsets.all(14),
+            padding: const EdgeInsets.fromLTRB(20, 10, 20, 28),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Drag handle
+                Container(
+                  width: 36,
+                  height: 4,
                   decoration: BoxDecoration(
-                    color: AppColors.card,
-                    borderRadius: BorderRadius.circular(14),
-                    border: Border.all(color: AppColors.border),
-                  ),
-                  child: Row(
-                    children: [
-                      Container(
-                        width: 44, height: 44,
-                        decoration: BoxDecoration(
-                          color: accent.withValues(alpha: 0.13),
-                          borderRadius: BorderRadius.circular(12),
-                          border: Border.all(color: accent.withValues(alpha: 0.2)),
-                        ),
-                        child: Center(
-                          child: Icon(
-                              PhosphorIcons.usersFour(PhosphorIconsStyle.regular),
-                              color: accent, size: 20),
-                        ),
-                      ),
-                      const SizedBox(width: 12),
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Text('2v2 Table',
-                              style: GoogleFonts.inter(
-                                fontSize: 16, fontWeight: FontWeight.w700,
-                                color: AppColors.ink, letterSpacing: -0.2)),
-                            const SizedBox(height: 2),
-                            Text(
-                              isOnline
-                                  ? 'Invite friends · partners sit across'
-                                  : 'requires_internet'.tr(),
-                              style: GoogleFonts.inter(
-                                fontSize: 11,
-                                color: isOnline
-                                    ? AppColors.inkMute
-                                    : AppColors.error)),
-                          ],
-                        ),
-                      ),
-                      Icon(PhosphorIcons.caretRight(PhosphorIconsStyle.regular),
-                          color: AppColors.inkMute, size: 16),
-                    ],
+                    color: AppColors.borderStrong,
+                    borderRadius: BorderRadius.circular(2),
                   ),
                 ),
-              ),
-            ],
-          ],
-        ),
-      ),
+                const SizedBox(height: 16),
+                Text(
+                  'play_with_friend'.tr(),
+                  style: AppFonts.ui(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w600,
+                    color: AppColors.ink,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                const SizedBox(height: 4),
+                Text(
+                  'friend_sheet_sub'.tr(),
+                  style: AppFonts.ui(fontSize: 12, color: AppColors.inkMute),
+                ),
+                const SizedBox(height: 20),
+                // Same Device option
+                GestureDetector(
+                  onTap: () {
+                    Navigator.pop(ctx);
+                    context.push('/home/local-setup');
+                  },
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.cardElevated,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(
+                            child: Icon(
+                              PhosphorIcons.usersFour(
+                                PhosphorIconsStyle.regular,
+                              ),
+                              color: accent,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'same_device'.tr(),
+                                style: AppFonts.ui(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.ink,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                'same_device_subtitle'.tr(),
+                                style: AppFonts.ui(
+                                  fontSize: 13,
+                                  color: AppColors.inkMute,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          PhosphorIcons.caretRight(PhosphorIconsStyle.regular),
+                          color: AppColors.inkMute,
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                const SizedBox(height: 10),
+                // Invite by Username option
+                GestureDetector(
+                  onTap:
+                      isOnline
+                          ? () {
+                            Navigator.pop(ctx);
+                            context.push('/home/invite');
+                          }
+                          : () {
+                            Navigator.pop(ctx);
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              SnackBar(content: Text('no_internet'.tr())),
+                            );
+                          },
+                  child: Container(
+                    padding: const EdgeInsets.all(14),
+                    decoration: BoxDecoration(
+                      color: AppColors.card,
+                      borderRadius: BorderRadius.circular(14),
+                    ),
+                    child: Row(
+                      children: [
+                        Container(
+                          width: 44,
+                          height: 44,
+                          decoration: BoxDecoration(
+                            color: AppColors.cardElevated,
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Center(
+                            child: Icon(
+                              PhosphorIcons.wifiHigh(PhosphorIconsStyle.bold),
+                              color: accent,
+                              size: 20,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 12),
+                        Expanded(
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text(
+                                'invite_by_username'.tr(),
+                                style: AppFonts.ui(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.ink,
+                                  letterSpacing: -0.2,
+                                ),
+                              ),
+                              const SizedBox(height: 2),
+                              Text(
+                                isOnline
+                                    ? 'invite_subtitle'.tr()
+                                    : 'requires_internet'.tr(),
+                                style: AppFonts.ui(
+                                  fontSize: 11,
+                                  color:
+                                      isOnline
+                                          ? AppColors.inkMute
+                                          : AppColors.error,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        Icon(
+                          PhosphorIcons.caretRight(PhosphorIconsStyle.regular),
+                          color: AppColors.inkMute,
+                          size: 16,
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+                // 2v2 table with friends — domino only (classic partnership play)
+                if (activeGame == GameType.domino) ...[
+                  const SizedBox(height: 10),
+                  GestureDetector(
+                    onTap:
+                        isOnline
+                            ? () {
+                              Navigator.pop(ctx);
+                              context.push('/home/domino-table');
+                            }
+                            : () {
+                              Navigator.pop(ctx);
+                              ScaffoldMessenger.of(context).showSnackBar(
+                                SnackBar(content: Text('no_internet'.tr())),
+                              );
+                            },
+                    child: Container(
+                      padding: const EdgeInsets.all(14),
+                      decoration: BoxDecoration(
+                        color: AppColors.card,
+                        borderRadius: BorderRadius.circular(14),
+                      ),
+                      child: Row(
+                        children: [
+                          Container(
+                            width: 44,
+                            height: 44,
+                            decoration: BoxDecoration(
+                              color: AppColors.cardElevated,
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: Center(
+                              child: Icon(
+                                PhosphorIcons.usersFour(
+                                  PhosphorIconsStyle.regular,
+                                ),
+                                color: accent,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                          const SizedBox(width: 12),
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  'domino_table_2v2'.tr(),
+                                  style: AppFonts.ui(
+                                    fontSize: 16,
+                                    fontWeight: FontWeight.w700,
+                                    color: AppColors.ink,
+                                    letterSpacing: -0.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 2),
+                                Text(
+                                  isOnline
+                                      ? 'domino_table_2v2_sub'.tr()
+                                      : 'requires_internet'.tr(),
+                                  style: AppFonts.ui(
+                                    fontSize: 11,
+                                    color:
+                                        isOnline
+                                            ? AppColors.inkMute
+                                            : AppColors.error,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          Icon(
+                            PhosphorIcons.caretRight(
+                              PhosphorIconsStyle.regular,
+                            ),
+                            color: AppColors.inkMute,
+                            size: 16,
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
     );
   }
 }
@@ -1351,603 +1413,198 @@ class _HomeContent extends ConsumerWidget {
 
 class _NavButton extends StatelessWidget {
   final IconData icon;
+  final String tooltip;
   final VoidCallback onTap;
-  const _NavButton({required this.icon, required this.onTap});
+  const _NavButton({
+    required this.icon,
+    required this.tooltip,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return GestureDetector(
-      onTap: onTap,
-      child: Container(
-        width: 34,
-        height: 34,
-        decoration: BoxDecoration(
+    return Tooltip(
+      message: tooltip,
+      child: SizedBox(
+        width: 48,
+        height: 48,
+        child: Moulded(
           color: AppColors.card,
-          borderRadius: BorderRadius.circular(10),
-          border: Border.all(color: AppColors.border, width: 1),
-        ),
-        child: Center(
-          child: Icon(icon, color: AppColors.inkDim, size: 16),
+          radius: 12,
+          lip: 3,
+          semanticLabel: tooltip,
+          onTap: onTap,
+          child: Center(child: Icon(icon, color: AppColors.inkDim, size: 20)),
         ),
       ),
     );
   }
 }
 
-// ── Hero Rating Card ──────────────────────────────────────────────────────────
+/// The position after [moves] (SAN), or null if they do not replay.
+String? _finalFen(List<String> moves) {
+  try {
+    final game = ch.Chess();
+    for (final m in moves) {
+      if (!game.move(m)) return null;
+    }
+    return game.fen;
+  } catch (_) {
+    return null;
+  }
+}
 
-class _HeroRatingCard extends ConsumerWidget {
+class _SectionTitle extends StatelessWidget {
+  final String text;
+  const _SectionTitle(this.text);
+
+  @override
+  Widget build(BuildContext context) => Text(
+    text,
+    style: AppFonts.ui(
+      fontSize: 18,
+      fontWeight: FontWeight.w700,
+      color: AppColors.ink,
+      letterSpacing: -0.2,
+    ),
+  );
+}
+
+// ── Player panel: the game's object, the rating, the record ──────────────────
+
+class _PlayerPanel extends ConsumerWidget {
   final UserModel user;
   final GameType activeGame;
-  const _HeroRatingCard({required this.user, this.activeGame = GameType.chess});
+  const _PlayerPanel({required this.user, this.activeGame = GameType.chess});
 
-  int get _overallRating => switch (activeGame) {
+  // Chess shows the Blitz rating: a real pool, ranked on the same field
+  // below. (It used to show an average of three pools that exists nowhere
+  // in the data, ranked against Blitz.)
+  int get _rating => switch (activeGame) {
     GameType.checkers => user.checkersStats.rating,
-    GameType.domino   => user.dominoStats.rating,
-    GameType.chess    => ((user.bulletStats.rating + user.blitzStats.rating + user.rapidStats.rating) / 3).round(),
+    GameType.domino => user.dominoStats.rating,
+    GameType.chess => user.blitzStats.rating,
+  };
+
+  (int, int, int) get _record => switch (activeGame) {
+    GameType.checkers => (
+      user.checkersStats.wins,
+      user.checkersStats.draws,
+      user.checkersStats.losses,
+    ),
+    GameType.domino => (
+      user.dominoStats.wins,
+      user.dominoStats.draws,
+      user.dominoStats.losses,
+    ),
+    GameType.chess => (
+      user.bulletStats.wins + user.blitzStats.wins + user.rapidStats.wins,
+      user.bulletStats.draws + user.blitzStats.draws + user.rapidStats.draws,
+      user.bulletStats.losses + user.blitzStats.losses + user.rapidStats.losses,
+    ),
   };
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final rankField = switch (activeGame) {
       GameType.checkers => 'checkersStats.rating',
-      GameType.domino   => 'dominoStats.rating',
-      GameType.chess    => 'blitzStats.rating',
+      GameType.domino => 'dominoStats.rating',
+      GameType.chess => 'blitzStats.rating',
     };
-    final rankRating = _overallRating;
-    final rankAsync    = ref.watch(_globalRankProvider('$rankField:$rankRating'));
-    final changeAsync  = ref.watch(_monthlyRatingChangeProvider(user.uid));
-    final identity = activeGame.identity;
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(18),
-        decoration: BoxDecoration(
-          gradient: LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: activeGame == GameType.chess
-                ? const [AppColors.cardElevated, AppColors.card]
-                : [
-                    Color.lerp(identity.gradientColors.first,
-                        AppColors.cardElevated, 0.6)!,
-                    AppColors.card,
-                  ],
-          ),
-          borderRadius: BorderRadius.circular(18),
-          border: Border.all(color: AppColors.border, width: 1),
-        ),
-        child: Stack(
-          clipBehavior: Clip.none,
-          children: [
-            Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                activeGame.isPointBased
-                    ? '${activeGame.name.tr()} · ${'points_label'.tr()}'.toUpperCaseFor(context)
-                    : '${activeGame.name.tr()} · ${'overall_rating'.tr()}'.toUpperCaseFor(context),
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.inkMute,
-                  letterSpacing: 0.6,
-                ),
-              ),
-              const SizedBox(height: 6),
-              Row(
-                crossAxisAlignment: CrossAxisAlignment.baseline,
-                textBaseline: TextBaseline.alphabetic,
-                children: [
-                  Text(
-                    _formatRating(_overallRating),
-                    style: GoogleFonts.inter(
-                      fontSize: 48,
-                      fontWeight: FontWeight.w600,
-                      color: AppColors.ink,
-                      letterSpacing: -2,
-                      height: 1.0,
-                    ),
-                  ),
-                  ...changeAsync.maybeWhen(
-                    data: (change) {
-                      if (change == null) return const <Widget>[];
-                      final pos = change >= 0;
-                      return <Widget>[
-                        const SizedBox(width: 10),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                              horizontal: 7, vertical: 2),
-                          decoration: BoxDecoration(
-                            color: pos ? AppColors.winSoft : AppColors.lossSoft,
-                            borderRadius: BorderRadius.circular(6),
-                          ),
-                          child: Text(
-                            '${pos ? '+' : ''}$change',
-                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
-                              fontWeight: FontWeight.w600,
-                              color: pos ? AppColors.win : AppColors.loss,
-                            ),
-                          ),
-                        ),
-                      ];
-                    },
-                    orElse: () => const <Widget>[],
-                  ),
-                ],
-              ),
-              const SizedBox(height: 14),
-              Row(
-                children: [
-                  Builder(builder: (_) {
-                    final (w, d, l) = switch (activeGame) {
-                      GameType.checkers => (user.checkersStats.wins, user.checkersStats.draws, user.checkersStats.losses),
-                      GameType.domino   => (user.dominoStats.wins, user.dominoStats.draws, user.dominoStats.losses),
-                      GameType.chess    => (
-                        user.bulletStats.wins + user.blitzStats.wins + user.rapidStats.wins,
-                        user.bulletStats.draws + user.blitzStats.draws + user.rapidStats.draws,
-                        user.bulletStats.losses + user.blitzStats.losses + user.rapidStats.losses,
-                      ),
-                    };
-                    return Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        _StatChip(label: '${w}W'),
-                        const _Dot(),
-                        _StatChip(label: '${d}D'),
-                        const _Dot(),
-                        _StatChip(label: '${l}L'),
-                      ],
-                    );
-                  }),
-                  const Spacer(),
-                  rankAsync.when(
-                    data: (rank) => Text(
-                      rank > 0
-                          ? 'rank_global'.tr(namedArgs: {'rank': '#$rank'})
-                          : 'rank_global'.tr(namedArgs: {'rank': '—'}),
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: identity.accent,
-                      ),
-                    ),
-                    loading: () => Text(
-                      'rank_global'.tr(namedArgs: {'rank': '…'}),
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: identity.accent.withValues(alpha: 0.5),
-                      ),
-                    ),
-                    error: (_, __) => Text(
-                      'rank_global'.tr(namedArgs: {'rank': '—'}),
-                      style: GoogleFonts.inter(
-                        fontSize: 11,
-                        fontWeight: FontWeight.w600,
-                        color: identity.accent.withValues(alpha: 0.5),
-                      ),
-                    ),
-                  ),
-                ],
-              ),
-            ],
-          ),
-        ],
-      ),
-    ),
-  );
-  }
+    final rating = _rating;
+    final rank = ref
+        .watch(_globalRankProvider('$rankField:$rating'))
+        .maybeWhen(data: (r) => r > 0 ? '#$r' : '—', orElse: () => '…');
+    final change =
+        ref.watch(_monthlyRatingChangeProvider(user.uid)).valueOrNull;
+    final (w, d, l) = _record;
+    final kind = activeGame.isPointBased ? 'points_label'.tr() : 'blitz'.tr();
+    // Chess: the final position of the player's last game; the start
+    // position before their first one.
+    String? lastFen;
+    if (activeGame == GameType.chess) {
+      final games = ref.watch(_recentGamesProvider(user.uid)).valueOrNull;
+      final last =
+          games
+              ?.where((g) => g.gameType == 'chess' && g.moves.isNotEmpty)
+              .firstOrNull;
+      if (last != null) lastFen = _finalFen(last.moves);
+    }
 
-  // Ratings are written without a thousands separator (1200, not 1,200) —
-  // that is the chess convention and what every other screen shows.
-  String _formatRating(int r) => r.toString();
-}
-
-class _StatChip extends StatelessWidget {
-  final String label;
-  const _StatChip({required this.label});
-
-  @override
-  Widget build(BuildContext context) {
-    return Text(
-      label,
-      style: GoogleFonts.inter(
-        fontSize: 11,
-        color: AppColors.inkDim,
-      ),
-    );
-  }
-}
-
-class _Dot extends StatelessWidget {
-  const _Dot();
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 6),
-      child: Text('·', style: GoogleFonts.inter(color: AppColors.inkMute, fontSize: 11)),
-    );
-  }
-}
-
-// ── Rating Pill ───────────────────────────────────────────────────────────────
-
-class _RatingPill extends StatelessWidget {
-  final String label;
-  final IconData icon;
-  final Color color;
-  final int rating;
-  final int trend;
-  final int delay;
-
-  const _RatingPill({
-    required this.label,
-    required this.icon,
-    required this.color,
-    required this.rating,
-    required this.trend,
-    required this.delay,
-  });
-
-  @override
-  Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(12, 14, 12, 14),
+      padding: const EdgeInsets.fromLTRB(12, 12, 16, 12),
       decoration: BoxDecoration(
-        color: AppColors.card,
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: AppColors.border, width: 1),
+        color: AppColors.surface,
+        borderRadius: BorderRadius.circular(18),
       ),
       child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Row(
             children: [
-              Icon(icon, color: color, size: 14),
-              const SizedBox(width: 6),
-              Text(
-                label.toUpperCaseFor(context),
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w600,
-                  color: color,
-                  letterSpacing: 0.4,
-                ),
-              ),
-            ],
-          ),
-          const SizedBox(height: 8),
-          Text(
-            rating.toString(),
-            style: GoogleFonts.inter(
-              fontSize: 26,
-              fontWeight: FontWeight.w600,
-              color: AppColors.ink,
-              letterSpacing: -0.5,
-              height: 1.0,
-            ),
-          ),
-          if (trend != 0) ...[
-            const SizedBox(height: 4),
-            Text(
-              '${trend > 0 ? '+' : ''}$trend',
-              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-                fontWeight: FontWeight.w500,
-                color: trend > 0 ? AppColors.win : AppColors.loss,
-              ),
-            ),
-          ],
-        ],
-      ),
-    )
-        .animate(delay: Duration(milliseconds: delay))
-        .fadeIn(duration: 400.ms)
-        .slideY(begin: 0.15);
-  }
-}
-
-// ── Play vs Bot (amber hero card) ─────────────────────────────────────────────
-
-class _PlayVsBotCard extends StatefulWidget {
-  final int delay;
-  final VoidCallback onTap;
-  final GameType gameType;
-  const _PlayVsBotCard({required this.delay, required this.onTap, this.gameType = GameType.chess});
-
-  @override
-  State<_PlayVsBotCard> createState() => _PlayVsBotCardState();
-}
-
-class _PlayVsBotCardState extends State<_PlayVsBotCard> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap();
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: Builder(builder: (context) {
-          final identity = widget.gameType.identity;
-          final accentDark = Color.lerp(identity.accent, Colors.black, 0.55)!;
-          final subtitles = {
-            GameType.chess: 'Stockfish · ${'bot_tiers'.tr()}',
-            GameType.checkers: 'Minimax AI · ${'bot_tiers'.tr()}',
-            GameType.domino: 'Smart Bot · Block Domino',
-          };
-          return Container(
-            padding: const EdgeInsets.all(18),
-            decoration: BoxDecoration(
-              gradient: LinearGradient(
-                begin: Alignment.topLeft,
-                end: Alignment.centerRight,
-                colors: [identity.accent, Color.lerp(identity.accent, Colors.black, 0.3)!],
-                stops: const [0.0, 1.0],
-              ),
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [
-                BoxShadow(
-                  color: identity.accentSoft,
-                  blurRadius: 24,
-                  offset: const Offset(0, 8),
-                ),
-              ],
-            ),
-            child: Stack(
-              children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 46,
-                      height: 46,
-                      decoration: BoxDecoration(
-                        color: accentDark.withValues(alpha: 0.3),
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Center(
-                        child: Icon(
-                          PhosphorIcons.robot(PhosphorIconsStyle.regular),
-                          color: accentDark,
-                          size: 24,
-                        ),
-                      ),
-                    ),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            'play_vs_bot'.tr(),
-                            style: GoogleFonts.inter(
-                              fontSize: 20,
-                              fontWeight: FontWeight.w700,
-                              color: accentDark,
-                              letterSpacing: -0.3,
-                            ),
-                          ),
-                          const SizedBox(height: 2),
-                          Text(
-                            subtitles[widget.gameType]!,
-                            style: GoogleFonts.inter(
-                              fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: accentDark.withValues(alpha: 0.8),
-                            ),
-                          ),
-                        ],
-                      ),
-                    ),
-                    Icon(
-                      PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
-                      color: accentDark,
-                      size: 20,
-                    ),
-                  ],
-                ),
-              ],
-            ),
-          );
-        }),
-      ),
-    )
-        .animate(delay: Duration(milliseconds: widget.delay))
-        .fadeIn(duration: 400.ms)
-        .slideY(begin: 0.15);
-  }
-}
-
-// ── Mode Card (Matchmaking / Friends) ─────────────────────────────────────────
-
-class _ModeCard extends StatefulWidget {
-  final String title;
-  final String subtitle;
-  final IconData icon;
-  final Color bgColor;
-  final int delay;
-  final VoidCallback onTap;
-  final bool disabled;
-
-  const _ModeCard({
-    required this.title,
-    required this.subtitle,
-    required this.icon,
-    required this.bgColor,
-    required this.delay,
-    required this.onTap,
-    this.disabled = false,
-  });
-
-  @override
-  State<_ModeCard> createState() => _ModeCardState();
-}
-
-class _ModeCardState extends State<_ModeCard> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: widget.disabled ? null : (_) => setState(() => _pressed = true),
-      onTapUp: widget.disabled
-          ? null
-          : (_) {
-              setState(() => _pressed = false);
-              widget.onTap();
-            },
-      onTapCancel:
-          widget.disabled ? null : () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: Opacity(
-          opacity: widget.disabled ? 0.55 : 1.0,
-          child: Container(
-            padding: const EdgeInsets.all(14),
-            decoration: BoxDecoration(
-              color: widget.bgColor,
-              borderRadius: BorderRadius.circular(14),
-              border: Border.all(color: AppColors.border, width: 1),
-            ),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Icon(widget.icon, color: AppColors.ink, size: 20),
-                const SizedBox(height: 22),
-                Text(
-                  widget.title,
-                  style: GoogleFonts.inter(
-                    fontSize: 16,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.ink,
-                    letterSpacing: -0.2,
-                  ),
-                ),
-                const SizedBox(height: 2),
-                Text(
-                  widget.subtitle,
-                  style: GoogleFonts.inter(
-                    fontSize: 11,
-                    color: AppColors.inkDim,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ),
-      ),
-    )
-        .animate(delay: Duration(milliseconds: widget.delay))
-        .fadeIn(duration: 400.ms)
-        .slideY(begin: 0.15);
-  }
-}
-
-// ── Solo Quest / Campaign Card ─────────────────────────────────────────────────
-
-class _SoloQuestCard extends StatefulWidget {
-  final int progress;
-  final int delay;
-  final VoidCallback onTap;
-  final GameType gameType;
-  const _SoloQuestCard({
-    required this.progress,
-    required this.delay,
-    required this.onTap,
-    this.gameType = GameType.chess,
-  });
-
-  @override
-  State<_SoloQuestCard> createState() => _SoloQuestCardState();
-}
-
-class _SoloQuestCardState extends State<_SoloQuestCard> {
-  bool _pressed = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return GestureDetector(
-      onTapDown: (_) => setState(() => _pressed = true),
-      onTapUp: (_) {
-        setState(() => _pressed = false);
-        widget.onTap();
-      },
-      onTapCancel: () => setState(() => _pressed = false),
-      child: AnimatedScale(
-        scale: _pressed ? 0.97 : 1.0,
-        duration: const Duration(milliseconds: 100),
-        child: Container(
-          padding: const EdgeInsets.all(14),
-          decoration: BoxDecoration(
-            color: AppColors.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: AppColors.border, width: 1),
-          ),
-          child: Row(
-            children: [
-              // Icon
-              Container(
-                width: 40,
-                height: 40,
-                decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(10),
-                  border: Border.all(color: AppColors.border, width: 1),
-                ),
-                child: Center(
-                  child: Icon(
-                    PhosphorIcons.mapTrifold(PhosphorIconsStyle.regular),
-                    color: AppColors.amber,
-                    size: 18,
-                  ),
-                ),
-              ),
-              const SizedBox(width: 12),
+              GamePreview(game: activeGame.name, size: 104, fen: lastFen),
+              const SizedBox(width: 16),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
+                    Text(
+                      user.username,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.ui(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.inkDim,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
                     Row(
+                      crossAxisAlignment: CrossAxisAlignment.baseline,
+                      textBaseline: TextBaseline.alphabetic,
                       children: [
                         Text(
-                          widget.gameType.identity.questTitle,
-                          style: GoogleFonts.inter(
-                            fontSize: 15,
-                            fontWeight: FontWeight.w700,
+                          '$rating',
+                          style: AppFonts.ui(
+                            fontSize: 40,
+                            fontWeight: FontWeight.w800,
                             color: AppColors.ink,
-                            letterSpacing: -0.2,
+                            letterSpacing: -1,
+                            height: 1.05,
+                            fontFeatures: AppTextStyles.tabularFigures,
                           ),
                         ),
-                        const Spacer(),
-                        Text(
-                          '${widget.progress}/${widget.gameType.identity.questChapters}',
-                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-                            fontWeight: FontWeight.w600,
-                            color: widget.gameType.accent,
+                        if (change != null && change != 0) ...[
+                          const SizedBox(width: 8),
+                          Text(
+                            '${change > 0 ? '+' : '−'}${change.abs()}',
+                            style: AppFonts.ui(
+                              fontSize: 15,
+                              fontWeight: FontWeight.w700,
+                              color:
+                                  change > 0 ? AppColors.win : AppColors.loss,
+                              fontFeatures: AppTextStyles.tabularFigures,
+                            ),
                           ),
-                        ),
+                        ],
                       ],
                     ),
-                    const SizedBox(height: 8),
-                    // Progress bar
-                    ClipRRect(
-                      borderRadius: BorderRadius.circular(2),
-                      child: SizedBox(
-                        height: 3,
-                        child: LinearProgressIndicator(
-                          value: widget.progress / widget.gameType.identity.questChapters,
-                          backgroundColor: AppColors.surface,
-                          valueColor:
-                              AlwaysStoppedAnimation<Color>(widget.gameType.accent),
-                        ),
+                    const SizedBox(height: 4),
+                    Text(
+                      '$kind · ${'rank_global'.tr(namedArgs: {'rank': rank})}',
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.ui(
+                        fontSize: 13,
+                        color: AppColors.inkMute,
+                        fontFeatures: AppTextStyles.tabularFigures,
+                      ),
+                    ),
+                    Text(
+                      '${w}W · ${d}D · ${l}L',
+                      style: AppFonts.ui(
+                        fontSize: 13,
+                        color: AppColors.inkMute,
+                        fontFeatures: AppTextStyles.tabularFigures,
                       ),
                     ),
                   ],
@@ -1955,12 +1612,100 @@ class _SoloQuestCardState extends State<_SoloQuestCard> {
               ),
             ],
           ),
-        ),
+        ],
       ),
-    )
-        .animate(delay: Duration(milliseconds: widget.delay))
-        .fadeIn(duration: 400.ms)
-        .slideY(begin: 0.15);
+    );
+  }
+}
+
+// ── Mode tile: a moulded row on the felt ─────────────────────────────────────
+
+class _ModeTile extends StatelessWidget {
+  final IconData icon;
+  final Color accent;
+  final String title;
+  final String subtitle;
+  final double? progress;
+  final VoidCallback onTap;
+
+  const _ModeTile({
+    required this.icon,
+    required this.accent,
+    required this.title,
+    required this.subtitle,
+    required this.onTap,
+    this.progress,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Moulded(
+      color: AppColors.card,
+      radius: 14,
+      semanticLabel: '$title, $subtitle',
+      onTap: onTap,
+      padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: AppColors.cardElevated,
+              borderRadius: BorderRadius.circular(11),
+            ),
+            child: Icon(icon, color: accent, size: 22),
+          ),
+          const SizedBox(width: 14),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  title,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.ui(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w700,
+                    color: AppColors.ink,
+                  ),
+                ),
+                const SizedBox(height: 2),
+                Text(
+                  subtitle,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: AppFonts.ui(
+                    fontSize: 13,
+                    color: AppColors.inkMute,
+                    fontFeatures: AppTextStyles.tabularFigures,
+                  ),
+                ),
+                if (progress != null) ...[
+                  const SizedBox(height: 8),
+                  ClipRRect(
+                    borderRadius: BorderRadius.circular(2),
+                    child: LinearProgressIndicator(
+                      value: progress!.clamp(0.0, 1.0),
+                      minHeight: 4,
+                      backgroundColor: AppColors.cardElevated,
+                      valueColor: AlwaysStoppedAnimation<Color>(accent),
+                    ),
+                  ),
+                ],
+              ],
+            ),
+          ),
+          const SizedBox(width: 8),
+          Icon(
+            PhosphorIcons.caretRight(PhosphorIconsStyle.bold),
+            color: AppColors.inkMute,
+            size: 18,
+          ),
+        ],
+      ),
+    );
   }
 }
 
@@ -1981,56 +1726,66 @@ class _RecentGames extends ConsumerWidget {
       data: (games) {
         if (games.isEmpty) {
           return Container(
-            padding: const EdgeInsets.all(20),
+            padding: const EdgeInsets.all(18),
             decoration: BoxDecoration(
-              color: AppColors.card,
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: AppColors.border, width: 1),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
                 Icon(
-                  PhosphorIcons.clockCounterClockwise(PhosphorIconsStyle.regular),
+                  PhosphorIcons.clockCounterClockwise(
+                    PhosphorIconsStyle.regular,
+                  ),
                   color: AppColors.inkMute,
                   size: 24,
                 ),
                 const SizedBox(width: 12),
                 Text(
                   'no_games_start_playing'.tr(),
-                  style: AppTextStyles.bodyMedium
-                      .copyWith(color: AppColors.inkDim),
+                  style: AppTextStyles.bodyMedium.copyWith(
+                    color: AppColors.inkDim,
+                  ),
                 ),
               ],
             ),
           );
         }
         return Column(
-          children: games
-              .map((g) => Padding(
-                    padding: const EdgeInsets.only(bottom: 8),
-                    child: GestureDetector(
-                      onTap: g.gameType == 'chess'
-                          ? () => context.push(
-                                '/home/game-replay/${g.id}',
-                                extra: uid)
-                          : null, // replay not yet available for checkers/domino
-                      child: RecentGameTile(game: g, uid: uid),
+          children:
+              games
+                  .map(
+                    (g) => Padding(
+                      padding: const EdgeInsets.only(bottom: 8),
+                      child: GestureDetector(
+                        onTap:
+                            g.gameType == 'chess'
+                                ? () => context.push(
+                                  '/home/game-replay/${g.id}',
+                                  extra: uid,
+                                )
+                                : null, // replay not yet available for checkers/domino
+                        child: RecentGameTile(game: g, uid: uid),
+                      ),
                     ),
-                  ))
-              .toList(),
+                  )
+                  .toList(),
         );
       },
     );
   }
 }
 
-final _recentGamesProvider =
-    FutureProvider.family<List<GameModel>, String>((ref, uid) {
+final _recentGamesProvider = FutureProvider.family<List<GameModel>, String>((
+  ref,
+  uid,
+) {
   // Fetched once and reused — but again whenever a finished game is recorded
   // (it is appended to the profile's recentGameIds). Without this the list
   // and the monthly rating badge kept showing the state from app launch.
-  ref.watch(currentUserProvider
-      .select((u) => u.valueOrNull?.recentGameIds.lastOrNull));
+  ref.watch(
+    currentUserProvider.select((u) => u.valueOrNull?.recentGameIds.lastOrNull),
+  );
   return ref.read(firestoreServiceProvider).getRecentGames(uid);
 });
 
@@ -2063,14 +1818,17 @@ class _CompleteProfileScreenState
   @override
   void initState() {
     super.initState();
-    final region = WidgetsBinding.instance.platformDispatcher.locale.countryCode
-        ?.toUpperCase();
+    final region =
+        WidgetsBinding.instance.platformDispatcher.locale.countryCode
+            ?.toUpperCase();
     if (region != null && kCountries.any((c) => c.$1 == region)) {
       _countryCode = region;
     }
     if (widget.firebaseUser.isAnonymous) {
       _creatingGuest = true;
-      WidgetsBinding.instance.addPostFrameCallback((_) => _createGuestProfile());
+      WidgetsBinding.instance.addPostFrameCallback(
+        (_) => _createGuestProfile(),
+      );
     }
   }
 
@@ -2081,11 +1839,16 @@ class _CompleteProfileScreenState
   }
 
   Future<void> _createGuestProfile() async {
-    setState(() { _creatingGuest = true; _error = null; });
+    setState(() {
+      _creatingGuest = true;
+      _error = null;
+    });
     try {
       // The profile stream picks the new document up and swaps this screen
       // for home on its own.
-      await ref.read(authServiceProvider).ensureGuestProfile(widget.firebaseUser);
+      await ref
+          .read(authServiceProvider)
+          .ensureGuestProfile(widget.firebaseUser);
     } catch (e) {
       if (mounted) {
         setState(() {
@@ -2103,48 +1866,60 @@ class _CompleteProfileScreenState
       context: context,
       isScrollControlled: true,
       backgroundColor: Colors.transparent,
-      builder: (_) => DraggableScrollableSheet(
-        initialChildSize: 0.6,
-        maxChildSize: 0.9,
-        minChildSize: 0.4,
-        builder: (_, ctrl) => Container(
-          decoration: const BoxDecoration(
-            color: AppColors.surface,
-            borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-          ),
-          child: Column(
-            children: [
-              const SizedBox(height: 12),
-              Container(
-                width: 36,
-                height: 4,
-                decoration: BoxDecoration(
-                  color: AppColors.inkMute,
-                  borderRadius: BorderRadius.circular(2),
+      builder:
+          (_) => DraggableScrollableSheet(
+            initialChildSize: 0.6,
+            maxChildSize: 0.9,
+            minChildSize: 0.4,
+            builder:
+                (_, ctrl) => Container(
+                  decoration: const BoxDecoration(
+                    color: AppColors.surface,
+                    borderRadius: BorderRadius.vertical(
+                      top: Radius.circular(24),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      const SizedBox(height: 12),
+                      Container(
+                        width: 36,
+                        height: 4,
+                        decoration: BoxDecoration(
+                          color: AppColors.inkMute,
+                          borderRadius: BorderRadius.circular(2),
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      Text(
+                        'choose_country'.tr(),
+                        style: AppTextStyles.titleMedium,
+                      ),
+                      const SizedBox(height: 8),
+                      Expanded(
+                        child: ListView.builder(
+                          controller: ctrl,
+                          itemCount: kCountries.length,
+                          itemBuilder: (_, i) {
+                            final (code, name) = kCountries[i];
+                            return ListTile(
+                              leading: Text(
+                                _flagEmoji(code),
+                                style: const TextStyle(fontSize: 22),
+                              ),
+                              title: Text(
+                                name,
+                                style: AppTextStyles.bodyMedium,
+                              ),
+                              onTap: () => Navigator.of(context).pop(code),
+                            );
+                          },
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-              const SizedBox(height: 12),
-              Text('choose_country'.tr(), style: AppTextStyles.titleMedium),
-              const SizedBox(height: 8),
-              Expanded(
-                child: ListView.builder(
-                  controller: ctrl,
-                  itemCount: kCountries.length,
-                  itemBuilder: (_, i) {
-                    final (code, name) = kCountries[i];
-                    return ListTile(
-                      leading: Text(_flagEmoji(code),
-                          style: const TextStyle(fontSize: 22)),
-                      title: Text(name, style: AppTextStyles.bodyMedium),
-                      onTap: () => Navigator.of(context).pop(code),
-                    );
-                  },
-                ),
-              ),
-            ],
           ),
-        ),
-      ),
     );
     if (picked != null) setState(() => _countryCode = picked);
   }
@@ -2168,7 +1943,9 @@ class _CompleteProfileScreenState
       _error = null;
     });
     try {
-      await ref.read(authServiceProvider).completeProfile(
+      await ref
+          .read(authServiceProvider)
+          .completeProfile(
             firebaseUser: widget.firebaseUser,
             username: username,
             countryCode: _countryCode,
@@ -2180,9 +1957,10 @@ class _CompleteProfileScreenState
       if (mounted) {
         setState(() {
           _loading = false;
-          _error = e.toString().contains('already taken')
-              ? 'err_username_taken'.tr()
-              : 'err_generic'.tr();
+          _error =
+              e.toString().contains('already taken')
+                  ? 'err_username_taken'.tr()
+                  : 'err_generic'.tr();
         });
       }
     }
@@ -2202,29 +1980,37 @@ class _CompleteProfileScreenState
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const SizedBox(
+              SizedBox(
                 width: 28,
                 height: 28,
                 child: CircularProgressIndicator(
-                    strokeWidth: 2.5, color: AppColors.amber),
+                  strokeWidth: 2.5,
+                  color: AppColors.accent,
+                ),
               ),
               const SizedBox(height: 16),
-              Text('guest_setting_up'.tr(),
-                  style: GoogleFonts.inter(
-                      fontSize: 14, color: AppColors.inkDim)),
+              Text(
+                'guest_setting_up'.tr(),
+                style: AppFonts.ui(fontSize: 14, color: AppColors.inkDim),
+              ),
             ],
           ),
         ),
       );
     }
 
-    final (countryFlag, countryName) = _countryCode != null
-        ? (_flagEmoji(_countryCode!),
-            kCountries
-                .firstWhere((c) => c.$1 == _countryCode,
-                    orElse: () => (_countryCode!, _countryCode!))
-                .$2)
-        : ('', '');
+    final (countryFlag, countryName) =
+        _countryCode != null
+            ? (
+              _flagEmoji(_countryCode!),
+              kCountries
+                  .firstWhere(
+                    (c) => c.$1 == _countryCode,
+                    orElse: () => (_countryCode!, _countryCode!),
+                  )
+                  .$2,
+            )
+            : ('', '');
     final isAnon = widget.firebaseUser.isAnonymous;
 
     return Scaffold(
@@ -2243,7 +2029,7 @@ class _CompleteProfileScreenState
                   const SizedBox(height: 20),
                   Text(
                     'choose_username'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 28,
                       fontWeight: FontWeight.w700,
                       color: AppColors.ink,
@@ -2252,17 +2038,19 @@ class _CompleteProfileScreenState
                   const SizedBox(height: 8),
                   Text(
                     'choose_username_subtitle'.tr(),
-                    style: AppTextStyles.bodyMedium
-                        .copyWith(color: AppColors.inkDim),
+                    style: AppTextStyles.bodyMedium.copyWith(
+                      color: AppColors.inkDim,
+                    ),
                   ),
                   if ((widget.firebaseUser.email ?? '').isNotEmpty) ...[
                     const SizedBox(height: 6),
                     Text(
                       widget.firebaseUser.email!,
-                      style: GoogleFonts.inter(
-                          fontSize: 13,
-                          color: AppColors.amber,
-                          fontWeight: FontWeight.w600),
+                      style: AppFonts.ui(
+                        fontSize: 13,
+                        color: AppColors.accent,
+                        fontWeight: FontWeight.w600,
+                      ),
                     ),
                   ],
                   const SizedBox(height: 28),
@@ -2291,31 +2079,41 @@ class _CompleteProfileScreenState
                     child: Container(
                       width: double.infinity,
                       padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
+                        horizontal: 16,
+                        vertical: 14,
+                      ),
                       decoration: BoxDecoration(
                         color: AppColors.card,
                         borderRadius: BorderRadius.circular(14),
-                        border: Border.all(color: AppColors.border),
                       ),
                       child: Row(
                         children: [
                           if (_countryCode != null) ...[
-                            Text(countryFlag,
-                                style: const TextStyle(fontSize: 20)),
+                            Text(
+                              countryFlag,
+                              style: const TextStyle(fontSize: 20),
+                            ),
                             const SizedBox(width: 10),
                             Expanded(
-                              child: Text(countryName,
-                                  overflow: TextOverflow.ellipsis,
-                                  style: AppTextStyles.bodyMedium),
+                              child: Text(
+                                countryName,
+                                overflow: TextOverflow.ellipsis,
+                                style: AppTextStyles.bodyMedium,
+                              ),
                             ),
                           ] else
                             Expanded(
-                              child: Text('country_optional'.tr(),
-                                  style: AppTextStyles.bodyMedium.copyWith(
-                                      color: AppColors.inkMute)),
+                              child: Text(
+                                'country_optional'.tr(),
+                                style: AppTextStyles.bodyMedium.copyWith(
+                                  color: AppColors.inkMute,
+                                ),
+                              ),
                             ),
-                          Icon(Icons.arrow_drop_down_rounded,
-                              color: AppColors.inkMute),
+                          Icon(
+                            PhosphorIcons.caretDown(PhosphorIconsStyle.bold),
+                            color: AppColors.inkMute,
+                          ),
                         ],
                       ),
                     ),
@@ -2327,17 +2125,22 @@ class _CompleteProfileScreenState
                     height: 52,
                     child: ElevatedButton(
                       onPressed: _loading ? null : _submit,
-                      child: _loading
-                          ? const SizedBox(
-                              width: 20,
-                              height: 20,
-                              child: CircularProgressIndicator(
+                      child:
+                          _loading
+                              ? const SizedBox(
+                                width: 20,
+                                height: 20,
+                                child: CircularProgressIndicator(
                                   strokeWidth: 2,
-                                  color: Color(0xFF0A0A0B)),
-                            )
-                          : Text('continue'.tr(),
-                              style: AppTextStyles.buttonLarge
-                                  .copyWith(color: const Color(0xFF0A0A0B))),
+                                  color: Color(0xFF111915),
+                                ),
+                              )
+                              : Text(
+                                'continue'.tr(),
+                                style: AppTextStyles.buttonLarge.copyWith(
+                                  color: const Color(0xFF111915),
+                                ),
+                              ),
                     ),
                   ),
                   const SizedBox(height: 12),
@@ -2346,7 +2149,7 @@ class _CompleteProfileScreenState
                       onPressed: _loading ? null : _signOut,
                       child: Text(
                         'use_different_account'.tr(),
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 14,
                           fontWeight: FontWeight.w600,
                           color: AppColors.inkDim,
@@ -2387,8 +2190,10 @@ class _ArenaTeaser extends ConsumerStatefulWidget {
 }
 
 class _ArenaTeaserState extends ConsumerState<_ArenaTeaser> {
-  late final Timer _tick =
-      Timer.periodic(const Duration(seconds: 1), (_) => setState(() {}));
+  late final Timer _tick = Timer.periodic(
+    const Duration(seconds: 1),
+    (_) => setState(() {}),
+  );
 
   @override
   void initState() {
@@ -2405,28 +2210,33 @@ class _ArenaTeaserState extends ConsumerState<_ArenaTeaser> {
   @override
   Widget build(BuildContext context) {
     final arenas = ref.watch(openArenasProvider).valueOrNull ?? const [];
-    final open = sortArenas(arenas.where((t) =>
-        t.gameType == widget.gameType.name && !t.isFinished));
+    final open = sortArenas(
+      arenas.where((t) => t.gameType == widget.gameType.name && !t.isFinished),
+    );
     if (open.isEmpty) return const SizedBox.shrink();
     // The live server arena with the most time left is the best one to join.
-    final liveServer = open.where((t) => t.isActive && t.isSystem).toList()
-      ..sort((a, b) =>
-          (b.endsAt ?? DateTime(0)).compareTo(a.endsAt ?? DateTime(0)));
+    final liveServer =
+        open.where((t) => t.isActive && t.isSystem).toList()..sort(
+          (a, b) =>
+              (b.endsAt ?? DateTime(0)).compareTo(a.endsAt ?? DateTime(0)),
+        );
     final t = liveServer.isNotEmpty ? liveServer.first : open.first;
     final accent = widget.gameType.accent;
     final now = DateTime.now();
     final live = t.isActive;
-    final timing = live && t.endsAt != null
-        ? 'arena_ends_in'.tr(
-            namedArgs: {'time': formatCountdown(t.endsAt!.difference(now))})
-        : t.startsAt != null
-            ? 'arena_starts_in_short'.tr(namedArgs: {
-                'time': formatCountdown(t.startsAt!.difference(now))
-              })
+    final timing =
+        live && t.endsAt != null
+            ? 'arena_ends_in'.tr(
+              namedArgs: {'time': formatCountdown(t.endsAt!.difference(now))},
+            )
+            : t.startsAt != null
+            ? 'arena_starts_in_short'.tr(
+              namedArgs: {'time': formatCountdown(t.startsAt!.difference(now))},
+            )
             : 'arena_status_waiting'.tr();
 
     return Padding(
-      padding: const EdgeInsets.only(top: 14),
+      padding: const EdgeInsets.only(top: 8),
       child: Semantics(
         button: true,
         label: tournamentDisplayName(t),
@@ -2435,21 +2245,23 @@ class _ArenaTeaserState extends ConsumerState<_ArenaTeaser> {
           child: Container(
             padding: const EdgeInsets.fromLTRB(14, 12, 12, 12),
             decoration: BoxDecoration(
-              color: accent.withValues(alpha: 0.08),
-              borderRadius: BorderRadius.circular(16),
-              border: Border.all(color: accent.withValues(alpha: 0.3)),
+              color: AppColors.surface,
+              borderRadius: BorderRadius.circular(14),
             ),
             child: Row(
               children: [
                 Container(
-                  width: 40,
-                  height: 40,
+                  width: 42,
+                  height: 42,
                   decoration: BoxDecoration(
-                    color: accent.withValues(alpha: 0.16),
-                    borderRadius: BorderRadius.circular(12),
+                    color: AppColors.cardElevated,
+                    borderRadius: BorderRadius.circular(11),
                   ),
-                  child: Icon(PhosphorIcons.trophy(PhosphorIconsStyle.fill),
-                      color: accent, size: 20),
+                  child: Icon(
+                    PhosphorIcons.trophy(PhosphorIconsStyle.fill),
+                    color: accent,
+                    size: 22,
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -2474,8 +2286,8 @@ class _ArenaTeaserState extends ConsumerState<_ArenaTeaser> {
                               tournamentDisplayName(t),
                               maxLines: 1,
                               overflow: TextOverflow.ellipsis,
-                              style: GoogleFonts.inter(
-                                fontSize: 14,
+                              style: AppFonts.ui(
+                                fontSize: 16,
                                 fontWeight: FontWeight.w700,
                                 color: AppColors.ink,
                               ),
@@ -2488,27 +2300,31 @@ class _ArenaTeaserState extends ConsumerState<_ArenaTeaser> {
                         '${arenaClockLabel(t)} · $timing',
                         maxLines: 1,
                         overflow: TextOverflow.ellipsis,
-                        style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
-                          color: AppColors.inkDim,
+                        style: AppFonts.ui(
+                          fontFeatures: const [FontFeature.tabularFigures()],
+                          fontSize: 13,
+                          color: AppColors.inkMute,
                         ),
                       ),
                     ],
                   ),
                 ),
                 const SizedBox(width: 8),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: accent,
-                    borderRadius: BorderRadius.circular(10),
+                Moulded(
+                  color: accent,
+                  radius: 10,
+                  lip: 3,
+                  onTap: () => context.push('/home/tournaments/${t.id}'),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 16,
+                    vertical: 15,
                   ),
                   child: Text(
                     'join'.tr(),
-                    style: GoogleFonts.inter(
-                      fontSize: 13,
-                      fontWeight: FontWeight.w700,
-                      color: const Color(0xFF0A0A0B),
+                    style: AppFonts.ui(
+                      fontSize: 14,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.onAmber,
                     ),
                   ),
                 ),
@@ -2538,27 +2354,65 @@ class _HomeShimmer extends StatelessWidget {
           const SizedBox(height: 6),
           const ShimmerBox(width: 220, height: 36, borderRadius: 8),
           const SizedBox(height: 20),
-          const ShimmerBox(width: double.infinity, height: 110, borderRadius: 18),
+          const ShimmerBox(
+            width: double.infinity,
+            height: 110,
+            borderRadius: 18,
+          ),
           const SizedBox(height: 12),
           Row(
             children: [
-              Expanded(child: ShimmerBox(width: double.infinity, height: 90, borderRadius: 14)),
+              Expanded(
+                child: ShimmerBox(
+                  width: double.infinity,
+                  height: 90,
+                  borderRadius: 14,
+                ),
+              ),
               const SizedBox(width: 8),
-              Expanded(child: ShimmerBox(width: double.infinity, height: 90, borderRadius: 14)),
+              Expanded(
+                child: ShimmerBox(
+                  width: double.infinity,
+                  height: 90,
+                  borderRadius: 14,
+                ),
+              ),
               const SizedBox(width: 8),
-              Expanded(child: ShimmerBox(width: double.infinity, height: 90, borderRadius: 14)),
+              Expanded(
+                child: ShimmerBox(
+                  width: double.infinity,
+                  height: 90,
+                  borderRadius: 14,
+                ),
+              ),
             ],
           ),
           const SizedBox(height: 28),
           const ShimmerBox(width: 60, height: 12, borderRadius: 4),
           const SizedBox(height: 10),
-          const ShimmerBox(width: double.infinity, height: 72, borderRadius: 16),
+          const ShimmerBox(
+            width: double.infinity,
+            height: 72,
+            borderRadius: 16,
+          ),
           const SizedBox(height: 10),
           Row(
             children: [
-              Expanded(child: ShimmerBox(width: double.infinity, height: 100, borderRadius: 14)),
+              Expanded(
+                child: ShimmerBox(
+                  width: double.infinity,
+                  height: 100,
+                  borderRadius: 14,
+                ),
+              ),
               const SizedBox(width: 10),
-              Expanded(child: ShimmerBox(width: double.infinity, height: 100, borderRadius: 14)),
+              Expanded(
+                child: ShimmerBox(
+                  width: double.infinity,
+                  height: 100,
+                  borderRadius: 14,
+                ),
+              ),
             ],
           ),
         ],
@@ -2594,9 +2448,10 @@ class _NavBadge extends StatelessWidget {
             child: Text(
               count > 99 ? '99+' : '$count',
               style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 9,
-                  fontWeight: FontWeight.w700),
+                color: Colors.white,
+                fontSize: 9,
+                fontWeight: FontWeight.w700,
+              ),
               textAlign: TextAlign.center,
             ),
           ),
@@ -2613,7 +2468,7 @@ final _chatUnreadProvider = StreamProvider.family<int, String>((ref, uid) {
   // the badge immediately instead of at the next cold start.
   final blocked =
       ref.watch(currentUserProvider).valueOrNull?.blockedUsers ??
-          const <String>[];
+      const <String>[];
   return ref
       .read(chatServiceProvider)
       .watchTotalUnread(uid, blockedUids: blocked);

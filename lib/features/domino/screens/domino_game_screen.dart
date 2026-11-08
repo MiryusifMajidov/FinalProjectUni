@@ -3,11 +3,13 @@ import 'dart:math' as math;
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_database/firebase_database.dart';
 import 'package:flutter/foundation.dart';
+import 'package:go_router/go_router.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:uuid/uuid.dart';
+import '../../../core/widgets/bot_badge.dart';
+import '../../../core/services/human_pace.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/models/game_model.dart';
@@ -16,13 +18,13 @@ import '../../../core/services/auth_service.dart';
 import '../../../core/services/cache_service.dart';
 import '../../../core/services/realtime_game_service.dart';
 import '../../../core/services/tournament_service.dart';
-import '../../../core/utils/text_case.dart';
 import '../../game/widgets/game_chat_panel.dart';
 import '../../game/widgets/game_chrome.dart';
 import '../../tournaments/screens/arena_lobby_screen.dart' show returnToArena;
 import '../engine/domino_engine.dart';
 import '../widgets/domino_tile_widget.dart';
 import '../../../core/services/bot_pool.dart';
+import '../../../core/theme/app_fonts.dart';
 
 /// Domino game screen — supports bot, local, online (2P & 4P) and campaign
 /// modes. Match play: rounds are dealt automatically until one side reaches
@@ -42,7 +44,7 @@ class DominoGameScreen extends ConsumerStatefulWidget {
 }
 
 class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
-  static const _accent = Color(0xFF5FD4A3);
+  static const _accent = Color(0xFF4CBF95);
   static const int _turnTimeLimit = 30; // seconds per move (online)
   static const int _abandonGraceSeconds = 30;
 
@@ -72,8 +74,10 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
   late final String _myUsername;
   late final String _opponentUsername;
   late final bool _isRated;
-  /// The bots have names (matchmaking or arena) and carry a BOT badge.
+  /// Stand-ins: bots under player names (matchmaking or arena). They play
+  /// as people would, at a person's pace, with no hint.
   late final bool _namedBots;
+  final _paceRng = math.Random();
   late String _gameId;
   late int _playerCount;
   late DominoConfig _config;
@@ -127,11 +131,6 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
   int? _finalWinnerEntity;
 
   bool get _isLocalGame => !_vsBot && !_isOnline;
-
-  /// Seats played by a named bot (matchmaking, arena or a 4-player room's
-  /// stand-in): shown with a BOT badge next to the name.
-  bool _showBotBadge(int seat) =>
-      _botSeats.contains(seat) && (_isOnline || _namedBots);
 
   int get _myEntity => _engine?.entityOf(_mySeat) ?? 0;
 
@@ -601,8 +600,9 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
     final engine = _engine;
     if (engine == null) return;
     setState(() => _thinking = true);
+    final watch = Stopwatch()..start();
     final delay = _playerCount == 4 ? 350 : 550;
-    await Future.delayed(Duration(milliseconds: delay));
+    if (!_namedBots) await Future.delayed(Duration(milliseconds: delay));
     if (!mounted) return;
 
     final e = _engine;
@@ -612,11 +612,34 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
     }
 
     // Draw until playable (Draw variant only — canDraw handles the rules).
+    var draws = 0;
     while (e.legalPlays().isEmpty && e.canDraw) {
       e.drawTile();
+      draws++;
+    }
+
+    // A stand-in takes a person's time over the turn.
+    final paceMs = _namedBots
+        ? HumanPace.dominoMs(
+            options: e.legalPlays().length,
+            handSize: e.handOf(e.turnSeat).length,
+            draws: draws,
+            rng: _paceRng,
+          )
+        : 0;
+    Future<bool> waitPace() async {
+      final left = paceMs - watch.elapsedMilliseconds;
+      if (left > 0) await Future.delayed(Duration(milliseconds: left));
+      if (!mounted) return false;
+      final now = _engine;
+      return now != null && !now.matchOver && identical(now, e);
     }
 
     if (e.legalPlays().isEmpty) {
+      if (!await waitPace()) {
+        if (mounted) setState(() => _thinking = false);
+        return;
+      }
       e.pass();
       setState(() => _thinking = false);
       _afterStateAdvance();
@@ -632,7 +655,10 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
     } catch (err) {
       debugPrint('[Domino] isolate search failed: $err');
     }
-    if (!mounted) return;
+    if (!await waitPace()) {
+      if (mounted) setState(() => _thinking = false);
+      return;
+    }
 
     final e2 = _engine;
     if (e2 == null || e2.matchOver) {
@@ -675,7 +701,17 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
 
     final actionIndex = _appliedActions;
     final seed = _seedFromGameId(_gameId) ^ (actionIndex * 2654435761);
-    final delayMs = 700 + math.Random(seed).nextInt(1100);
+    // A person's time over the turn (the seed keeps it the same on every
+    // client that might drive the seat), kept under the 6 s stall watchdog
+    // in _onTurnTick.
+    final delayMs = math.min(
+      5500,
+      HumanPace.dominoMs(
+        options: engine.legalPlays().length,
+        handSize: engine.handOf(seat).length,
+        rng: math.Random(seed),
+      ),
+    );
 
     Future.delayed(Duration(milliseconds: delayMs), () async {
       if (!mounted) return;
@@ -1061,8 +1097,8 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
               ),
               const SizedBox(height: 18),
               Text(
-                'round_n'.tr(args: ['${summary.roundNumber}']).toUpperCaseFor(context),
-                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12, color: AppColors.inkMute, letterSpacing: 1,
+                'round_n'.tr(args: ['${summary.roundNumber}']),
+                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12, color: AppColors.inkMute, letterSpacing: 1,
                 ),
               ),
               const SizedBox(height: 6),
@@ -1073,7 +1109,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                         ? 'round_blocked_win'.tr(args: [_entityName(summary.winnerEntity!)])
                         : 'round_domino'.tr(args: [_seatName(summary.winnerSeat!)])),
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 22, fontWeight: FontWeight.w700,
                   color: isWash
                       ? AppColors.draw
@@ -1084,7 +1120,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                 const SizedBox(height: 4),
                 Text(
                   'points_gained'.tr(args: ['${summary.scoreGained}']),
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 14, fontWeight: FontWeight.w600, color: _accent,
                   ),
                 ),
@@ -1098,10 +1134,10 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       Text(_seatName(s),
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                               fontSize: 13, color: AppColors.inkDim)),
                       Text('pips_n'.tr(args: ['${summary.pipCounts[s]}']),
-                          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13, color: AppColors.ink)),
+                          style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 13, color: AppColors.ink)),
                     ],
                   ),
                 );
@@ -1110,12 +1146,12 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text('score'.tr(), style: GoogleFonts.inter(
+                  Text('score'.tr(), style: AppFonts.ui(
                       fontSize: 13, fontWeight: FontWeight.w600,
                       color: AppColors.inkDim)),
                   Text(
                     _scoreLine(summary.totalScores),
-                    style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 14, fontWeight: FontWeight.w600,
+                    style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 14, fontWeight: FontWeight.w600,
                       color: AppColors.ink,
                     ),
                   ),
@@ -1128,16 +1164,12 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                   onPressed: () => Navigator.pop(ctx),
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _accent,
-                    foregroundColor: const Color(0xFF0A0A0B),
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(14),
-                    ),
-                    padding: const EdgeInsets.symmetric(vertical: 14),
-                  ),
+                    foregroundColor: const Color(0xFF111915),
+                    padding: const EdgeInsets.symmetric(vertical: 14),),
                   child: Text(
                     'continue_round'.tr(args: ['${engine.roundNumber}']),
                     style: AppTextStyles.buttonMedium
-                        .copyWith(color: const Color(0xFF0A0A0B)),
+                        .copyWith(color: const Color(0xFF111915)),
                   ),
                 ),
               ),
@@ -1185,9 +1217,24 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
     if (user == null) return;
 
     final myUid = user.uid;
-    final oppUid = _opponentUid ?? widget.extra['opponentUid'] as String?;
+    final oppUid = _opponentUid ??
+        widget.extra['opponentUid'] as String? ??
+        widget.extra['opponentBotUid'] as String? ??
+        _arenaBotUid;
 
     final humanWon = winnerEntity == _myEntity;
+
+    // The stand-ins' profiles count the game at once (on this phone).
+    if (_namedBots || _isOnline) {
+      for (final seat in _botSeats) {
+        final uid =
+            _seatUids[seat] ?? BotPool.loadedByName(_seatName(seat))?.uid;
+        final entity = _engine?.entityOf(seat);
+        if (uid == null || entity == null) continue;
+        unawaited(
+            BotRecords.add(uid, 'domino', entity == winnerEntity ? 1 : -1));
+      }
+    }
     // Match play has no draws: a target score is always reached (resign /
     // abandonment also produce a winner).
     const isDraw = false;
@@ -1378,7 +1425,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
             const SizedBox(height: 24),
             Text(
               title,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 32, fontWeight: FontWeight.w700,
                 color: color,
                 letterSpacing: -1,
@@ -1392,7 +1439,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                   '${engine.roundNumber}',
                 ]),
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 13, color: AppColors.inkDim,
                 ),
               ),
@@ -1406,12 +1453,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                       Navigator.pop(context);
                     },
                     style: OutlinedButton.styleFrom(
-                      side: const BorderSide(color: AppColors.borderStrong),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
+                      padding: const EdgeInsets.symmetric(vertical: 14),),
                     child: Text('exit'.tr(), style: AppTextStyles.buttonMedium),
                   ),
                 ),
@@ -1431,12 +1473,8 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                     },
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _accent,
-                      foregroundColor: const Color(0xFF0A0A0B),
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(14),
-                      ),
-                      padding: const EdgeInsets.symmetric(vertical: 14),
-                    ),
+                      foregroundColor: const Color(0xFF111915),
+                      padding: const EdgeInsets.symmetric(vertical: 14),),
                     child: Text(
                         (_arenaId != null
                                 ? 'back_to_arena'
@@ -1445,7 +1483,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                                     : 'rematch')
                             .tr(),
                         style: AppTextStyles.buttonMedium
-                            .copyWith(color: const Color(0xFF0A0A0B))),
+                            .copyWith(color: const Color(0xFF111915))),
                   ),
                 ),
               ],
@@ -1484,19 +1522,18 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
         scrolledUnderElevation: 0,
         leading: IconButton(
           icon: Icon(
-            PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
+            PhosphorIcons.arrowLeft(PhosphorIconsStyle.bold),
             color: AppColors.ink,
           ),
           onPressed: () => Navigator.pop(context),
         ),
         title: Text(
           '2v2 Table',
-          style: GoogleFonts.inter(
+          style: AppFonts.ui(
             fontSize: 20, fontWeight: FontWeight.w600,
             color: AppColors.ink,
           ),
         ),
-        centerTitle: true,
       ),
       body: SafeArea(
         child: Padding(
@@ -1509,7 +1546,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                     ? 'waiting_friends_join'.tr()
                     : 'waiting_host_start'.tr(),
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                     fontSize: 14, color: AppColors.inkDim),
               ),
               const SizedBox(height: 20),
@@ -1518,12 +1555,13 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                   name: _seatNames.length > s
                       ? _seatNames[s]
                       : 'player_n'.tr(args: ['${s + 1}']),
-                  team: (s % 2 == 0 ? 'team_a' : 'team_b').tr().toUpperCaseFor(context),
-                  accent: s % 2 == 0 ? _accent : const Color(0xFFF07079),
+                  team: (s % 2 == 0 ? 'team_a' : 'team_b').tr(),
+                  accent: s % 2 == 0 ? _accent : const Color(0xFFF07A6E),
                   status: s == _mySeat
                       ? 'you'.tr()
+                      // A stand-in's seat reads like a player's.
                       : _botSeats.contains(s)
-                          ? 'bot'.tr()
+                          ? 'seat_joined'.tr()
                           : (_seatOnline[s] == true
                               ? 'seat_joined'.tr()
                               : 'seat_invited'.tr()),
@@ -1538,7 +1576,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                 Text(
                   'table_bot_fill_note'.tr(),
                   textAlign: TextAlign.center,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                       fontSize: 11, color: AppColors.inkMute),
                 ),
                 const SizedBox(height: 10),
@@ -1549,23 +1587,18 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                     style: ElevatedButton.styleFrom(
                       backgroundColor: _accent,
                       disabledBackgroundColor: _accent.withValues(alpha: 0.3),
-                      foregroundColor: const Color(0xFF0A0A0B),
-                      elevation: 0,
-                      shape: RoundedRectangleBorder(
-                        borderRadius: BorderRadius.circular(16),
-                      ),
-                    ),
+                      foregroundColor: const Color(0xFF111915),),
                     child: _starting
                         ? const SizedBox(
                             width: 20, height: 20,
                             child: CircularProgressIndicator(
-                                strokeWidth: 2, color: Color(0xFF0A0A0B)),
+                                strokeWidth: 2, color: Color(0xFF111915)),
                           )
                         : Text(
                             'start_game'.tr(),
-                            style: GoogleFonts.inter(
+                            style: AppFonts.ui(
                               fontSize: 16, fontWeight: FontWeight.w600,
-                              color: const Color(0xFF0A0A0B),
+                              color: const Color(0xFF111915),
                             ),
                           ),
                   ),
@@ -1601,7 +1634,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
         body: Center(
           child: _roomError != null
               ? Text(_roomError!,
-                  style: GoogleFonts.inter(color: AppColors.inkDim))
+                  style: AppFonts.ui(color: AppColors.inkDim))
               : const CircularProgressIndicator(color: _accent, strokeWidth: 2),
         ),
       );
@@ -1684,7 +1717,13 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
                                 engine.entityOf(s) == _myEntity,
                             tileCount: engine.handOf(s).length,
                             isActive: engine.turnSeat == s,
-                            thinking: _thinking && engine.turnSeat == s,
+                            thinking: _thinking &&
+                                engine.turnSeat == s &&
+                                !_namedBots,
+                            onTap: _hasProfile(s)
+                                ? () => _openSeatProfile(s)
+                                : null,
+                            isBot: _isLabelledBot(s),
                             accent: _accent,
                             secondsLeft: showClock && engine.turnSeat == s
                                 ? _turnSecondsLeft
@@ -1831,14 +1870,16 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
   // ── Page chrome ──────────────────────────────────────────────────────────
 
   String _modeLabel(BuildContext context, DominoEngine engine) {
-    String up(String key) => key.tr().toUpperCaseFor(context);
+    String up(String key) => key.tr();
     final base = _arenaId != null
         ? up('arena')
         : _isOnline
             ? '${up('online')} · ${_isRated ? up('rated_game') : up('game_casual')}'
-            : switch (_mode) {
+            : _namedBots && !(_playerCount == 2 && _isLabelledBot(1 - _mySeat))
+                ? '${up('online')} · ${up('game_casual')}'
+                : switch (_mode) {
                 'campaign' => up('campaign'),
-                'bot' => '${up('vs_bot')} · ${up('game_casual')}',
+                'bot' => up('vs_bot'),
                 _ => up('local_game'),
               };
     if (_playerCount != 4) return base;
@@ -1850,6 +1891,31 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
     if (engine.boneyardCount == 0) return round;
     return '$round · ${'boneyard'.tr()} ${engine.boneyardCount}';
   }
+
+  /// Whether [seat]'s player has a profile to open: anyone else at an
+  /// online table, or a stand-in.
+  bool _hasProfile(int seat) =>
+      !_isLocalGame &&
+      seat != _mySeat &&
+      (_seatUids[seat] != null ||
+          _namedBots ||
+          (_isOnline && _botSeats.contains(seat)));
+
+  /// Opens the profile of [seat]'s player. A stand-in at a table keeps only
+  /// its name, which is unique in the bot pool.
+  Future<void> _openSeatProfile(int seat) async {
+    final uid = _seatUids[seat] ??
+        (await BotPool.byName(_seatName(seat)))?.uid;
+    if (uid == null || !mounted) return;
+    context.push('/home/profile/$uid');
+  }
+
+  /// [seat] is played by a labelled bot (Bot badge after the name).
+  bool _isLabelledBot(int seat) =>
+      _botSeats.contains(seat) &&
+      (_namedBots || _isOnline) &&
+      BotPool.isLabelledUid(
+          _seatUids[seat] ?? BotPool.loadedByName(_seatName(seat))?.uid);
 
   Widget _strip(DominoEngine engine, {required int seat, required bool showClock}) {
     final active = engine.turnSeat == seat;
@@ -1865,10 +1931,11 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
       name: name,
       photoUrl: photoUrl,
       isActive: active,
-      isBot: _showBotBadge(seat),
+      onTap: _hasProfile(seat) ? () => _openSeatProfile(seat) : null,
+      isBot: _isLabelledBot(seat),
       token: Text(
         name.isEmpty ? '?' : name.characters.first.toUpperCase(),
-        style: GoogleFonts.inter(
+        style: AppFonts.ui(
           fontSize: 16,
           fontWeight: FontWeight.w700,
           color: AppColors.inkDim,
@@ -1883,7 +1950,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
               active: true,
               low: _turnSecondsLeft <= 10,
             )
-          : (_thinking && active && isOpponent)
+          : (_thinking && active && isOpponent && !_namedBots)
               ? const GameThinkingIndicator()
               : null,
     );
@@ -1920,7 +1987,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
         resign,
       ];
     }
-    if (_vsBot && _arenaId == null) {
+    if (_vsBot && _arenaId == null && !_namedBots) {
       return [
         GameAction(
           icon: PhosphorIcons.lightbulb(PhosphorIconsStyle.regular),
@@ -1928,6 +1995,7 @@ class _DominoGameScreenState extends ConsumerState<DominoGameScreen> {
           onTap: myTurn && !_hinting && legalPlays.isNotEmpty
               ? _handleHint
               : null,
+          busy: _hinting,
         ),
         drawOrPass,
         resign,
@@ -1990,7 +2058,7 @@ class _BoneyardPicker extends StatelessWidget {
             children: [
               Text(
                 'boneyard_title'.tr(args: ['$faceDownCount']),
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 16,
                   fontWeight: FontWeight.w700,
                   color: AppColors.ink,
@@ -2000,7 +2068,7 @@ class _BoneyardPicker extends StatelessWidget {
               Text(
                 hint,
                 textAlign: TextAlign.center,
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 12.5,
                   color: AppColors.inkDim,
                   height: 1.4,
@@ -2120,7 +2188,7 @@ class _ScoreHeader extends StatelessWidget {
         ),
         child: Text(
           '${entityLabel(e)} · ${engine.scores[e]}',
-          style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+          style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
             fontWeight: FontWeight.w600,
             color: e == myEntity ? accent : AppColors.inkDim,
           ),
@@ -2140,7 +2208,7 @@ class _ScoreHeader extends StatelessWidget {
           ...chips,
           Text(
             'play_to_n'.tr(args: ['${engine.targetScore}']),
-            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.inkMute,
+            style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.inkMute,
             ),
           ),
         ],
@@ -2163,6 +2231,12 @@ class _CompactInfoBar extends StatelessWidget {
   /// A bot is choosing its play for this seat.
   final bool thinking;
 
+  /// Opens the seat's player profile.
+  final VoidCallback? onTap;
+
+  /// A labelled bot (Bot badge after the name).
+  final bool isBot;
+
   const _CompactInfoBar({
     required this.label,
     required this.tileCount,
@@ -2171,10 +2245,24 @@ class _CompactInfoBar extends StatelessWidget {
     this.secondsLeft,
     this.isPartner = false,
     this.thinking = false,
+    this.onTap,
+    this.isBot = false,
   });
 
   @override
   Widget build(BuildContext context) {
+    return Semantics(
+      button: onTap != null,
+      hint: onTap != null ? 'view_profile'.tr() : null,
+      child: GestureDetector(
+        behavior: HitTestBehavior.opaque,
+        onTap: onTap,
+        child: _bar(),
+      ),
+    );
+  }
+
+  Widget _bar() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
       decoration: BoxDecoration(
@@ -2208,7 +2296,7 @@ class _CompactInfoBar extends StatelessWidget {
               Flexible(
                 child: Text(
                   label,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 12, fontWeight: FontWeight.w600,
                     color: isActive ? accent : AppColors.ink,
                   ),
@@ -2220,6 +2308,10 @@ class _CompactInfoBar extends StatelessWidget {
                 Icon(PhosphorIcons.handshake(PhosphorIconsStyle.regular),
                     size: 12, color: accent),
               ],
+              if (isBot) ...[
+                const SizedBox(width: 4),
+                const BotBadge(fontSize: 9.5),
+              ],
             ],
           ),
           const SizedBox(height: 2),
@@ -2227,7 +2319,7 @@ class _CompactInfoBar extends StatelessWidget {
             secondsLeft != null
                 ? '$tileCount ${'tiles'.tr()} · ${GameClockText.seconds(secondsLeft!)}'
                 : '$tileCount ${'tiles'.tr()}',
-            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.inkDim,
+            style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, color: AppColors.inkDim,
             ),
           ),
         ],
@@ -2282,7 +2374,7 @@ class _WaitingSeatTile extends StatelessWidget {
               children: [
                 Text(
                   name,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 14, fontWeight: FontWeight.w600,
                     color: AppColors.ink,
                   ),
@@ -2291,7 +2383,7 @@ class _WaitingSeatTile extends StatelessWidget {
                 const SizedBox(height: 2),
                 Text(
                   status,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                       fontSize: 11, color: AppColors.inkMute),
                 ),
               ],
@@ -2305,7 +2397,7 @@ class _WaitingSeatTile extends StatelessWidget {
             ),
             child: Text(
               team,
-              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
+              style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                 color: accent, letterSpacing: 0.6,
               ),
             ),

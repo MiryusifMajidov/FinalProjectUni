@@ -6,7 +6,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
-import 'package:google_fonts/google_fonts.dart';
+import '../../../core/models/game_type.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -19,6 +19,7 @@ import '../../../core/widgets/guest_notice.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import '../../game/engine/chess_engine.dart';
 import '../../game/widgets/chess_board_widget.dart';
+import '../../../core/theme/app_fonts.dart';
 
 const _settingsCountries = [
   ('AF', 'Afghanistan'), ('AL', 'Albania'), ('DZ', 'Algeria'), ('AR', 'Argentina'),
@@ -176,9 +177,7 @@ class SettingsNotifier extends StateNotifier<SettingsState> {
 const _kBg            = AppColors.background;
 const _kSurface       = AppColors.surface;
 const _kCard          = AppColors.card;
-const _kCardElevated  = AppColors.cardElevated;
-const _kAmber         = AppColors.amber;
-const _kAmberDeep     = AppColors.amberDeep;
+Color get _kAmber => AppColors.accent;
 const _kLoss          = AppColors.loss;
 const _kInk           = AppColors.ink;
 const _kInkDim        = AppColors.inkDim;
@@ -186,7 +185,7 @@ const _kInkMute       = AppColors.inkMute;
 const _kInkFaint      = AppColors.inkFaint;
 const _kBorder        = AppColors.border;  // rgba(255,255,255,0.06)
 const _kBorderStrong  = AppColors.borderStrong;  // rgba(255,255,255,0.10)
-const _kLossBorder    = Color(0x38F07079);  // rgba(240,112,121,0.22)
+const _kLossBorder    = Color(0x38F07A6E);  // rgba(240,112,121,0.22)
 
 // ── Main Screen ───────────────────────────────────────────────────────────────
 
@@ -245,7 +244,6 @@ class SettingsScreen extends ConsumerWidget {
                       decoration: BoxDecoration(
                         color: _kCard,
                         borderRadius: BorderRadius.circular(10),
-                        border: Border.all(color: _kBorder),
                       ),
                       child: Icon(
                         PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
@@ -256,7 +254,7 @@ class SettingsScreen extends ConsumerWidget {
                   const SizedBox(width: 14),
                   Text(
                     'settings'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 22,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -279,6 +277,7 @@ class SettingsScreen extends ConsumerWidget {
                   ? const SizedBox.shrink()
                   : _UserCard(
                       user: user,
+                      game: ref.watch(activeGameProvider),
                       onTap: () => context.push('/home/profile/${user.uid}'),
                     ).animate().fadeIn(),
             ),
@@ -399,7 +398,7 @@ class SettingsScreen extends ConsumerWidget {
                 child: Center(
                   child: Text(
                     'log_out'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 13,
                       fontWeight: FontWeight.w600,
                       color: _kLoss,
@@ -418,7 +417,7 @@ class SettingsScreen extends ConsumerWidget {
             child: Center(
               child: Text(
                 'CHECKMATE · LUDODO',
-                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                   color: _kInkFaint,
                   letterSpacing: 0.5,
                 ),
@@ -447,8 +446,12 @@ class SettingsScreen extends ConsumerWidget {
 
 class _UserCard extends StatelessWidget {
   final UserModel user;
+
+  /// The selected game: the card shows that game's rating (it showed the
+  /// chess average as "ELO" with draughts and dominoes selected too).
+  final GameType game;
   final VoidCallback onTap;
-  const _UserCard({required this.user, required this.onTap});
+  const _UserCard({required this.user, required this.game, required this.onTap});
 
   static String _fmtRating(int r) {
     if (r >= 1000) {
@@ -473,9 +476,8 @@ class _UserCard extends StatelessWidget {
           gradient: const LinearGradient(
             begin: Alignment(0.0, -1.0),
             end: Alignment(1.0, 1.0),
-            colors: [_kCardElevated, _kCard],
+            colors: [_kCard, _kCard],
           ),
-          border: Border.all(color: _kBorder, width: 1),
         ),
         child: Row(
           children: [
@@ -484,20 +486,20 @@ class _UserCard extends StatelessWidget {
               width: 48,
               height: 48,
               decoration: BoxDecoration(
-                gradient: const LinearGradient(
+                gradient: LinearGradient(
                   begin: Alignment.topLeft,
                   end: Alignment.bottomRight,
-                  colors: [_kAmber, _kAmberDeep],
+                  colors: [_kAmber, _kAmber],
                 ),
                 borderRadius: BorderRadius.circular(12),
               ),
               child: Center(
                 child: Text(
                   initial,
-                  style: GoogleFonts.inter(
+                  style: AppFonts.ui(
                     fontSize: 20,
                     fontWeight: FontWeight.w700,
-                    color: const Color(0xFF1A1205),
+                    color: const Color(0xFF241703),
                   ),
                 ),
               ),
@@ -510,7 +512,7 @@ class _UserCard extends StatelessWidget {
                 children: [
                   Text(
                     user.username,
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 18,
                       fontWeight: FontWeight.w700,
                       color: _kInk,
@@ -518,9 +520,15 @@ class _UserCard extends StatelessWidget {
                   ),
                   const SizedBox(height: 2),
                   Text(
-                    '${_fmtRating(user.overallRating)} ELO'
-                    '${user.skillLevel != null ? ' · ${user.skillLevel}' : ''}',
-                    style: GoogleFonts.inter(
+                    switch (game) {
+                      GameType.chess =>
+                        '${_fmtRating(user.blitzStats.rating)} · ${'blitz'.tr()}',
+                      GameType.checkers =>
+                        '${_fmtRating(user.checkersStats.rating)} · ${'points_label'.tr()}',
+                      GameType.domino =>
+                        '${_fmtRating(user.dominoStats.rating)} · ${'points_label'.tr()}',
+                    },
+                    style: AppFonts.ui(
                       fontSize: 11,
                       color: _kInkMute,
                     ),
@@ -555,12 +563,11 @@ class _SettingsGroup extends StatelessWidget {
           padding: const EdgeInsets.fromLTRB(20, 0, 20, 8),
           child: Text(
             title,
-            style: GoogleFonts.inter(
-              fontSize: 10,
-              fontWeight: FontWeight.w700,
-              color: _kInkMute,
-              letterSpacing: 1.2,
-            ),
+            style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
           ),
         ),
         Container(
@@ -568,7 +575,6 @@ class _SettingsGroup extends StatelessWidget {
           decoration: BoxDecoration(
             color: _kCard,
             borderRadius: BorderRadius.circular(14),
-            border: Border.all(color: _kBorder, width: 1),
           ),
           clipBehavior: Clip.hardEdge,
           child: Column(children: children),
@@ -614,7 +620,6 @@ class _SettingsRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: _kSurface,
                     borderRadius: BorderRadius.circular(10),
-                    border: Border.all(color: _kBorder, width: 1),
                   ),
                   child: Center(
                     child: Icon(
@@ -633,7 +638,7 @@ class _SettingsRow extends StatelessWidget {
                     children: [
                       Text(
                         label,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 14,
                           fontWeight: FontWeight.w500,
                           color: danger ? _kLoss : _kInk,
@@ -643,7 +648,7 @@ class _SettingsRow extends StatelessWidget {
                         const SizedBox(height: 2),
                         Text(
                           sub!,
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 11,
                             color: _kInkMute,
                           ),
@@ -706,7 +711,7 @@ class _DesignToggle extends StatelessWidget {
               width: 18,
               height: 18,
               decoration: BoxDecoration(
-                color: on ? const Color(0xFF1A1205) : _kInk,
+                color: on ? const Color(0xFF241703) : _kInk,
                 shape: BoxShape.circle,
               ),
             ),

@@ -4,21 +4,22 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
+import '../../../core/widgets/bot_badge.dart';
+import '../../../core/services/bot_pool.dart';
 import '../../../core/models/user_model.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/cache_service.dart';
 
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg        = AppColors.background;
 const _kSurface   = AppColors.surface;
 const _kCard      = AppColors.card;
-const _kAmber     = AppColors.amber;
-const _kAmberDeep = AppColors.amberDeep;
-const _kAmberGlow = AppColors.amberGlow;
+Color get _kAmber => AppColors.accent;
+Color get _kAmberGlow => AppColors.accentGlow;
 const _kInk       = AppColors.ink;
 const _kInkDim    = AppColors.inkDim;
 const _kInkMute   = AppColors.inkMute;
@@ -266,7 +267,7 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
                   GestureDetector(
                     onTap: () => context.pop(),
                     child: Icon(
-                      PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
+                      PhosphorIcons.arrowLeft(PhosphorIconsStyle.bold),
                       size: 22,
                       color: _kInk,
                     ),
@@ -288,7 +289,7 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
                         boxShadow: _hasFocus
                             ? [
                                 BoxShadow(
-                                  color: _kAmber.withValues(alpha: 0.08),
+                                  color: Colors.black.withValues(alpha: 0.28),
                                   blurRadius: 14,
                                   spreadRadius: 2,
                                 ),
@@ -298,7 +299,7 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
                       child: TextField(
                         controller: _ctrl,
                         focusNode: _focus,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 14,
                           color: _kInk,
                           fontWeight: FontWeight.w400,
@@ -307,7 +308,7 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
                         cursorWidth: 1.5,
                         decoration: InputDecoration(
                           hintText: 'search_players'.tr(),
-                          hintStyle: GoogleFonts.inter(
+                          hintStyle: AppFonts.ui(
                             fontSize: 14,
                             color: _kInkMute,
                             fontWeight: FontWeight.w400,
@@ -408,9 +409,11 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
             children: [
               Text(
                 'RESULTS',
-                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
-                  color: _kInkMute, letterSpacing: 0.6,
-                ),
+                style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
               ),
               const SizedBox(width: 6),
               if (_playerLoading)
@@ -425,9 +428,11 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
                 Text(
                   '· ${_playerResults.length} PLAYER'
                   '${_playerResults.length == 1 ? '' : 'S'}',
-                  style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
-                    color: _kInkMute, letterSpacing: 0.6,
-                  ),
+                  style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
                 ),
             ],
           ),
@@ -439,7 +444,7 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
               child: Center(
                 child: Text(
                   'No players found for "$_lastQuery"',
-                  style: GoogleFonts.inter(fontSize: 13, color: _kInkMute),
+                  style: AppFonts.ui(fontSize: 13, color: _kInkMute),
                 ),
               ),
             )
@@ -464,9 +469,11 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
         if (_recent.isNotEmpty) ...[
           Text(
             'RECENT',
-            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
-              color: _kInkMute, letterSpacing: 0.6,
-            ),
+            style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
           ),
           const SizedBox(height: 8),
           for (int i = 0; i < _recent.length; i++)
@@ -513,9 +520,11 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
             child: Text(
               'CITIES · ${_cityMatches.length} RESULT'
               '${_cityMatches.length == 1 ? '' : 'S'}',
-              style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
-                color: _kInkMute, letterSpacing: 0.6,
-              ),
+              style: AppFonts.ui(
+          fontSize: 14,
+          fontWeight: FontWeight.w600,
+          color: AppColors.inkDim,
+        ),
             ),
           );
         }
@@ -545,12 +554,12 @@ class _MapSearchScreenState extends ConsumerState<MapSearchScreen> {
           const SizedBox(height: 12),
           Text(line1,
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(
+            style: AppFonts.ui(
                 fontSize: 13, color: _kInkDim, fontWeight: FontWeight.w500)),
           const SizedBox(height: 4),
           Text(line2,
             textAlign: TextAlign.center,
-            style: GoogleFonts.inter(fontSize: 12, color: _kInkMute)),
+            style: AppFonts.ui(fontSize: 12, color: _kInkMute)),
         ],
       ),
     );
@@ -591,7 +600,7 @@ class _TabPill extends StatelessWidget {
           children: [
             Text(
               label,
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 11, fontWeight: FontWeight.w700,
                 color: active ? _kAmber : _kInkDim,
               ),
@@ -600,7 +609,7 @@ class _TabPill extends StatelessWidget {
               const SizedBox(width: 4),
               Text(
                 '$count',
-                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
+                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11,
                   color: (active ? _kAmber : _kInkDim).withValues(alpha: 0.7),
                 ),
               ),
@@ -651,10 +660,10 @@ class _PlayerRow extends StatelessWidget {
                       width: 40, height: 40,
                       decoration: BoxDecoration(
                         borderRadius: BorderRadius.circular(12),
-                        gradient: const LinearGradient(
+                        gradient: LinearGradient(
                           begin: Alignment.topLeft,
                           end: Alignment.bottomRight,
-                          colors: [_kAmber, _kAmberDeep],
+                          colors: [_kAmber, _kAmber],
                         ),
                       ),
                       child: Center(
@@ -662,9 +671,9 @@ class _PlayerRow extends StatelessWidget {
                           user.username.isNotEmpty
                               ? user.username[0].toUpperCase()
                               : '?',
-                          style: GoogleFonts.inter(
+                          style: AppFonts.ui(
                             fontSize: 18, fontWeight: FontWeight.w700,
-                            color: const Color(0xFF1A1205),
+                            color: const Color(0xFF241703),
                           ),
                         ),
                       ),
@@ -688,13 +697,24 @@ class _PlayerRow extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      _HighlightedText(name: user.username, match: match),
+                      Row(
+                        children: [
+                          Flexible(
+                            child: _HighlightedText(
+                                name: user.username, match: match),
+                          ),
+                          if (BotPool.isLabelledUid(user.uid)) ...[
+                            const SizedBox(width: 6),
+                            const BotBadge(fontSize: 10),
+                          ],
+                        ],
+                      ),
                       const SizedBox(height: 2),
                       Row(
                         children: [
                           Text(
                             '${user.overallRating}',
-                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w700,
+                            style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 11, fontWeight: FontWeight.w700,
                               color: _kAmber,
                             ),
                           ),
@@ -707,7 +727,7 @@ class _PlayerRow extends StatelessWidget {
                                     color: _kInkFaint, fontSize: 12)),
                             ),
                             Text(distLabel!,
-                              style: GoogleFonts.inter(
+                              style: AppFonts.ui(
                                 fontSize: 11, color: _kInkMute)),
                           ],
                           if (isNear) ...[
@@ -721,7 +741,7 @@ class _PlayerRow extends StatelessWidget {
                               ),
                               child: Text(
                                 'NEAR',
-                                style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
+                                style: AppFonts.ui(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 10.5, fontWeight: FontWeight.w700,
                                   color: _kAmber, letterSpacing: 0.4,
                                 ),
                               ),
@@ -775,7 +795,6 @@ class _CityRow extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: _kCard,
                     borderRadius: BorderRadius.circular(12),
-                    border: Border.all(color: _kBorder),
                   ),
                   child: Center(
                     child: Text(flag,
@@ -789,7 +808,7 @@ class _CityRow extends StatelessWidget {
                     children: [
                       Text(
                         city.name,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                           fontSize: 14, fontWeight: FontWeight.w600,
                           color: _kInk,
                         ),
@@ -797,7 +816,7 @@ class _CityRow extends StatelessWidget {
                       const SizedBox(height: 2),
                       Text(
                         city.country,
-                        style: GoogleFonts.inter(
+                        style: AppFonts.ui(
                             fontSize: 11, color: _kInkMute),
                       ),
                     ],
@@ -831,12 +850,12 @@ class _HighlightedText extends StatelessWidget {
     final idx        = lowerName.indexOf(lowerMatch);
     if (idx < 0 || match.isEmpty) {
       return Text(name,
-        style: GoogleFonts.inter(
+        style: AppFonts.ui(
             fontSize: 14, fontWeight: FontWeight.w600, color: _kInk));
     }
     return RichText(
       text: TextSpan(
-        style: GoogleFonts.inter(
+        style: AppFonts.ui(
             fontSize: 14, fontWeight: FontWeight.w600, color: _kInk),
         children: [
           if (idx > 0) TextSpan(text: name.substring(0, idx)),
@@ -848,7 +867,7 @@ class _HighlightedText extends StatelessWidget {
               color: _kAmberGlow,
               child: Text(
                 name.substring(idx, idx + match.length),
-                style: GoogleFonts.inter(
+                style: AppFonts.ui(
                   fontSize: 14, fontWeight: FontWeight.w600, color: _kAmber,
                 ),
               ),
@@ -903,7 +922,7 @@ class _RecentRow extends StatelessWidget {
                 const SizedBox(width: 12),
                 Expanded(
                   child: Text(query,
-                    style: GoogleFonts.inter(fontSize: 13, color: _kInkDim)),
+                    style: AppFonts.ui(fontSize: 13, color: _kInkDim)),
                 ),
                 GestureDetector(
                   onTap: onRemove,

@@ -50,6 +50,7 @@ import '../../features/checkers/screens/checkers_game_screen.dart';
 import '../../features/domino/screens/domino_bot_setup_screen.dart';
 import '../../features/domino/screens/domino_table_setup_screen.dart';
 import '../../features/domino/screens/domino_game_screen.dart';
+import '../../features/offline/screens/offline_play_screen.dart';
 import '../models/user_model.dart';
 import '../services/auth_service.dart';
 
@@ -64,6 +65,20 @@ class _RouterNotifier extends ChangeNotifier {
   }
   final Ref _ref;
 }
+
+/// Routes a signed-out player may open: the offline hub, its setup screens,
+/// and the three game screens (which only save anything when signed in).
+bool isOfflinePlayPath(String loc) =>
+    loc == '/offline' ||
+    loc.startsWith('/offline/') ||
+    loc.startsWith('/game/') ||
+    loc.startsWith('/checkers-game/') ||
+    loc.startsWith('/domino-game/');
+
+/// Where "Home" leads after a game: the real home when signed in, the
+/// offline hub otherwise.
+String homeRouteFor(WidgetRef ref) =>
+    ref.read(authStateProvider).valueOrNull != null ? '/home' : '/offline';
 
 final _routerNotifierProvider =
     ChangeNotifierProvider<_RouterNotifier>((ref) => _RouterNotifier(ref));
@@ -86,6 +101,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       final loc = state.matchedLocation;
       final onAuthPath =
           loc == '/login' || loc == '/register' || loc == '/splash';
+
+      // Bot and same-phone games need no account and no network. Players who
+      // never sign in (or have no connection on first launch) reach them
+      // through /offline; the game screens skip every save when signed out.
+      if (!isLoggedIn && isOfflinePlayPath(loc)) return null;
 
       // Everything else — including the post-registration screens
       // (/email-verification, /auth/profile-photo) — needs a signed-in user.
@@ -126,6 +146,44 @@ final routerProvider = Provider<GoRouter>((ref) {
           state.pageKey,
           const RegisterScreen(),
         ),
+      ),
+      // ── Offline play: no account, no network ───────────────────────────
+      GoRoute(
+        path: '/offline',
+        pageBuilder: (_, state) => _slideTransition(
+          state.pageKey,
+          const OfflinePlayScreen(),
+        ),
+        routes: [
+          GoRoute(
+            path: 'bot-setup',
+            pageBuilder: (_, state) => _slideTransition(
+              state.pageKey,
+              const BotSetupScreen(),
+            ),
+          ),
+          GoRoute(
+            path: 'local-setup',
+            pageBuilder: (_, state) => _slideTransition(
+              state.pageKey,
+              const LocalSetupScreen(),
+            ),
+          ),
+          GoRoute(
+            path: 'checkers-bot-setup',
+            pageBuilder: (_, state) => _slideTransition(
+              state.pageKey,
+              const CheckersBotSetupScreen(),
+            ),
+          ),
+          GoRoute(
+            path: 'domino-bot-setup',
+            pageBuilder: (_, state) => _slideTransition(
+              state.pageKey,
+              const DominoBotSetupScreen(),
+            ),
+          ),
+        ],
       ),
       GoRoute(
         path: '/email-verification',

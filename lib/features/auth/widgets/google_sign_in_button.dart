@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/services/auth_service.dart';
 import '../../../core/services/otp_service.dart';
@@ -122,15 +123,10 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
   Widget build(BuildContext context) {
     return SizedBox(
       width: double.infinity,
-      height: 52,
+      height: 54,
       child: OutlinedButton(
         onPressed: _loading ? null : _signIn,
-        style: OutlinedButton.styleFrom(
-          side: BorderSide(color: AppColors.divider),
-          shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(14),
-          ),
-        ),
+        style: OutlinedButton.styleFrom(),
         child: _loading
             ? const SizedBox(
                 width: 20,
@@ -142,10 +138,15 @@ class _GoogleSignInButtonState extends ConsumerState<GoogleSignInButton> {
                 children: [
                   const GoogleLogo(),
                   const SizedBox(width: 12),
-                  Text(
-                    'continue_with_google'.tr(),
-                    style: AppTextStyles.labelLarge.copyWith(
-                      color: AppColors.textPrimary,
+                  Flexible(
+                    child: Text(
+                      'continue_with_google'.tr(),
+                      overflow: TextOverflow.ellipsis,
+                      style: AppFonts.ui(
+                        fontSize: 16,
+                        fontWeight: FontWeight.w700,
+                        color: AppColors.ink,
+                      ),
                     ),
                   ),
                 ],

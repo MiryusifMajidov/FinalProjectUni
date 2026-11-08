@@ -61,3 +61,11 @@ AuthKey_*.p8
 
 # Firebase CLI local cache.
 .firebase/
+
+# Impeccable working files (decision sketches, review captures); the
+# design record itself is DESIGN.md, .impeccable/design.json and surfaces/.
+.impeccable/mocks/
+.impeccable/review/
+
+# Rendered promo videos are large; the sources next to them rebuild them.
+marketing/**/*.mp4

@@ -1,12 +1,12 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:flutter/material.dart';
-import '../../../core/utils/text_case.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
-import 'package:google_fonts/google_fonts.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import 'package:uuid/uuid.dart';
 import '../../../core/theme/app_colors.dart';
+import '../../../core/theme/app_fonts.dart';
+import '../../../core/theme/moulded.dart';
 
 /// Checkers-specific bot setup.
 /// Design-matched to chess BotSetupScreen but with Checkers accent (#6FB4E0)
@@ -19,8 +19,7 @@ class CheckersBotSetupScreen extends StatefulWidget {
 }
 
 class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
-  static const _accent = Color(0xFF6FB4E0);
-  static const _accentSoft = Color(0x246FB4E0);
+  static const _accent = Color(0xFFE2565E);
 
   int _selectedTier = 0;
   bool _playAsWhite = true;
@@ -44,6 +43,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
     ('international', 'variant_international', '10×10'),
     ('turkish',       'variant_turkish',       '8×8'),
     ('brazilian',     'variant_brazilian',     '8×8'),
+    ('german',        'variant_german',        '8×8'),
   ];
 
   @override
@@ -56,7 +56,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
         scrolledUnderElevation: 0,
         leading: IconButton(
           icon: Icon(
-            PhosphorIcons.caretLeft(PhosphorIconsStyle.regular),
+            PhosphorIcons.arrowLeft(PhosphorIconsStyle.bold),
             color: AppColors.ink,
           ),
           onPressed: () => Navigator.pop(context),
@@ -66,7 +66,7 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
           children: [
             Text(
               'play_vs_bot'.tr(),
-              style: GoogleFonts.inter(
+              style: AppFonts.ui(
                 fontSize: 20,
                 fontWeight: FontWeight.w600,
                 color: AppColors.ink,
@@ -74,7 +74,6 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
             ),
           ],
         ),
-        centerTitle: true,
       ),
       body: SafeArea(
         child: Column(
@@ -89,13 +88,12 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
               const SizedBox(height: 20),
               // ── Difficulty ────────────────────────────────────────────
               Text(
-                'difficulty'.tr().toUpperCaseFor(context),
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.inkMute,
-                  letterSpacing: 1.0,
-                ),
+                'difficulty'.tr(),
+                style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
               ),
               const SizedBox(height: 10),
               ..._tiers.asMap().entries.map((e) {
@@ -104,60 +102,57 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
                 final selected = i == _selectedTier;
                 return Padding(
                   padding: const EdgeInsets.only(bottom: 8),
-                  child: GestureDetector(
+                  child: Moulded(
+                    color: selected ? _accent : AppColors.card,
+                    selected: selected,
+                    radius: 14,
+                    lip: 3,
+                    semanticLabel: '${name.tr()}, ~$elo',
                     onTap: () => setState(() => _selectedTier = i),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 16, vertical: 14),
-                      decoration: BoxDecoration(
-                        color: selected ? _accentSoft : AppColors.card,
-                        borderRadius: BorderRadius.circular(14),
-                        border: Border.all(
-                          color: selected
-                              ? _accent.withValues(alpha: 0.4)
-                              : AppColors.border,
-                          width: selected ? 1.5 : 1,
-                        ),
-                      ),
-                      child: Row(
-                        children: [
-                          // Level indicator dots
-                          Row(
-                            children: List.generate(
-                              6,
-                              (d) => Container(
-                                width: 6, height: 6,
-                                margin: const EdgeInsets.only(right: 3),
-                                decoration: BoxDecoration(
-                                  shape: BoxShape.circle,
-                                  color: d <= i
-                                      ? _accent
-                                      : AppColors.inkFaint,
-                                ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 16, vertical: 14),
+                    child: Row(
+                      children: [
+                        // Level indicator dots
+                        Row(
+                          children: List.generate(
+                            6,
+                            (d) => Container(
+                              width: 7, height: 7,
+                              margin: const EdgeInsets.only(right: 3),
+                              decoration: BoxDecoration(
+                                shape: BoxShape.circle,
+                                color: d <= i
+                                    ? (selected ? AppColors.onAmber : _accent)
+                                    : (selected
+                                        ? AppColors.onAmber.withValues(alpha: 0.25)
+                                        : AppColors.inkFaint),
                               ),
                             ),
                           ),
-                          const SizedBox(width: 10),
-                          Text(
-                            name.tr(),
-                            style: GoogleFonts.inter(
-                              fontSize: 14,
-                              fontWeight:
-                                  selected ? FontWeight.w600 : FontWeight.w500,
-                              color: selected ? _accent : AppColors.ink,
-                            ),
+                        ),
+                        const SizedBox(width: 12),
+                        Text(
+                          name.tr(),
+                          style: AppFonts.ui(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w700,
+                            color: selected ? AppColors.onAmber : AppColors.ink,
                           ),
-                          const Spacer(),
-                          Text(
-                            '~$elo',
-                            style: GoogleFonts.inter(fontFeatures: const [FontFeature.tabularFigures()], fontSize: 12,
-                              fontWeight: FontWeight.w500,
-                              color: selected ? _accent : AppColors.inkDim,
-                            ),
+                        ),
+                        const Spacer(),
+                        Text(
+                          '~$elo',
+                          style: AppFonts.ui(
+                            fontFeatures: const [FontFeature.tabularFigures()],
+                            fontSize: 14,
+                            fontWeight: FontWeight.w600,
+                            color: selected
+                                ? AppColors.onAmber.withValues(alpha: 0.75)
+                                : AppColors.inkMute,
                           ),
-                        ],
-                      ),
+                        ),
+                      ],
                     ),
                   ),
                 )
@@ -170,13 +165,12 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
 
               // ── Play as ──────────────────────────────────────────────
               Text(
-                'play_as'.tr().toUpperCaseFor(context),
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.inkMute,
-                  letterSpacing: 1.0,
-                ),
+                'play_as'.tr(),
+                style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
               ),
               const SizedBox(height: 10),
               Row(
@@ -203,13 +197,12 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
 
               // ── Variant ──────────────────────────────────────────────
               Text(
-                'arena_variant'.tr().toUpperCaseFor(context),
-                style: GoogleFonts.inter(
-                  fontSize: 11,
-                  fontWeight: FontWeight.w700,
-                  color: AppColors.inkMute,
-                  letterSpacing: 1.0,
-                ),
+                'arena_variant'.tr(),
+                style: AppFonts.ui(
+          fontSize: 17,
+          fontWeight: FontWeight.w700,
+          color: AppColors.ink,
+        ),
               ),
               const SizedBox(height: 10),
               Wrap(
@@ -220,30 +213,21 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
                   final (_, labelKey, board) = e.value;
                   final label = '${labelKey.tr()} $board';
                   final selected = i == _selectedVariant;
-                  return GestureDetector(
+                  return Moulded(
+                    color: selected ? _accent : AppColors.card,
+                    selected: selected,
+                    radius: 10,
+                    lip: 3,
+                    semanticLabel: label,
                     onTap: () => setState(() => _selectedVariant = i),
-                    child: AnimatedContainer(
-                      duration: const Duration(milliseconds: 200),
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 14, vertical: 10),
-                      decoration: BoxDecoration(
-                        color: selected ? _accentSoft : AppColors.card,
-                        borderRadius: BorderRadius.circular(12),
-                        border: Border.all(
-                          color: selected
-                              ? _accent.withValues(alpha: 0.4)
-                              : AppColors.border,
-                          width: selected ? 1.5 : 1,
-                        ),
-                      ),
-                      child: Text(
-                        label,
-                        style: GoogleFonts.inter(
-                          fontSize: 13,
-                          fontWeight:
-                              selected ? FontWeight.w600 : FontWeight.w500,
-                          color: selected ? _accent : AppColors.ink,
-                        ),
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 14, vertical: 15),
+                    child: Text(
+                      label,
+                      style: AppFonts.ui(
+                        fontSize: 14,
+                        fontWeight: FontWeight.w700,
+                        color: selected ? AppColors.onAmber : AppColors.ink,
                       ),
                     ),
                   );
@@ -274,18 +258,13 @@ class _CheckersBotSetupScreenState extends State<CheckersBotSetupScreen> {
                   onPressed: _startGame,
                   style: ElevatedButton.styleFrom(
                     backgroundColor: _accent,
-                    foregroundColor: const Color(0xFF0A0A0B),
-                    elevation: 0,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                  ),
+                    foregroundColor: const Color(0xFF111915),),
                   child: Text(
                     'start_game'.tr(),
-                    style: GoogleFonts.inter(
+                    style: AppFonts.ui(
                       fontSize: 16,
                       fontWeight: FontWeight.w600,
-                      color: const Color(0xFF0A0A0B),
+                      color: const Color(0xFF111915),
                     ),
                   ),
                 ),
@@ -333,43 +312,35 @@ class _SideButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Expanded(
-      child: GestureDetector(
+      child: Moulded(
+        color: selected ? accentColor : AppColors.card,
+        selected: selected,
+        radius: 14,
+        lip: 3,
+        semanticLabel: label,
         onTap: onTap,
-        child: AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          padding: const EdgeInsets.symmetric(vertical: 16),
-          decoration: BoxDecoration(
-            color: selected
-                ? accentColor.withValues(alpha: 0.12)
-                : AppColors.card,
-            borderRadius: BorderRadius.circular(14),
-            border: Border.all(
-              color: selected
-                  ? accentColor.withValues(alpha: 0.4)
-                  : AppColors.border,
+        padding: const EdgeInsets.symmetric(vertical: 16),
+        child: Column(
+          children: [
+            Container(
+              width: 34, height: 34,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: color,
+                border: Border.all(
+                    color: Colors.black.withValues(alpha: 0.25), width: 2),
+              ),
             ),
-          ),
-          child: Column(
-            children: [
-              Container(
-                width: 32, height: 32,
-                decoration: BoxDecoration(
-                  shape: BoxShape.circle,
-                  color: color,
-                  border: Border.all(color: AppColors.borderStrong, width: 2),
-                ),
+            const SizedBox(height: 8),
+            Text(
+              label,
+              style: AppFonts.ui(
+                fontSize: 15,
+                fontWeight: FontWeight.w700,
+                color: selected ? AppColors.onAmber : AppColors.inkDim,
               ),
-              const SizedBox(height: 8),
-              Text(
-                label,
-                style: GoogleFonts.inter(
-                  fontSize: 13,
-                  fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
-                  color: selected ? accentColor : AppColors.inkDim,
-                ),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
