@@ -1,0 +1,171 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CheckMate store screenshots</title>
+<style>
+@font-face { font-family: Geo; src: url(../../assets/fonts/Geologica-Medium.ttf); font-weight: 500; }
+@font-face { font-family: Geo; src: url(../../assets/fonts/Geologica-SemiBold.ttf); font-weight: 600; }
+@font-face { font-family: Geo; src: url(../../assets/fonts/Geologica-Bold.ttf); font-weight: 700; }
+@font-face { font-family: Geo; src: url(../../assets/fonts/Geologica-ExtraBold.ttf); font-weight: 800; }
+html, body { margin: 0; background: #000; }
+#strip { position: relative; overflow: hidden; background: #111915; color: #EEF1EC;
+  font-family: Geo, 'Segoe UI', 'Nirmala UI', 'Microsoft YaHei', sans-serif; font-variant-numeric: tabular-nums; }
+.abs { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; }
+.felt { position: absolute; inset: 0; background: url(../promo-video/felt-noise.png); }
+.head { position: absolute; text-align: center; font-weight: 800; letter-spacing: -0.03em; line-height: 1.04; }
+.sub { position: absolute; text-align: center; font-weight: 500; color: #B4BEB8; line-height: 1.3; }
+</style>
+</head>
+<body>
+<div id="strip"><div class="felt"></div></div>
+<script>
+'use strict';
+// One wide strip of N slides, W×H each, so pieces can cross from one slide
+// into the next; the renderer cuts it into separate images. ?w=1290&h=2796
+// for the App Store, ?w=1080&h=1920 for Google Play.
+const q = new URLSearchParams(location.search);
+const W = +(q.get('w') || 1290), H = +(q.get('h') || 2796);
+const C = {
+  ink: '#EEF1EC', inkDim: '#B4BEB8', amber: '#F0A93B', amberLip: '#B9761A', onAmber: '#241703',
+  cherry: '#E2565E', cherryLip: '#A8383F', jade: '#4CBF95', jadeLip: '#2F8A69', ivory: '#F3EBDD', ivoryLip: '#C9BBA2',
+  hint: '#9D8CF2', felt: '#111915',
+};
+const SLIDES = [
+  { head: ['Three classics.', 'One table.'], hl: 1, accent: C.amber, sub: 'Chess, draughts and dominoes in one app.', shots: ['home-chess'] },
+  { head: ['Hints drawn', 'on the board.'], hl: 1, accent: C.hint, sub: 'The best move, as an arrow from your piece.', shots: ['game-chess-hint'] },
+  { head: ['Six variants', 'of draughts.'], hl: 1, accent: C.cherry, sub: 'From Russian to Deutsche Dame.', shots: ['game-draughts'] },
+  { head: ['Dominoes:', 'draw or block.'], hl: 1, accent: C.jade, sub: 'Two players, or four at a table.', shots: ['game-dominoes'] },
+  { head: ['Pick a game.', 'The app follows.'], hl: 1, accent: C.cherry, sub: 'Every screen in your game’s colour.', shots: ['home-chess', 'home-draughts', 'settings-dominoes'] },
+  { head: ['A new arena', 'every 30 minutes.'], hl: 1, accent: C.amber, sub: 'Win twice in a row and every win counts double.', shots: ['arena-draughts'] },
+  { head: ['Six bot levels.', 'Online or offline.'], hl: 1, accent: C.amber, sub: 'From Beginner to Master, no account needed.', shots: ['bot-setup'] },
+  { head: ['Free. No ads.', 'Ten languages.'], hl: 1, accent: C.jade, sub: 'English, Azərbaycan, Türkçe, Русский, Deutsch, Español, Français, हिन्दी, اردو, 中文', shots: ['profile'] },
+];
+const N = +(q.get('n') || SLIDES.length);
+const strip = document.getElementById('strip');
+strip.style.width = W * N + 'px'; strip.style.height = H + 'px';
+
+const u = W / 1290; // design unit: everything is drawn for 1290 wide
+const tall = H / W > 1.9; // App Store 19.5:9 vs Play 16:9
+function el(tag, style = {}, parent = strip, html) {
+  const e = document.createElement(tag); e.className = 'abs'; Object.assign(e.style, style);
+  if (html !== undefined) e.innerHTML = html; parent.appendChild(e); return e;
+}
+function place(e, x, y, w, h, r = 0, s = 1) {
+  e.style.width = w + 'px'; e.style.height = h + 'px';
+  e.style.transform = `translate(${x - w / 2}px,${y - h / 2}px) rotate(${r}deg) scale(${s})`;
+}
+function shadow(x, y, w, h, blur, a = .55, r = 0) {
+  const e = el('div', { borderRadius: '50%', background: `rgba(0,0,0,${a})`, filter: `blur(${blur}px)` });
+  place(e, x, y, w, h, r); return e;
+}
+// Physical pieces.
+function knight(x, y, size, r = 0) {
+  shadow(x + size * 0.06, y + size * 0.4, size * 0.8, size * 0.22, size * 0.07, .6, r);
+  const e = el('img'); e.src = '../promo-video/knight-butterscotch.svg'; place(e, x, y, size, size, r); return e;
+}
+function disc(x, y, size, face, lip, r = 0) {
+  shadow(x + size * 0.05, y + size * 0.16, size * 0.95, size * 0.95, size * 0.08, .6);
+  const g = el('div'); place(g, x, y, size, size, r);
+  el('div', { width: size + 'px', height: size + 'px', borderRadius: '50%', background: lip, transform: `translateY(${size * 0.075}px)` }, g);
+  el('div', { width: size + 'px', height: size + 'px', borderRadius: '50%', background: face }, g);
+  for (const [f, wgt] of [[0.74, 0.035], [0.44, 0.03]]) {
+    const d = size * f;
+    el('div', { width: d + 'px', height: d + 'px', borderRadius: '50%', boxSizing: 'border-box', border: `${size * wgt}px solid rgba(0,0,0,.17)`,
+      transform: `translate(${(size - d) / 2}px,${(size - d) / 2}px)` }, g);
+  }
+  return g;
+}
+const PIPS = { 0: [], 1: [[.5, .5]], 2: [[.27, .27], [.73, .73]], 3: [[.27, .27], [.5, .5], [.73, .73]],
+  4: [[.27, .27], [.73, .27], [.27, .73], [.73, .73]], 5: [[.27, .27], [.73, .27], [.5, .5], [.27, .73], [.73, .73]],
+  6: [[.27, .25], [.73, .25], [.27, .5], [.73, .5], [.27, .75], [.73, .75]] };
+function tile(x, y, w, a, b, r = 0) {
+  const h = w * 2;
+  shadow(x + w * 0.12, y + w * 0.2, w * 1.05, h * 1.0, w * 0.1, .6, r);
+  const g = el('div'); place(g, x, y, w, h, r);
+  el('div', { width: w + 'px', height: h + 'px', borderRadius: w * 0.16 + 'px', background: C.ivoryLip, transform: `translateY(${w * 0.07}px)` }, g);
+  el('div', { width: w + 'px', height: h + 'px', borderRadius: w * 0.16 + 'px', background: C.ivory }, g);
+  el('div', { width: w * 0.7 + 'px', height: Math.max(2, w * 0.03) + 'px', background: 'rgba(0,0,0,.28)', transform: `translate(${w * 0.15}px,${h / 2 - w * 0.015}px)` }, g);
+  const pip = w * 0.15;
+  [[a, 0], [b, h / 2]].forEach(([v, oy]) => PIPS[v].forEach(([px, py]) =>
+    el('div', { width: pip + 'px', height: pip + 'px', borderRadius: '50%', background: '#1E1A16',
+      transform: `translate(${px * w - pip / 2}px,${oy + py * (h / 2) - pip / 2}px)` }, g)));
+  return g;
+}
+// A phone with a screenshot (the shots are 1080 wide; status bar drawn here).
+// Screens from the phone are 1080×2110 (status bar cut off); screens from the
+// app running at 430×932 @3x are 1290×2796.
+const WEB = ['game-chess-hint', 'game-draughts', 'game-dominoes', 'bot-setup'];
+const arOf = shot => WEB.includes(shot) ? 2796 / 1290 : 2110 / 1080;
+function phone(x, y, wScreen, shot, r = 0, opts = {}) {
+  const ar = opts.ar || arOf(shot);
+  const sw = wScreen, statusH = sw * 0.085, sh = sw * ar + statusH;
+  const bez = sw * 0.035, pw = sw + bez * 2, ph = sh + bez * 2;
+  shadow(x + pw * 0.04, y + ph * 0.47, pw * 0.95, ph * 0.1, pw * 0.08, .75, r);
+  shadow(x + pw * 0.02, y + pw * 0.04, pw * 0.98, ph * 0.98, pw * 0.07, .45, r);
+  const g = el('div', { borderRadius: sw * 0.16 + 'px', background: '#0A0E0C', boxShadow: `inset 0 0 0 ${Math.max(2, sw * 0.006)}px #2B3A32` });
+  place(g, x, y, pw, ph, r);
+  const scr = el('div', { width: sw + 'px', height: sh + 'px', borderRadius: sw * 0.125 + 'px', overflow: 'hidden', background: C.felt,
+    transform: `translate(${bez}px,${bez}px)` }, g);
+  const fs = sw * 0.038;
+  el('div', { width: sw + 'px', height: statusH + 'px', fontSize: fs + 'px', fontWeight: 600, color: C.ink }, scr,
+    `<span style="position:absolute;left:${sw * 0.085}px;top:${statusH * 0.3}px">9:41</span>
+     <span style="position:absolute;right:${sw * 0.08}px;top:${statusH * 0.36}px;display:flex;gap:${fs * 0.25}px;align-items:flex-end">
+       <i style="width:${fs * .2}px;height:${fs * .35}px;background:${C.ink};border-radius:1px"></i><i style="width:${fs * .2}px;height:${fs * .5}px;background:${C.ink};border-radius:1px"></i>
+       <i style="width:${fs * .2}px;height:${fs * .65}px;background:${C.ink};border-radius:1px"></i>
+       <i style="width:${fs * 1.35}px;height:${fs * .66}px;border:${Math.max(1.5, fs * .07)}px solid ${C.ink};border-radius:${fs * .2}px;margin-left:${fs * .25}px;box-sizing:border-box;padding:${fs * .07}px"><b style="display:block;width:72%;height:100%;background:${C.ink};border-radius:${fs * .08}px"></b></i></span>`);
+  el('div', { width: sw * 0.27 + 'px', height: statusH * 0.62 + 'px', borderRadius: sw + 'px', background: '#000', transform: `translate(${sw * 0.365}px,${statusH * 0.17}px)` }, scr);
+  const im = el('img', { width: sw + 'px', height: sw * ar + 'px', transform: `translateY(${statusH}px)`, objectFit: 'cover', objectPosition: 'top' }, scr);
+  im.src = 'shots/' + shot + '.jpg';
+  return { g, pw, ph };
+}
+
+// ── Layout ───────────────────────────────────────────────────────────────────
+const headSize = (tall ? 118 : 104) * u;
+const headTop = (tall ? 230 : 120) * u;
+SLIDES.slice(0, N).forEach((s, i) => {
+  const x0 = i * W, cx = x0 + W / 2;
+  const h = el('div', { width: W * 0.92 + 'px', fontSize: headSize + 'px' });
+  h.className = 'head';
+  h.innerHTML = s.head.map((l, k) => `<div style="color:${k === s.hl ? s.accent : C.ink}">${l}</div>`).join('');
+  h.style.transform = `translate(${x0 + W * 0.04}px,${headTop}px)`;
+  const sub = el('div', { width: W * 0.84 + 'px', fontSize: (tall ? 46 : 40) * u + 'px' });
+  sub.className = 'sub'; sub.textContent = s.sub;
+  sub.style.transform = `translate(${x0 + W * 0.08}px,${headTop + headSize * 2.2 + (tall ? 30 : 16) * u}px)`;
+
+  const phoneTop = headTop + headSize * 2.2 + (tall ? 210 : 140) * u;
+  // The phone is big and runs off the bottom edge.
+  if (s.shots.length === 1) {
+    const sw = W * (tall ? 0.76 : 0.7);
+    const ph = sw * (arOf(s.shots[0]) + 0.085 + 0.07);
+    phone(cx, phoneTop + ph / 2, sw, s.shots[0], 0);
+  } else {
+    const sw = W * (tall ? 0.6 : 0.54);
+    const ph = sw * (2110 / 1080 + 0.155);
+    // Side phones stay inside their own slide.
+    phone(cx - W * 0.235, phoneTop + ph / 2 + 110 * u, sw * 0.82, s.shots[0], -8);
+    phone(cx + W * 0.235, phoneTop + ph / 2 + 110 * u, sw * 0.82, s.shots[2], 8);
+    phone(cx, phoneTop + ph / 2, sw, s.shots[1], 0);
+  }
+});
+
+// Pieces: across the slides and over their seams.
+const P = tall ? 1 : 0.86;
+const y = f => H * f;
+knight(W * 0.13, y(tall ? 0.62 : 0.66), 360 * u * P, -8);
+disc(W * 0.9, y(tall ? 0.43 : 0.47), 250 * u * P, C.cherry, C.cherryLip);
+tile(W * 1.0, y(tall ? 0.8 : 0.84), 150 * u * P, 6, 5, -18);            // seam 1|2
+disc(W * 2.0, y(tall ? 0.57 : 0.62), 210 * u * P, C.ivory, C.ivoryLip);  // seam 2|3
+disc(W * 2.88, y(tall ? 0.78 : 0.82), 230 * u * P, C.cherry, C.cherryLip);
+tile(W * 3.0, y(tall ? 0.46 : 0.5), 140 * u * P, 3, 3, 14);              // seam 3|4
+tile(W * 3.86, y(tall ? 0.84 : 0.88), 150 * u * P, 1, 4, -10);
+knight(W * 5.0, y(tall ? 0.7 : 0.74), 300 * u * P, 10);                    // seam 5|6
+disc(W * 6.0, y(tall ? 0.5 : 0.55), 220 * u * P, C.cherry, C.cherryLip); // seam 6|7
+tile(W * 7.0, y(tall ? 0.78 : 0.82), 150 * u * P, 2, 6, 16);             // seam 7|8
+knight(W * 7.86, y(tall ? 0.55 : 0.6), 300 * u * P, -6);
+
+window.ready = Promise.all([document.fonts.ready, ...[...document.images].map(im => im.complete ? 1 :
+  new Promise(r => { im.onload = im.onerror = r; }))]).then(() => ({ W, H, N }));
+</script>
+</body>
+</html>

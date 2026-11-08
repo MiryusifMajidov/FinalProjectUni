@@ -69,3 +69,6 @@ AuthKey_*.p8
 
 # Rendered promo videos are large; the sources next to them rebuild them.
 marketing/**/*.mp4
+
+# Rendered store images (store.html and feature.html rebuild them).
+marketing/store-screenshots/out/

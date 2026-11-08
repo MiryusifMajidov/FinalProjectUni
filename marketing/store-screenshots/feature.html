@@ -1,0 +1,59 @@
+<!doctype html>
+<html>
+<head>
+<meta charset="utf-8">
+<title>CheckMate feature graphic</title>
+<style>
+@font-face { font-family: Geo; src: url(../../assets/fonts/Geologica-SemiBold.ttf); font-weight: 600; }
+@font-face { font-family: Geo; src: url(../../assets/fonts/Geologica-ExtraBold.ttf); font-weight: 800; }
+html, body { margin: 0; background: #000; }
+#strip { position: relative; width: 1024px; height: 500px; overflow: hidden; background: #111915; color: #EEF1EC; font-family: Geo, sans-serif; }
+.felt { position: absolute; inset: 0; background: url(../promo-video/felt-noise.png); }
+.abs { position: absolute; left: 0; top: 0; transform-origin: 50% 50%; }
+</style>
+</head>
+<body>
+<div id="strip"><div class="felt"></div></div>
+<script>
+'use strict';
+// Google Play feature graphic, 1024×500. Play may draw its play button in the
+// middle, so the name sits left and the pieces right.
+const strip = document.getElementById('strip');
+const C = { amber: '#F0A93B', cherry: '#E2565E', cherryLip: '#A8383F', ivory: '#F3EBDD', ivoryLip: '#C9BBA2', inkDim: '#B4BEB8' };
+function el(tag, style = {}, parent = strip, html) { const e = document.createElement(tag); e.className = 'abs'; Object.assign(e.style, style); if (html !== undefined) e.innerHTML = html; parent.appendChild(e); return e; }
+function place(e, x, y, w, h, r = 0) { e.style.width = w + 'px'; e.style.height = h + 'px'; e.style.transform = `translate(${x - w / 2}px,${y - h / 2}px) rotate(${r}deg)`; }
+function shadow(x, y, w, h, blur, a = .6, r = 0) { const e = el('div', { borderRadius: '50%', background: `rgba(0,0,0,${a})`, filter: `blur(${blur}px)` }); place(e, x, y, w, h, r); }
+// Board corner under the pieces.
+const sq = 70, bx = 690, by = 60;
+shadow(bx + 230, by + 230, 520, 520, 30, .55);
+const board = el('div', { background: '#5B3B22', borderRadius: '12px' }); place(board, bx + 245, by + 245, 520, 520, -6);
+for (let r = 0; r < 7; r++) for (let c = 0; c < 7; c++)
+  el('div', { width: sq + 'px', height: sq + 'px', background: (r + c) % 2 ? '#B58863' : '#F0D9B5', transform: `translate(${14 + c * sq}px,${14 + r * sq}px)` }, board);
+// Pieces.
+shadow(770, 330, 210, 60, 16);
+const kn = el('img'); kn.src = '../promo-video/knight-butterscotch.svg'; place(kn, 760, 230, 250, 250, -6);
+function disc(x, y, size, face, lip) {
+  shadow(x + 8, y + 22, size, size, 14);
+  const g = el('div'); place(g, x, y, size, size);
+  el('div', { width: size + 'px', height: size + 'px', borderRadius: '50%', background: lip, transform: `translateY(${size * 0.075}px)` }, g);
+  el('div', { width: size + 'px', height: size + 'px', borderRadius: '50%', background: face }, g);
+  for (const [f, w] of [[0.74, 0.035], [0.44, 0.03]]) { const d = size * f; el('div', { width: d + 'px', height: d + 'px', borderRadius: '50%', boxSizing: 'border-box', border: `${size * w}px solid rgba(0,0,0,.17)`, transform: `translate(${(size - d) / 2}px,${(size - d) / 2}px)` }, g); }
+}
+disc(935, 125, 150, C.cherry, C.cherryLip);
+// Domino 6|5.
+shadow(940, 410, 120, 210, 14, .6, -24);
+const t = el('div'); place(t, 925, 385, 100, 200, -24);
+el('div', { width: '100px', height: '200px', borderRadius: '16px', background: C.ivoryLip, transform: 'translateY(7px)' }, t);
+el('div', { width: '100px', height: '200px', borderRadius: '16px', background: C.ivory }, t);
+el('div', { width: '70px', height: '3px', background: 'rgba(0,0,0,.28)', transform: 'translate(15px,98px)' }, t);
+const pips = { 6: [[.27, .25], [.73, .25], [.27, .5], [.73, .5], [.27, .75], [.73, .75]], 5: [[.27, .27], [.73, .27], [.5, .5], [.27, .73], [.73, .73]] };
+[[6, 0], [5, 100]].forEach(([v, oy]) => pips[v].forEach(([px, py]) => el('div', { width: '15px', height: '15px', borderRadius: '50%', background: '#1E1A16', transform: `translate(${px * 100 - 7.5}px,${oy + py * 100 - 7.5}px)` }, t)));
+// Name and line.
+const icon = el('img', { borderRadius: '26px' }); icon.src = '../../assets/images/app_icon_store_512.png'; place(icon, 118, 160, 116, 116);
+el('div', { fontSize: '86px', fontWeight: 800, letterSpacing: '-0.035em', transform: 'translate(56px,236px)', whiteSpace: 'nowrap' }, strip, 'CheckMate');
+el('div', { fontSize: '30px', fontWeight: 600, color: C.inkDim, transform: 'translate(60px,350px)', whiteSpace: 'nowrap' }, strip,
+  `Chess <span style="color:${C.amber}">·</span> Draughts <span style="color:${C.cherry}">·</span> Dominoes`);
+window.ready = Promise.all([document.fonts.ready, ...[...document.images].map(im => im.complete ? 1 : new Promise(r => { im.onload = im.onerror = r; }))]).then(() => ({ W: 1024, H: 500, N: 1 }));
+</script>
+</body>
+</html>
