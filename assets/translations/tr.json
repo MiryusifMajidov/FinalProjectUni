@@ -671,5 +671,13 @@
   "terms_gate_terms_doc": "Kullanım Koşulları",
   "terms_gate_privacy_doc": "Gizlilik Politikası",
   "terms_gate_agree": "Kabul ediyorum",
-  "terms_gate_decline": "Şimdi değil"
+  "terms_gate_decline": "Şimdi değil",
+  "guest_signout_kept_body": "Misafir hesabın bu telefonda kalır: geri dönmek için giriş ekranında adının yazdığı düğmeye dokun. Uygulamayı veya verilerini silersen ya da başka bir hesaba giriş yaparsan kaybolur. Kalıcı olarak saklamak için bir e-posta ekle.",
+  "guest_signout_confirm": "Çıkış yap",
+  "guest_continue_as": "{} olarak devam et",
+  "guest_kept_caption": "Misafir hesabın hâlâ bu telefonda. Kalıcı olarak saklamak için bir e-posta ekle.",
+  "guest_replace_title": "Misafir hesabından vazgeçiyor musun?",
+  "guest_replace_body": "Başka bir hesaba giriş yaparsan {} bu telefondan kalıcı olarak silinir. Saklamak için misafir olarak devam et ve Hesap bölümünden bir e-posta ekle.",
+  "guest_keep": "Misafir hesabını sakla",
+  "guest_signin_anyway": "Yine de giriş yap"
 }

@@ -69,6 +69,10 @@ void main() async {
   // Initialize SharedPreferences cache (settings, flags)
   final cache = await CacheService.create();
 
+  // A guest who signed out stays signed in to Firebase but hidden; read that
+  // before the first auth event so they land on the start screen.
+  await AuthService.loadKeptGuest();
+
   // Initialize push notifications (no-op on web).
   // This runs BEFORE runApp(), so it must never throw: an uncaught exception
   // here means no UI is ever built and the app looks hung on a white screen.

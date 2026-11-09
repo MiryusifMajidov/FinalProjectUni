@@ -31,8 +31,87 @@ class AuthService {
 
   AuthService(this._firestore);
 
-  User? get currentUser => _auth.currentUser;
-  Stream<User?> get authStateChanges => _auth.authStateChanges();
+  /// The signed-in user as the app sees it: null while a guest is kept
+  /// signed out on this device (see [keptGuest]).
+  User? get currentUser => _visible(_auth.currentUser);
+  Stream<User?> get authStateChanges => _withKeptGuest(_auth.authStateChanges());
+  Stream<User?> get userChanges => _withKeptGuest(_auth.userChanges());
+
+  // ── Guest kept on this device ─────────────────────────────────────────────
+  //
+  // A guest (anonymous) account has no credential to sign back in with, so a
+  // real Firebase sign-out lost it for good and every "Play as guest" after
+  // it made a brand-new account: one player ended up with five in two days
+  // without ever deleting the app. Now signing out of a guest only hides it:
+  // Firebase stays signed in on this device, the app treats the player as
+  // signed out, and "Play as guest" brings the same account back. Only
+  // deleting the app or its data (or signing in to another account) loses it.
+
+  static const _kKeptGuestUid = 'kept_guest_uid';
+  static const _kKeptGuestName = 'kept_guest_name';
+  static String? _keptGuestUid;
+  static String? _keptGuestName;
+
+  /// Reads the kept guest before the app starts, so the very first auth
+  /// event already hides it.
+  static Future<void> loadKeptGuest() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      _keptGuestUid = p.getString(_kKeptGuestUid);
+      _keptGuestName = p.getString(_kKeptGuestName);
+    } catch (_) {}
+  }
+
+  final _keptGuestChanges = StreamController<void>.broadcast();
+
+  bool _isKept(User? u) =>
+      u != null && u.isAnonymous && u.uid == _keptGuestUid;
+
+  User? _visible(User? u) => _isKept(u) ? null : u;
+
+  /// The guest account kept on this device after its player signed out.
+  User? get keptGuest => _isKept(_auth.currentUser) ? _auth.currentUser : null;
+
+  /// The kept guest's username ("user#0042"), for "Continue as …".
+  String? get keptGuestName =>
+      keptGuest == null ? null : (_keptGuestName ?? 'guest');
+
+  Stream<User?> _withKeptGuest(Stream<User?> source) {
+    late final StreamController<User?> out;
+    StreamSubscription<User?>? fromFirebase;
+    StreamSubscription<void>? fromKeep;
+    out = StreamController<User?>(
+      onListen: () {
+        fromFirebase = source.listen(
+          (u) => out.add(_visible(u)),
+          onError: out.addError,
+        );
+        fromKeep = _keptGuestChanges.stream
+            .listen((_) => out.add(_visible(_auth.currentUser)));
+      },
+      onCancel: () async {
+        await fromFirebase?.cancel();
+        await fromKeep?.cancel();
+      },
+    );
+    return out.stream;
+  }
+
+  Future<void> _keepGuest(String? uid, {String? name}) async {
+    _keptGuestUid = uid;
+    _keptGuestName = uid == null ? null : name;
+    try {
+      final p = await SharedPreferences.getInstance();
+      if (uid == null) {
+        await p.remove(_kKeptGuestUid);
+        await p.remove(_kKeptGuestName);
+      } else {
+        await p.setString(_kKeptGuestUid, uid);
+        if (name != null) await p.setString(_kKeptGuestName, name);
+      }
+    } catch (_) {}
+    _keptGuestChanges.add(null);
+  }
 
   Future<UserModel> register({
     required String email,
@@ -173,12 +252,20 @@ class AuthService {
   String _fallbackGuestName() =>
       'user#${10000 + Random.secure().nextInt(90000)}';
 
-  /// Signs in anonymously and creates a full profile ("user#0001").
+  /// Signs in as a guest: brings back the guest kept on this device if there
+  /// is one, otherwise signs in anonymously and creates a full profile
+  /// ("user#0001").
   ///
   /// The account works exactly like a registered one, but it only exists on
   /// this device until an e-mail, Google or Apple sign-in is linked to it:
-  /// uninstalling the app (or signing out) loses it for good.
+  /// deleting the app or its data loses it for good.
   Future<UserModel> signInAsGuest() async {
+    final kept = keptGuest;
+    if (kept != null) {
+      final profile = await ensureGuestProfile(kept);
+      await _keepGuest(null);
+      return profile;
+    }
     final cred = await _auth.signInAnonymously();
     return ensureGuestProfile(cred.user!);
   }
@@ -687,17 +774,24 @@ class AuthService {
 
   Future<void> signOut() async {
     final user = _auth.currentUser;
+    String? username;
     if (user != null) {
       // Fetch username before signing out
       try {
         final userDoc = await _fs.collection('users').doc(user.uid).get();
-        final username = userDoc.data()?['username'] as String? ?? 'unknown';
+        username = userDoc.data()?['username'] as String?;
         await _log.log(
           uid: user.uid,
-          username: username,
+          username: username ?? 'unknown',
           type: 'logout',
         );
       } catch (_) {}
+    }
+    // A guest cannot sign back in after a real sign-out, so keep it on this
+    // device instead (see "Guest kept on this device" above).
+    if (user != null && user.isAnonymous) {
+      await _keepGuest(user.uid, name: username);
+      return;
     }
     // Without this, google_sign_in silently reuses the last Google account,
     // so after logging out nobody could pick a different one.
@@ -908,7 +1002,7 @@ final authStateProvider = StreamProvider<User?>((ref) {
 /// Like [authStateProvider] but also emits when the signed-in user changes
 /// in place — e.g. a guest linking an e-mail, or the e-mail being verified.
 final authUserChangesProvider = StreamProvider<User?>((ref) {
-  return FirebaseAuth.instance.userChanges();
+  return ref.read(authServiceProvider).userChanges;
 });
 
 /// True while the signed-in account is a guest (anonymous) account.

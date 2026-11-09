@@ -659,5 +659,13 @@
   "terms_gate_terms_doc": "Nutzungsbedingungen",
   "terms_gate_privacy_doc": "Datenschutzerklärung",
   "terms_gate_agree": "Ich stimme zu",
-  "terms_gate_decline": "Nicht jetzt"
+  "terms_gate_decline": "Nicht jetzt",
+  "guest_signout_kept_body": "Dein Gastkonto bleibt auf diesem Handy: Tippe auf dem Startbildschirm auf die Schaltfläche mit deinem Namen, um zurückzukehren. Wenn du die App oder ihre Daten löschst oder dich mit einem anderen Konto anmeldest, ist es weg. Füge eine E-Mail hinzu, um es dauerhaft zu behalten.",
+  "guest_signout_confirm": "Abmelden",
+  "guest_continue_as": "Weiter als {}",
+  "guest_kept_caption": "Dein Gastkonto ist noch auf diesem Handy. Füge eine E-Mail hinzu, um es dauerhaft zu behalten.",
+  "guest_replace_title": "Gastkonto aufgeben?",
+  "guest_replace_body": "Wenn du dich mit einem anderen Konto anmeldest, ist {} auf diesem Handy für immer weg. Um es zu behalten, mach als Gast weiter und füge unter Konto eine E-Mail hinzu.",
+  "guest_keep": "Gastkonto behalten",
+  "guest_signin_anyway": "Trotzdem anmelden"
 }

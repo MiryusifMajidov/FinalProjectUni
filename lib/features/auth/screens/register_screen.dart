@@ -7,6 +7,7 @@ import 'package:go_router/go_router.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 import '../../../core/legal/legal_consent.dart';
+import '../../../core/widgets/guest_notice.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_text_styles.dart';
 import '../../../core/theme/app_theme_extension.dart';
@@ -237,6 +238,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   Future<void> _goToStep2() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (!await ensureTermsAccepted(context) || !mounted) return;
+    if (!await confirmLeaveKeptGuest(context, ref) || !mounted) return;
     // Still waiting on the debounced lookup: finish it instead of refusing.
     if (_checkingUsername) {
       _debounceTimer?.cancel();

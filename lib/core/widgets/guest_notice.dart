@@ -15,7 +15,9 @@ import '../theme/app_fonts.dart';
 
 // Everything a guest (anonymous) account needs to be told: it works fully,
 // but lives only on this device until an e-mail, Google or Apple sign-in is
-// linked to it. Deleting the app — or signing out — loses it for good.
+// linked to it. Signing out keeps it on the device ("Continue as …" brings it
+// back); deleting the app or its data, or signing in to another account,
+// loses it for good.
 
 const _kDark = Color(0xFF241703);
 
@@ -49,20 +51,19 @@ Future<void> showGuestWelcomeDialog(BuildContext context) {
 
 // ── Sign-out warning ──────────────────────────────────────────────────────────
 
-/// Asks a guest to confirm signing out. Returns true only for "Sign out
-/// anyway"; "Add e-mail" opens the link sheet and returns false.
+/// Asks a guest to confirm signing out. The account stays on this device, so
+/// this is a reminder rather than a warning. Returns true only for "Sign
+/// out"; "Add e-mail" opens the link sheet and returns false.
 Future<bool> confirmGuestSignOut(BuildContext context) async {
   final result = await showDialog<String>(
     context: context,
     builder: (ctx) => _GuestDialog(
-      icon: PhosphorIcons.warning(PhosphorIconsStyle.fill),
-      iconColor: AppColors.loss,
+      icon: PhosphorIcons.signOut(PhosphorIconsStyle.fill),
       title: 'guest_signout_title'.tr(),
-      body: 'guest_signout_body'.tr(),
+      body: 'guest_signout_kept_body'.tr(),
       primaryLabel: 'guest_add_email'.tr(),
       onPrimary: () => Navigator.of(ctx).pop('link'),
-      secondaryLabel: 'guest_signout_anyway'.tr(),
-      secondaryDanger: true,
+      secondaryLabel: 'guest_signout_confirm'.tr(),
       onSecondary: () => Navigator.of(ctx).pop('signout'),
       showCancel: true,
     ),
@@ -71,6 +72,31 @@ Future<bool> confirmGuestSignOut(BuildContext context) async {
     await showLinkAccountSheet(context);
   }
   return result == 'signout';
+}
+
+// ── Signing in to another account over a kept guest ──────────────────────────
+
+/// When a guest is kept on this device, signing in to another account replaces
+/// it for good. Asks first; returns true to go ahead. Returns true at once
+/// when no guest is kept.
+Future<bool> confirmLeaveKeptGuest(BuildContext context, WidgetRef ref) async {
+  final name = ref.read(authServiceProvider).keptGuestName;
+  if (name == null) return true;
+  final result = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => _GuestDialog(
+      icon: PhosphorIcons.warning(PhosphorIconsStyle.fill),
+      iconColor: AppColors.loss,
+      title: 'guest_replace_title'.tr(),
+      body: 'guest_replace_body'.tr(args: [name]),
+      primaryLabel: 'guest_keep'.tr(),
+      onPrimary: () => Navigator.of(ctx).pop(false),
+      secondaryLabel: 'guest_signin_anyway'.tr(),
+      secondaryDanger: true,
+      onSecondary: () => Navigator.of(ctx).pop(true),
+    ),
+  );
+  return result ?? false;
 }
 
 class _GuestDialog extends StatelessWidget {

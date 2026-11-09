@@ -659,5 +659,13 @@
   "terms_gate_terms_doc": "Términos del servicio",
   "terms_gate_privacy_doc": "Política de privacidad",
   "terms_gate_agree": "Acepto",
-  "terms_gate_decline": "Ahora no"
+  "terms_gate_decline": "Ahora no",
+  "guest_signout_kept_body": "Tu cuenta de invitado se queda en este teléfono: para volver, toca el botón con tu nombre en la pantalla de inicio. Si borras la app o sus datos, o inicias sesión con otra cuenta, se pierde. Añade un correo para conservarla para siempre.",
+  "guest_signout_confirm": "Cerrar sesión",
+  "guest_continue_as": "Continuar como {}",
+  "guest_kept_caption": "Tu cuenta de invitado sigue en este teléfono. Añade un correo para conservarla para siempre.",
+  "guest_replace_title": "¿Dejar tu cuenta de invitado?",
+  "guest_replace_body": "Si inicias sesión con otra cuenta, {} se borrará de este teléfono para siempre. Para conservarla, continúa como invitado y añade un correo en Cuenta.",
+  "guest_keep": "Conservar cuenta de invitado",
+  "guest_signin_anyway": "Iniciar sesión igualmente"
 }

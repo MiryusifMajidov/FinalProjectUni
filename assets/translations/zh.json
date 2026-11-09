@@ -659,5 +659,13 @@
   "terms_gate_terms_doc": "服务条款",
   "terms_gate_privacy_doc": "隐私政策",
   "terms_gate_agree": "我同意",
-  "terms_gate_decline": "暂不"
+  "terms_gate_decline": "暂不",
+  "guest_signout_kept_body": "你的游客账户会保留在这部手机上：在开始界面点按带有你名字的按钮即可回来。删除应用或其数据，或登录其他账户，都会让它丢失。添加邮箱即可永久保留。",
+  "guest_signout_confirm": "退出登录",
+  "guest_continue_as": "以 {} 继续",
+  "guest_kept_caption": "你的游客账户仍在这部手机上。添加邮箱即可永久保留。",
+  "guest_replace_title": "放弃游客账户？",
+  "guest_replace_body": "登录其他账户后，{} 将从这部手机上永久消失。若要保留，请以游客身份继续，并在“账户”中添加邮箱。",
+  "guest_keep": "保留游客账户",
+  "guest_signin_anyway": "仍然登录"
 }

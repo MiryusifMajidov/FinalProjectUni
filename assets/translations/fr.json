@@ -659,5 +659,13 @@
   "terms_gate_terms_doc": "Conditions d'utilisation",
   "terms_gate_privacy_doc": "Politique de confidentialité",
   "terms_gate_agree": "J'accepte",
-  "terms_gate_decline": "Pas maintenant"
+  "terms_gate_decline": "Pas maintenant",
+  "guest_signout_kept_body": "Ton compte invité reste sur ce téléphone : pour revenir, touche le bouton à ton nom sur l'écran d'accueil. Si tu supprimes l'appli ou ses données, ou si tu te connectes à un autre compte, il est perdu. Ajoute un e-mail pour le garder pour de bon.",
+  "guest_signout_confirm": "Se déconnecter",
+  "guest_continue_as": "Continuer en tant que {}",
+  "guest_kept_caption": "Ton compte invité est toujours sur ce téléphone. Ajoute un e-mail pour le garder pour de bon.",
+  "guest_replace_title": "Abandonner ton compte invité ?",
+  "guest_replace_body": "Si tu te connectes à un autre compte, {} disparaîtra de ce téléphone pour de bon. Pour le garder, continue en tant qu'invité et ajoute un e-mail dans Compte.",
+  "guest_keep": "Garder le compte invité",
+  "guest_signin_anyway": "Me connecter quand même"
 }

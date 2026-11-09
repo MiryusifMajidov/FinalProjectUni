@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/legal/legal_consent.dart';
+import '../../../core/widgets/guest_notice.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_fonts.dart';
 import '../../../core/theme/app_text_styles.dart';
@@ -33,6 +34,7 @@ class _AppleSignInButtonState extends ConsumerState<AppleSignInButton> {
 
   Future<void> _signIn() async {
     if (!await ensureTermsAccepted(context) || !mounted) return;
+    if (!await confirmLeaveKeptGuest(context, ref) || !mounted) return;
     setState(() => _loading = true);
     // Keeps the router from yanking the screen to /home the instant Firebase
     // signs in, before the 2FA check and profile setup below have run.

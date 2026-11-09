@@ -673,5 +673,13 @@
   "terms_gate_terms_doc": "İstifadə Şərtləri",
   "terms_gate_privacy_doc": "Məxfilik Siyasəti",
   "terms_gate_agree": "Razıyam",
-  "terms_gate_decline": "İndi yox"
+  "terms_gate_decline": "İndi yox",
+  "guest_signout_kept_body": "Qonaq hesabın bu telefonda qalır: geri qayıtmaq üçün giriş ekranında adının yazıldığı düyməyə bas. Tətbiqi və ya onun məlumatlarını silsən, ya da başqa hesaba daxil olsan, itəcək. Həmişəlik saxlamaq üçün e-poçt əlavə et.",
+  "guest_signout_confirm": "Çıxış et",
+  "guest_continue_as": "{} kimi davam et",
+  "guest_kept_caption": "Qonaq hesabın hələ bu telefondadır. Həmişəlik saxlamaq üçün e-poçt əlavə et.",
+  "guest_replace_title": "Qonaq hesabından imtina edirsən?",
+  "guest_replace_body": "Başqa hesaba daxil olsan, {} bu telefondan həmişəlik silinəcək. Saxlamaq üçün qonaq kimi davam et və Hesab bölməsində e-poçt əlavə et.",
+  "guest_keep": "Qonaq hesabını saxla",
+  "guest_signin_anyway": "Yenə də daxil ol"
 }

@@ -673,5 +673,13 @@
   "terms_gate_terms_doc": "Terms of Service",
   "terms_gate_privacy_doc": "Privacy Policy",
   "terms_gate_agree": "I agree",
-  "terms_gate_decline": "Not now"
+  "terms_gate_decline": "Not now",
+  "guest_signout_kept_body": "Your guest account stays on this phone: tap the button with your name on the start screen to come back. Deleting the app or its data, or signing in to another account, loses it. Add an email to keep it for good.",
+  "guest_signout_confirm": "Sign out",
+  "guest_continue_as": "Continue as {}",
+  "guest_kept_caption": "Your guest account is still on this phone. Add an email to keep it for good.",
+  "guest_replace_title": "Leave your guest account?",
+  "guest_replace_body": "Signing in to another account removes {} from this phone for good. To keep it, continue as the guest and add an email in Account.",
+  "guest_keep": "Keep guest account",
+  "guest_signin_anyway": "Sign in anyway"
 }

@@ -75,13 +75,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (!await ensureTermsAccepted(context) || !mounted) return;
     setState(() { _guestLoading = true; _error = null; });
     final flow = ref.read(authFlowInProgressProvider.notifier)..state = true;
+    final auth = ref.read(authServiceProvider);
+    // Coming back to the guest kept on this phone, not making a new one.
+    final returning = auth.keptGuestName != null;
     try {
       // The device session is recorded by ChessApp's auth listener.
-      await ref.read(authServiceProvider).signInAsGuest();
+      await auth.signInAsGuest();
       if (!mounted) return;
       // Home shows the one-time "this account lives only on this phone"
       // dialog — said up front, while it can still change their mind.
-      ref.read(pendingGuestWelcomeProvider.notifier).state = true;
+      if (!returning) {
+        ref.read(pendingGuestWelcomeProvider.notifier).state = true;
+      }
       context.go('/home');
     } catch (e) {
       if (mounted) setState(() => _error = _guestError(e));
@@ -108,6 +113,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     if (_busy) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
     if (!await ensureTermsAccepted(context) || !mounted) return;
+    if (!await confirmLeaveKeptGuest(context, ref) || !mounted) return;
     setState(() { _loading = true; _error = null; });
     // Signing in makes the router re-run its redirect. Without this flag it
     // sent the screen to /home at once and the 2FA check below never ran.
@@ -273,6 +279,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   // ── Shared column ──────────────────────────────────────────────────────────
 
   Widget _buildForm(BuildContext context, {bool showLogo = false}) {
+    // A guest who signed out is still on this phone: offer it back by name.
+    final keptGuest = ref.read(authServiceProvider).keptGuestName;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
@@ -324,16 +332,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           const SizedBox(height: 28),
         ],
 
-        // ── Primary: play as guest ───────────────────────────────────────
+        // ── Primary: play as guest (or the guest kept on this phone) ─────
         _PrimaryButton(
-          label: 'play_as_guest'.tr(),
+          label: keptGuest == null
+              ? 'play_as_guest'.tr()
+              : 'guest_continue_as'.tr(args: [keptGuest]),
           icon: PhosphorIcons.play(PhosphorIconsStyle.fill),
           loading: _guestLoading,
           onTap: _busy ? null : _playAsGuest,
         ),
         const SizedBox(height: 10),
         Text(
-          'guest_caption'.tr(),
+          keptGuest == null ? 'guest_caption'.tr() : 'guest_kept_caption'.tr(),
           style: AppFonts.ui(fontSize: 13, color: _kInkMute, height: 1.45),
         ),
         const SizedBox(height: 14),
