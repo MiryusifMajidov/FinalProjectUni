@@ -236,6 +236,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Future<void> _goToStep2() async {
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!await ensureTermsAccepted(context) || !mounted) return;
     // Still waiting on the debounced lookup: finish it instead of refusing.
     if (_checkingUsername) {
       _debounceTimer?.cancel();
@@ -281,6 +282,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
 
   Future<void> _register() async {
     if (_loading) return;
+    if (!await ensureTermsAccepted(context) || !mounted) return;
     if (_selectedSkillIndex == null) {
       setState(() => _error = 'err_select_skill'.tr());
       return;

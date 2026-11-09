@@ -7,6 +7,7 @@ seams, so the store shows a continuous table when you scroll.
 
 | File | Size | Upload to |
 |---|---|---|
+| `out/appstore-iphone-medium-1206x2622/iphone-medium-01–08.png` | 1206×2622 | App Store Connect → Media Manager → "iPhone with Dynamic Island (medium display)". This is the slot App Store Connect required in November 2026. |
 | `out/appstore-iphone-6.9in-1320x2868/iphone69-01–08.png` | 1320×2868 | App Store Connect → iPhone 6.9″ display. Smaller iPhone sizes are generated from it. |
 | `out/appstore-iphone-6.5in-1284x2778/iphone65-01–08.png` | 1284×2778 | App Store Connect → iPhone 6.5″ display, if that slot is the one shown. |
 | `out/appstore-6.9in/01–08.png` | 1290×2796 | The first 6.9″ set. Superseded by the 1320×2868 set above. |
@@ -35,6 +36,7 @@ Every phone shows a real screen of the app:
 ## Remake them
 
 ```bash
+node render.mjs --w 1206 --h 2622 --out out/appstore-iphone-medium-1206x2622
 node render.mjs --w 1320 --h 2868 --out out/appstore-iphone-6.9in-1320x2868
 node render.mjs --w 1284 --h 2778 --out out/appstore-iphone-6.5in-1284x2778
 node render.mjs --w 1080 --h 1920 --out out/googleplay

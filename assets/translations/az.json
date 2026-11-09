@@ -663,5 +663,15 @@
   "friend_sheet_sub": "Başlamağın iki yolu, növbə yoxdur",
   "domino_table_2v2": "2-yə-2 masa",
   "domino_table_2v2_sub": "Dostlarını dəvət et; tərəfdaşlar üz-üzə oturur",
-  "online_now_n": "{count} onlayn"
+  "online_now_n": "{count} onlayn",
+  "terms_gate_title": "İstifadə şərtləri",
+  "terms_gate_intro": "CheckMate başqa insanlarla oynamaq və yazışmaq üçündür. Daxil olmazdan əvvəl İstifadə şərtlərimizlə razılaş.",
+  "terms_gate_zero": "Sıfır tolerantlıq: təhqiramiz məzmuna və başqalarını təhqir edən istifadəçilərə yol verilmir. Bu qaydanı pozan hesablar silinir.",
+  "terms_gate_report": "İstənilən oyunçunu onun profilindən və ya çatdan şikayət edə və bloklaya bilərsən. Hər şikayətə 24 saat ərzində baxırıq.",
+  "terms_gate_age": "Hesab açmaq üçün ən azı 13 yaşın olmalıdır.",
+  "terms_gate_read_terms": "Şərtlərin tam mətni",
+  "terms_gate_terms_doc": "İstifadə Şərtləri",
+  "terms_gate_privacy_doc": "Məxfilik Siyasəti",
+  "terms_gate_agree": "Razıyam",
+  "terms_gate_decline": "İndi yox"
 }

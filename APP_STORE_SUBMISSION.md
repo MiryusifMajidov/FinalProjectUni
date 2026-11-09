@@ -145,14 +145,19 @@ Problem çıxsa göndərmə; ekran şəklini mənə at.
 Sol menyuda iOS App altındakı versiya. Versiya nömrəsini **1.3.0** et.
 
 ### 5.1 Previews and Screenshots
-Şəkil qutusunun üstündə ölçü seçimi var. Hər ölçü öz qovluğundan yüklənməlidir:
+Versiya səhifəsində şəkillərə bas, **Media Manager** açılır. Orada hansı qutu
+"Required" kimi göstərilirsə, ona uyğun qovluqdan yüklə:
 
-| App Store Connect-də seçilən | Qovluq (`marketing/store-screenshots/out/`) | Fayllar |
+| Media Manager-də görünən qutu | Qovluq (`marketing/store-screenshots/out/`) | Fayllar |
 |---|---|---|
-| **iPhone 6.9" Display** | `appstore-iphone-6.9in-1320x2868` | `iphone69-01.png` … `08` |
-| **iPhone 6.5" Display** | `appstore-iphone-6.5in-1284x2778` | `iphone65-01.png` … `08` |
+| **iPhone with Dynamic Island (medium display)**: 1206×2622 / 1179×2556 | `appstore-iphone-medium-1206x2622` | `iphone-medium-01.png` … `08` |
+| iPhone 6.9" Display: 1320×2868 | `appstore-iphone-6.9in-1320x2868` | `iphone69-01.png` … `08` |
+| iPhone 6.5" Display: 1284×2778 | `appstore-iphone-6.5in-1284x2778` | `iphone65-01.png` … `08` |
 
-Biri kifayətdir: 6.9″. Digər iPhone ölçüləri üçün Apple bunları özü kiçildir.
+9 noyabr 2026-da Apple yalnız **medium display** qutusunu tələb edirdi. Digər
+iPhone ölçüləri üçün şəkilləri özü uyğunlaşdırır. Qutuda köhnə dizaynın solğun
+şəkilləri ("Using Existing Assets") görünsə, əvvəlcə **Remove All**, sonra
+**Upload**.
 `googleplay` qovluğundakı `01.png` … `08.png` faylları Apple-a uyğun **deyil**
 (1080×1920): onları yükləsən "File dimensions are invalid" xətası çıxır.
 iPad bölməsi görünməyəcək (tətbiq yalnız iPhone üçündür).
@@ -172,9 +177,9 @@ THREE GAMES
 • Dominoes: Draw or Block, for two players or four at a table.
 
 PLAY THE WAY YOU LIKE
-• Online: ranked games with bullet, blitz and rapid clocks.
+• Online: ranked games with bullet, blitz and rapid clocks. If nobody is free within 30 seconds, a computer opponent steps in for an unrated game, so you are never left waiting.
 • Friends: send an invite, or pass one phone between two players.
-• Bot: six levels, from Beginner to Master.
+• Bot: six levels for chess and draughts, from Beginner to Master. The dominoes bot plays at one steady strength.
 • Offline: bot games and two-player games need no account and no internet.
 
 ARENAS
@@ -305,7 +310,10 @@ Bu bölmə boş qalsa "Submit" düyməsi aktiv olmur.
 Ad, soyad, telefon, e-poçt: Apple zəng edə bilər, real məlumat yaz.
 
 ### 9.3 Notes — yapışdır
+`<VIDEO LINK>` yerinə ekran videosunun linkini qoy (bax 9.4).
 ```
+GUIDELINE 1.2 (previous submission 4f7981be): fixed in this build. Before any sign-in or sign-up (guest, Apple, Google, email), the app now shows the Terms of Use, which state zero tolerance for objectionable content and abusive users, and the user must tap "I agree" to continue. Screen recording on a physical iPhone showing the terms agreement, reporting and blocking: <VIDEO LINK>
+
 The app can be used without an account. On the first screen, tap "Play now as guest" (an anonymous account on this device) or "Play offline" (bot games and two-player games, no account and no internet). Features that keep data across devices (friends, chat, ratings) also work for guests; the demo account above is a regular email account with the email verified and two-factor authentication off.
 
 What to try:
@@ -313,7 +321,7 @@ What to try:
 2. Play vs bot: choose one of six levels. On your turn, tap Hint and the suggested move is drawn on the board.
 3. Arena tab: join the live arena. A new one starts every 30 minutes. Empty arena seats are filled by computer players marked "BOT".
 4. Play online: matchmaking. If no other player is found within 30 seconds, the app starts an unrated game against a computer opponent so nobody is left waiting. That opponent plays under a player name. These games never change ratings.
-5. Safety: every user profile and chat has Report and Block. Messages pass a profanity filter, and we review every report. Blocked users are listed in Settings > Privacy.
+5. Safety: every user profile and chat has Report and Block. Messages pass a profanity filter, and we review every report. Blocked users are listed in Settings > Privacy > Block list.
 6. Map (pin icon at the top of the Play tab): off by default. Location is requested "when in use" only and stored rounded to about 1 km.
 
 Account deletion (5.1.1(v)): Settings (gear icon) > Account > Delete account > confirm. It permanently deletes the account and its data; no support contact needed. If you delete the demo account, contact us and we will recreate it.
@@ -331,6 +339,59 @@ görünər, və bu daha pis nəticə verir. Bu qeydi istifadəçilər görmür.
 Yenə də bu, göndərişdə qalan **ən böyük risk**dir: Apple belə rəqiblərin
 istifadəçiyə göstərilməsini tələb edə bilər. Belə olsa, düzəliş kiçikdir:
 iOS-da onların yanına "Bot" yazısı qoymaq.
+
+### 9.4 Apple-ın əvvəlki rəddi (Guideline 1.2) — video və cavab
+
+Apple 30 sentyabr 2026-da tətbiqi rədd edib: istifadəçi qeydiyyatdan və ya
+girişdən **əvvəl** şərtlərlə (EULA) razılaşmalı idi. Bu build-də bu var: ilk
+girişdən əvvəl "Terms of Use" pəncərəsi açılır, "I agree" basılmadan heç bir
+giriş üsulu işləmir. Apple **real cihazda çəkilmiş ekran videosu** istəyir.
+
+**Videonu iPhone-da çək** (TestFlight-dan yüklənmiş yeni build ilə):
+1. Tətbiqi telefondan sil və TestFlight-dan yenidən yüklə. Razılıq yadda
+   saxlanılır; təzə quraşdırmada pəncərə yenə açılacaq.
+2. Control Center → **Screen Recording** düyməsi ilə yazını başlat.
+3. Tətbiqi aç → **Play now as guest** → "Terms of Use" pəncərəsi açılır →
+   **Read the full Terms** bas və 4-cü bəndi ("Acceptable Use — zero
+   tolerance") göstər → bağla → **I agree**.
+4. Başqa real istifadəçinin profilini aç (məsələn, öz əsas hesabının) →
+   sağ yuxarı menyu → **Report** → "Inappropriate content" → "Report
+   submitted" yazısı görünsün.
+5. Həmin menyudan **Block** → təsdiqlə → Settings → Privacy → **Block
+   list** siyahısında həmin istifadəçini göstər.
+6. Mümkünsə çatda da menyudan Report və Block olduğunu göstər.
+7. Yazını dayandır. Video "Photos" tətbiqində olacaq.
+
+Videonu Google Drive və ya YouTube-a (**Unlisted**) yüklə, linki hər kəs
+aça bilsin. Həmin linki 9.3-dəki qeyddə `<VIDEO LINK>` yerinə yaz. Videonu
+App Review Information → **Attachment** sahəsinə də əlavə et.
+
+"Report submitted" əvəzinə "Could not send report" çıxsa, dayan və mənə yaz.
+Bu o deməkdir ki, Firestore qaydaları serverdə köhnədir.
+
+**App Review mesajına cavab** (App Review bölməsində, Apple-ın mesajının
+altında **Reply**):
+```
+Hello,
+
+Thank you for the review. We have addressed Guideline 1.2 in build 1.3.0:
+
+- Terms of Use (EULA): before any sign-in or sign-up (guest, Sign in with Apple, Google or email), the app shows the Terms of Use and the user must tap "I agree" to continue. The terms state that there is no tolerance for objectionable content or abusive users, and that offending accounts are removed.
+- Flagging content: every user profile and every chat has a menu in the top-right corner with "Report", where the user picks a reason (for example "Inappropriate content"). We review every report within 24 hours, remove the content and remove the offending account.
+- Blocking: the same menu has "Block". Blocked users are listed in Settings > Privacy > Block list.
+- Chat messages pass a profanity filter before they are sent.
+
+Screen recording on a physical iPhone: <VIDEO LINK>
+The recording is also attached in the App Review Information section.
+
+Best regards,
+Miryusif Majidov
+```
+
+**24 saat öhdəliyi real olmalıdır.** Şərtlərdə və cavabda "hər şikayətə 24 saat
+ərzində baxırıq" yazılıb. Şikayətlər Firebase Console → Firestore →
+**reports** kolleksiyasına düşür. Ora hər gün bax. Pozuntu varsa, mesajı sil
+və hesabı Authentication bölməsində **Disable** et.
 
 ---
 

@@ -663,5 +663,15 @@
   "friend_sheet_sub": "Two ways to start, no queue",
   "domino_table_2v2": "2v2 table",
   "domino_table_2v2_sub": "Invite friends; partners sit across",
-  "online_now_n": "{count} online now"
+  "online_now_n": "{count} online now",
+  "terms_gate_title": "Terms of Use",
+  "terms_gate_intro": "CheckMate is a place to play and chat with other people. Before you sign in, please agree to our Terms of Use.",
+  "terms_gate_zero": "Zero tolerance: objectionable content and abusive users are not allowed. Accounts that break this rule are removed.",
+  "terms_gate_report": "You can report or block any player from their profile or a chat. We review every report within 24 hours.",
+  "terms_gate_age": "You must be at least 13 years old to have an account.",
+  "terms_gate_read_terms": "Read the full Terms",
+  "terms_gate_terms_doc": "Terms of Service",
+  "terms_gate_privacy_doc": "Privacy Policy",
+  "terms_gate_agree": "I agree",
+  "terms_gate_decline": "Not now"
 }

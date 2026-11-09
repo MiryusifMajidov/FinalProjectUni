@@ -649,5 +649,15 @@
   "friend_sheet_sub": "Deux façons de commencer, sans file",
   "domino_table_2v2": "Table 2 contre 2",
   "domino_table_2v2_sub": "Invitez des amis ; les partenaires sont face à face",
-  "online_now_n": "{count} en ligne"
+  "online_now_n": "{count} en ligne",
+  "terms_gate_title": "Conditions d'utilisation",
+  "terms_gate_intro": "Sur CheckMate, tu joues et tu discutes avec d'autres personnes. Avant de te connecter, accepte nos Conditions d'utilisation.",
+  "terms_gate_zero": "Tolérance zéro : les contenus choquants et les utilisateurs qui harcèlent les autres ne sont pas acceptés. Les comptes qui enfreignent cette règle sont supprimés.",
+  "terms_gate_report": "Tu peux signaler ou bloquer n'importe quel joueur depuis son profil ou une discussion. Nous examinons chaque signalement sous 24 heures.",
+  "terms_gate_age": "Tu dois avoir au moins 13 ans pour avoir un compte.",
+  "terms_gate_read_terms": "Lire les conditions complètes",
+  "terms_gate_terms_doc": "Conditions d'utilisation",
+  "terms_gate_privacy_doc": "Politique de confidentialité",
+  "terms_gate_agree": "J'accepte",
+  "terms_gate_decline": "Pas maintenant"
 }

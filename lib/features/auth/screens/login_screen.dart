@@ -72,6 +72,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _playAsGuest() async {
     if (_busy) return;
+    if (!await ensureTermsAccepted(context) || !mounted) return;
     setState(() { _guestLoading = true; _error = null; });
     final flow = ref.read(authFlowInProgressProvider.notifier)..state = true;
     try {
@@ -106,6 +107,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   Future<void> _login() async {
     if (_busy) return;
     if (!(_formKey.currentState?.validate() ?? false)) return;
+    if (!await ensureTermsAccepted(context) || !mounted) return;
     setState(() { _loading = true; _error = null; });
     // Signing in makes the router re-run its redirect. Without this flag it
     // sent the screen to /home at once and the 2FA check below never ran.

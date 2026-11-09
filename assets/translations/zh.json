@@ -649,5 +649,15 @@
   "friend_sheet_sub": "两种开局方式，无需排队",
   "domino_table_2v2": "2对2牌桌",
   "domino_table_2v2_sub": "邀请好友；搭档相对而坐",
-  "online_now_n": "{count} 人在线"
+  "online_now_n": "{count} 人在线",
+  "terms_gate_title": "使用条款",
+  "terms_gate_intro": "在 CheckMate 中，你会与其他人对弈和聊天。登录前，请先同意我们的使用条款。",
+  "terms_gate_zero": "零容忍：不允许发布令人反感的内容，也不允许辱骂或骚扰他人。违反此规则的账户将被删除。",
+  "terms_gate_report": "你可以在任何玩家的个人资料或聊天中举报或屏蔽对方。我们会在 24 小时内处理每一条举报。",
+  "terms_gate_age": "你必须年满 13 岁才能拥有账户。",
+  "terms_gate_read_terms": "阅读完整条款",
+  "terms_gate_terms_doc": "服务条款",
+  "terms_gate_privacy_doc": "隐私政策",
+  "terms_gate_agree": "我同意",
+  "terms_gate_decline": "暂不"
 }
