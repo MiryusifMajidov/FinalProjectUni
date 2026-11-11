@@ -60,6 +60,11 @@
 	<!-- geolocator / flutter_map: mekan -->
 	<key>NSLocationWhenInUseUsageDescription</key>
 	<string>We use your location to show your position and nearby players on the map.</string>
+	<!-- The geolocator plugin contains (but never calls here) the "Always"
+	     request, so App Store Connect asks for this key (ITMS-90683). The app
+	     only asks for "While Using", because the key above is checked first. -->
+	<key>NSLocationAlwaysAndWhenInUseUsageDescription</key>
+	<string>CheckMate uses your location only while you use the app, to show your position and nearby players on the map. It never tracks your location in the background.</string>
 	<!-- firebase_messaging: arxa fonda push bildirisleri -->
 	<key>UIBackgroundModes</key>
 	<array>
