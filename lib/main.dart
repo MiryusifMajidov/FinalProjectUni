@@ -170,6 +170,9 @@ class _ChessAppState extends ConsumerState<ChessApp>
   void _tryRestoreSession(String? uid) {
     if (uid == null || _sessionInitialized) return;
     _sessionInitialized = true;
+    // Guests made before guests were tied to the device (Android) get tied
+    // now, so cleared app data no longer loses them.
+    ref.read(authServiceProvider).bindDeviceGuest();
     ref.read(authServiceProvider).restoreOrCreateSession(uid).then((sid) {
       if (sid != null && mounted) {
         ref.read(currentSessionIdProvider.notifier).state = sid;

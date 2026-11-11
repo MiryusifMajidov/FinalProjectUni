@@ -13,6 +13,7 @@ import '../../../core/theme/app_text_styles.dart';
 import '../../../core/utils/responsive.dart';
 import '../../../core/services/online_count.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/device_guest.dart';
 import '../../../core/services/chat_service.dart';
 import '../../../core/services/photo_service.dart';
 import '../../../core/models/user_model.dart';
@@ -1824,7 +1825,7 @@ class _CompleteProfileScreenState
     if (region != null && kCountries.any((c) => c.$1 == region)) {
       _countryCode = region;
     }
-    if (widget.firebaseUser.isAnonymous) {
+    if (isGuestUser(widget.firebaseUser)) {
       _creatingGuest = true;
       WidgetsBinding.instance.addPostFrameCallback(
         (_) => _createGuestProfile(),
@@ -2011,7 +2012,7 @@ class _CompleteProfileScreenState
                   .$2,
             )
             : ('', '');
-    final isAnon = widget.firebaseUser.isAnonymous;
+    final isAnon = isGuestUser(widget.firebaseUser);
 
     return Scaffold(
       backgroundColor: AppColors.background,

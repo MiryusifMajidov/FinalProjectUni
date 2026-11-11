@@ -13,6 +13,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sign_in_with_apple/sign_in_with_apple.dart';
+import 'device_guest.dart';
 import 'firestore_service.dart';
 import 'log_service.dart';
 import '../constants/countries.dart';
@@ -52,6 +53,14 @@ class AuthService {
   static String? _keptGuestUid;
   static String? _keptGuestName;
 
+  // Android guests tied to the device (see device_guest.dart): the name to
+  // offer on the start screen, and whether the player signed out on purpose
+  // (then the app does not sign them back in by itself).
+  static const _kDeviceGuestName = 'device_guest_name';
+  static const _kGuestSignedOut = 'device_guest_signed_out';
+  static String? _deviceGuestName;
+  static bool _guestSignedOut = false;
+
   /// Reads the kept guest before the app starts, so the very first auth
   /// event already hides it.
   static Future<void> loadKeptGuest() async {
@@ -59,6 +68,8 @@ class AuthService {
       final p = await SharedPreferences.getInstance();
       _keptGuestUid = p.getString(_kKeptGuestUid);
       _keptGuestName = p.getString(_kKeptGuestName);
+      _deviceGuestName = p.getString(_kDeviceGuestName);
+      _guestSignedOut = p.getBool(_kGuestSignedOut) ?? false;
     } catch (_) {}
   }
 
@@ -72,9 +83,14 @@ class AuthService {
   /// The guest account kept on this device after its player signed out.
   User? get keptGuest => _isKept(_auth.currentUser) ? _auth.currentUser : null;
 
-  /// The kept guest's username ("user#0042"), for "Continue as …".
+  /// The kept guest's username ("user#0042"). Only an anonymous kept guest
+  /// is lost by signing in to another account, so only it gets the warning.
   String? get keptGuestName =>
       keptGuest == null ? null : (_keptGuestName ?? 'guest');
+
+  /// The guest "Play as guest" will bring back, for "Continue as …": the
+  /// kept anonymous guest, or the guest tied to this Android device.
+  String? get resumableGuestName => keptGuestName ?? _deviceGuestName;
 
   Stream<User?> _withKeptGuest(Stream<User?> source) {
     late final StreamController<User?> out;
@@ -111,6 +127,90 @@ class AuthService {
       }
     } catch (_) {}
     _keptGuestChanges.add(null);
+  }
+
+  Future<void> _rememberDeviceGuest(
+      {String? name, required bool signedOut}) async {
+    if (name != null) _deviceGuestName = name;
+    _guestSignedOut = signedOut;
+    try {
+      final p = await SharedPreferences.getInstance();
+      if (name != null) await p.setString(_kDeviceGuestName, name);
+      await p.setBool(_kGuestSignedOut, signedOut);
+    } catch (_) {}
+  }
+
+  /// Called once the device guest stops being a guest (upgraded or deleted).
+  Future<void> _forgetDeviceGuest() async {
+    _deviceGuestName = null;
+    _guestSignedOut = false;
+    try {
+      final p = await SharedPreferences.getInstance();
+      await p.remove(_kDeviceGuestName);
+      await p.remove(_kGuestSignedOut);
+    } catch (_) {}
+  }
+
+  /// Signs in to the guest tied to this device. Null when there is none.
+  Future<User?> _signInDeviceGuest(
+      ({String email, String password}) device) async {
+    try {
+      final cred = await _auth.signInWithEmailAndPassword(
+          email: device.email, password: device.password);
+      return cred.user;
+    } on FirebaseAuthException catch (e) {
+      const noSuchGuest = {
+        'user-not-found',
+        'invalid-credential',
+        'wrong-password',
+        'invalid-login-credentials',
+        'INVALID_LOGIN_CREDENTIALS',
+      };
+      if (noSuchGuest.contains(e.code)) return null;
+      rethrow;
+    }
+  }
+
+  /// Ties the signed-in anonymous guest to this Android device, so cleared
+  /// app data or a reinstall no longer loses it. Safe to call any time; does
+  /// nothing off Android, for registered accounts, or for a hidden guest.
+  Future<void> bindDeviceGuest() async {
+    final user = _auth.currentUser;
+    if (user == null || !user.isAnonymous || _isKept(user)) return;
+    final device = await DeviceGuest.credentials();
+    if (device == null) return;
+    try {
+      await user.linkWithCredential(EmailAuthProvider.credential(
+          email: device.email, password: device.password));
+      final profile = await _firestore.getUser(user.uid);
+      await _rememberDeviceGuest(name: profile?.username, signedOut: false);
+    } catch (e) {
+      // e.g. offline: the guest stays anonymous and is tied on a later launch.
+      debugPrint('[Guest] tying the guest to this device failed: $e');
+    }
+  }
+
+  /// On Android, signs the guest tied to this device back in when the app
+  /// starts signed out: after cleared app data or a reinstall
+  /// ([firstSession]), or when the session went missing without the player
+  /// signing out. Returns true when it did.
+  Future<bool> tryAutoRestoreDeviceGuest({required bool firstSession}) async {
+    if (_auth.currentUser != null) return false;
+    if (!firstSession && (_deviceGuestName == null || _guestSignedOut)) {
+      return false;
+    }
+    final device = await DeviceGuest.credentials();
+    if (device == null) return false;
+    try {
+      final user = await _signInDeviceGuest(device);
+      if (user == null) return false;
+      final profile = await ensureGuestProfile(user);
+      await _rememberDeviceGuest(name: profile.username, signedOut: false);
+      return true;
+    } catch (e) {
+      debugPrint('[Guest] restoring the device guest failed: $e');
+      return false;
+    }
   }
 
   Future<UserModel> register({
@@ -264,10 +364,23 @@ class AuthService {
     if (kept != null) {
       final profile = await ensureGuestProfile(kept);
       await _keepGuest(null);
+      await bindDeviceGuest();
       return profile;
     }
+    // Android: the guest tied to this phone, if it has one.
+    final device = await DeviceGuest.credentials();
+    if (device != null) {
+      final restored = await _signInDeviceGuest(device);
+      if (restored != null) {
+        final profile = await ensureGuestProfile(restored);
+        await _rememberDeviceGuest(name: profile.username, signedOut: false);
+        return profile;
+      }
+    }
     final cred = await _auth.signInAnonymously();
-    return ensureGuestProfile(cred.user!);
+    final profile = await ensureGuestProfile(cred.user!);
+    await bindDeviceGuest();
+    return profile;
   }
 
   /// Returns the profile of an anonymous user, creating it if it is missing
@@ -333,7 +446,7 @@ class AuthService {
           : 'other';
 
   /// True while the signed-in Firebase user is anonymous (a guest).
-  bool get isGuest => _auth.currentUser?.isAnonymous ?? false;
+  bool get isGuest => isGuestUser(_auth.currentUser);
 
   /// Turns the guest account into a permanent e-mail/password account. The
   /// uid stays the same, so ratings, games, friends and photo all carry over.
@@ -348,7 +461,27 @@ class AuthService {
     if (user == null) throw Exception('Not logged in');
     final credential =
         EmailAuthProvider.credential(email: email, password: password);
-    await user.linkWithCredential(credential);
+    if (DeviceGuest.isDeviceGuest(user)) {
+      // A device guest already has an e-mail login (the derived one); swap
+      // it for the player's own, and put it back if the swap fails.
+      final device = await DeviceGuest.credentials();
+      final bare = await user.unlink(EmailAuthProvider.PROVIDER_ID);
+      try {
+        await bare.linkWithCredential(credential);
+      } catch (_) {
+        if (device != null) {
+          try {
+            await bare.linkWithCredential(EmailAuthProvider.credential(
+                email: device.email, password: device.password));
+          } catch (e) {
+            debugPrint('[Guest] restoring the device login failed: $e');
+          }
+        }
+        rethrow;
+      }
+    } else {
+      await user.linkWithCredential(credential);
+    }
     await _markGuestUpgraded(user.uid, email: email, method: 'email');
     await sendVerificationEmail();
   }
@@ -367,11 +500,16 @@ class AuthService {
       accessToken: googleAuth.accessToken,
       idToken: googleAuth.idToken,
     );
+    final wasDeviceGuest = DeviceGuest.isDeviceGuest(user);
     try {
       final result = await user.linkWithCredential(credential);
+      if (wasDeviceGuest) await _dropDeviceLogin(result.user);
+      final linkedEmail = result.user?.email;
       await _markGuestUpgraded(
         user.uid,
-        email: result.user?.email ?? googleUser.email,
+        email: DeviceGuest.isGuestEmail(linkedEmail)
+            ? googleUser.email
+            : (linkedEmail ?? googleUser.email),
         method: 'google',
         photoUrl: googleUser.photoUrl,
       );
@@ -389,12 +527,27 @@ class AuthService {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not logged in');
     final (credential, apple) = await _appleCredential();
+    final wasDeviceGuest = DeviceGuest.isDeviceGuest(user);
     final result = await user.linkWithCredential(credential);
+    if (wasDeviceGuest) await _dropDeviceLogin(result.user);
+    final linkedEmail = result.user?.email;
     await _markGuestUpgraded(
       user.uid,
-      email: apple.email ?? result.user?.email ?? '',
+      email: apple.email ??
+          (DeviceGuest.isGuestEmail(linkedEmail) ? null : linkedEmail) ??
+          '',
       method: 'apple',
     );
+  }
+
+  /// After a Google or Apple link, removes the derived device login so "Play
+  /// as guest" on this phone no longer opens what is now a real account.
+  Future<void> _dropDeviceLogin(User? user) async {
+    try {
+      await user?.unlink(EmailAuthProvider.PROVIDER_ID);
+    } catch (e) {
+      debugPrint('[Guest] removing the device login failed: $e');
+    }
   }
 
   Future<void> _markGuestUpgraded(
@@ -403,6 +556,7 @@ class AuthService {
     required String method,
     String? photoUrl,
   }) async {
+    await _forgetDeviceGuest();
     final updates = <String, dynamic>{'isGuest': false, 'email': email};
     try {
       final current = await _firestore.getUser(uid);
@@ -430,10 +584,13 @@ class AuthService {
   Future<void> syncGuestFlag(UserModel profile) async {
     final fbUser = _auth.currentUser;
     if (fbUser == null || fbUser.uid != profile.uid) return;
-    final authSaysGuest = fbUser.isAnonymous;
+    final authSaysGuest = isGuestUser(fbUser);
     if (authSaysGuest == profile.isGuest) return;
     final updates = <String, dynamic>{'isGuest': authSaysGuest};
-    if (!authSaysGuest && profile.email.isEmpty && fbUser.email != null) {
+    if (!authSaysGuest &&
+        profile.email.isEmpty &&
+        fbUser.email != null &&
+        !DeviceGuest.isGuestEmail(fbUser.email)) {
       updates['email'] = fbUser.email;
     }
     try {
@@ -793,6 +950,15 @@ class AuthService {
       await _keepGuest(user.uid, name: username);
       return;
     }
+    // A device guest can always come back through "Play as guest"; remember
+    // the name for "Continue as …". Any sign-out on purpose (of the guest or
+    // of another account on this phone) stops the app from signing the guest
+    // back in by itself on the next launch.
+    final wasDeviceGuest = user != null && DeviceGuest.isDeviceGuest(user);
+    if (wasDeviceGuest || _deviceGuestName != null) {
+      await _rememberDeviceGuest(
+          name: wasDeviceGuest ? username : null, signedOut: true);
+    }
     // Without this, google_sign_in silently reuses the last Google account,
     // so after logging out nobody could pick a different one.
     if (user?.providerData.any((p) => p.providerId == 'google.com') ?? false) {
@@ -820,7 +986,15 @@ class AuthService {
     // Determine sign-in provider and re-authenticate accordingly
     final providers = user.providerData.map((p) => p.providerId).toList();
 
-    if (providers.contains('google.com')) {
+    if (DeviceGuest.isDeviceGuest(user)) {
+      // A device guest has no password of its own: re-authenticate with the
+      // derived login.
+      final device = await DeviceGuest.credentials();
+      if (device != null) {
+        await user.reauthenticateWithCredential(EmailAuthProvider.credential(
+            email: device.email, password: device.password));
+      }
+    } else if (providers.contains('google.com')) {
       // Google account — re-authenticate silently via Google Sign-In
       final googleSignIn = GoogleSignIn();
       final googleUser = await googleSignIn.signIn();
@@ -941,6 +1115,7 @@ class AuthService {
 
     // Finally remove the Auth account
     await _deleteAuthUser(user);
+    await _forgetDeviceGuest();
   }
 
   /// Deletes the Firebase Auth record. A guest whose session is older than a
@@ -962,10 +1137,12 @@ class AuthService {
 
   /// Returns true if the current Firebase user has an email/password
   /// sign-in provider (as opposed to Google-only accounts).
-  bool get hasEmailPasswordProvider =>
-      _auth.currentUser?.providerData
-          .any((p) => p.providerId == 'password') ??
-      false;
+  bool get hasEmailPasswordProvider {
+    final user = _auth.currentUser;
+    // A device guest's e-mail login is derived, not a password they know.
+    if (user == null || DeviceGuest.isDeviceGuest(user)) return false;
+    return user.providerData.any((p) => p.providerId == 'password');
+  }
 
   /// Returns true if the current Firebase user signed in with Apple.
   bool get hasAppleProvider =>
@@ -1009,7 +1186,7 @@ final authUserChangesProvider = StreamProvider<User?>((ref) {
 final isGuestProvider = Provider<bool>((ref) {
   final user = ref.watch(authUserChangesProvider).valueOrNull ??
       ref.watch(authStateProvider).valueOrNull;
-  return user?.isAnonymous ?? false;
+  return isGuestUser(user);
 });
 
 /// Set by the login / register / guest flows while they run. Signing in makes

@@ -5,6 +5,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import '../../../core/theme/app_colors.dart';
 import '../../../core/theme/app_fonts.dart';
 import '../../../core/services/auth_service.dart';
+import '../../../core/services/cache_service.dart';
 
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -32,9 +33,17 @@ class _SplashScreenState extends ConsumerState<SplashScreen> {
     if (!mounted) return;
     if (user != null) {
       context.go('/home');
-    } else {
-      context.go('/login');
+      return;
     }
+    // Android: a guest tied to this phone comes back by itself after cleared
+    // app data or a reinstall, instead of landing on the start screen.
+    final restored = await ref
+        .read(authServiceProvider)
+        .tryAutoRestoreDeviceGuest(
+            firstSession: ref.read(cacheServiceProvider).isFirstSession)
+        .timeout(const Duration(seconds: 10), onTimeout: () => false);
+    if (!mounted) return;
+    context.go(restored ? '/home' : '/login');
   }
 
   @override

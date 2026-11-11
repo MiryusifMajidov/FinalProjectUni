@@ -229,7 +229,7 @@ dominoes,board,games,multiplayer,online,tournament,bot,offline,strategy,russian,
 
 ### 5.7 Copyright
 ```
-2026 Yusif Majidov
+2026 Miryusif Majidov
 ```
 Apple Developer hesabındakı ad fərqlidirsə, həmin adı yaz.
 
@@ -314,7 +314,7 @@ Ad, soyad, telefon, e-poçt: Apple zəng edə bilər, real məlumat yaz.
 ```
 GUIDELINE 1.2 (previous submission 4f7981be): fixed in this build. Before any sign-in or sign-up (guest, Apple, Google, email), the app now shows the Terms of Use, which state zero tolerance for objectionable content and abusive users, and the user must tap "I agree" to continue. Screen recording on a physical iPhone showing the terms agreement, reporting and blocking: <VIDEO LINK>
 
-The app can be used without an account. On the first screen, tap "Play now as guest" (an anonymous account on this device) or "Play offline" (bot games and two-player games, no account and no internet). Features that keep data across devices (friends, chat, ratings) also work for guests; the demo account above is a regular email account with the email verified and two-factor authentication off.
+The app can be used without an account. On the first screen, tap "Play now as guest" (an anonymous account on this device) or "Play offline" (bot games and two-player games, no account and no internet). Guests can use every feature. The demo account above is a regular email account with two-factor authentication turned off.
 
 What to try:
 1. Play tab: pick Chess, Checkers or Domino at the top. The whole app switches to that game's colour.

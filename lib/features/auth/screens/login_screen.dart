@@ -77,7 +77,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     final flow = ref.read(authFlowInProgressProvider.notifier)..state = true;
     final auth = ref.read(authServiceProvider);
     // Coming back to the guest kept on this phone, not making a new one.
-    final returning = auth.keptGuestName != null;
+    final returning = auth.resumableGuestName != null;
     try {
       // The device session is recorded by ChessApp's auth listener.
       await auth.signInAsGuest();
@@ -280,7 +280,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Widget _buildForm(BuildContext context, {bool showLogo = false}) {
     // A guest who signed out is still on this phone: offer it back by name.
-    final keptGuest = ref.read(authServiceProvider).keptGuestName;
+    final keptGuest = ref.read(authServiceProvider).resumableGuestName;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
