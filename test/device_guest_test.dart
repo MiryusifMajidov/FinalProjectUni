@@ -1,7 +1,48 @@
 import 'package:chess_app/core/services/device_guest.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
+  TestWidgetsFlutterBinding.ensureInitialized();
+
+  group('guest log', () {
+    setUp(() {
+      SharedPreferences.setMockInitialValues({});
+      GuestDiag.reset();
+    });
+
+    test('a line is a UTC time, the step and its result', () {
+      GuestDiag.add('bind', 'ok', DateTime.utc(2026, 11, 14, 9, 5, 7));
+      expect(GuestDiag.text, '11-14 09:05:07Z bind: ok');
+    });
+
+    test('keeps only the latest thirty lines', () {
+      for (var i = 0; i < 40; i++) {
+        GuestDiag.add('step', '$i');
+      }
+      final lines = GuestDiag.text.split('\n');
+      expect(lines.length, 30);
+      expect(lines.first, endsWith('step: 10'));
+      expect(lines.last, endsWith('step: 39'));
+    });
+
+    test('survives a restart', () async {
+      GuestDiag.add('restore(start)', 'no-such-guest');
+      await Future<void>.delayed(Duration.zero);
+      GuestDiag.reset();
+      await GuestDiag.load();
+      expect(GuestDiag.text, contains('restore(start): no-such-guest'));
+    });
+
+    test('names an error by its Firebase code, else by its type', () {
+      expect(
+          GuestDiag.code(FirebaseAuthException(code: 'email-already-in-use')),
+          'email-already-in-use');
+      expect(GuestDiag.code(StateError('x')), 'StateError');
+    });
+  });
+
   group('device guest login', () {
     test('is the same every time for one device', () {
       final a = DeviceGuest.derive('3f2a9c01b7d4e655');

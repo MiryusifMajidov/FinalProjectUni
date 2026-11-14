@@ -13,6 +13,7 @@ import '../../../core/legal/legal_texts.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/app_logo.dart';
+import '../../../core/widgets/guest_notice.dart';
 import '../../../core/theme/app_fonts.dart';
 // ── Design tokens ──────────────────────────────────────────────────────────────
 const _kBg       = AppColors.background;
@@ -131,11 +132,20 @@ class _AboutScreenState extends ConsumerState<AboutScreen> {
                             ),
                             const SizedBox(height: 2),
                             if (_version.isNotEmpty)
-                              Text(
-                                _version,
-                                style: AppFonts.ui(
-                                  fontSize: 12,
-                                  color: _kInkMute,
+                              GestureDetector(
+                                behavior: HitTestBehavior.opaque,
+                                onLongPress: () =>
+                                    showGuestDiagnostics(context, ref),
+                                child: Padding(
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16, vertical: 6),
+                                  child: Text(
+                                    _version,
+                                    style: AppFonts.ui(
+                                      fontSize: 12,
+                                      color: _kInkMute,
+                                    ),
+                                  ),
                                 ),
                               ),
                             const SizedBox(height: 10),

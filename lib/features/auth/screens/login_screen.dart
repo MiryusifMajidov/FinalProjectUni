@@ -76,15 +76,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() { _guestLoading = true; _error = null; });
     final flow = ref.read(authFlowInProgressProvider.notifier)..state = true;
     final auth = ref.read(authServiceProvider);
-    // Coming back to the guest kept on this phone, not making a new one.
-    final returning = auth.resumableGuestName != null;
     try {
       // The device session is recorded by ChessApp's auth listener.
       await auth.signInAsGuest();
       if (!mounted) return;
       // Home shows the one-time "this account lives only on this phone"
       // dialog — said up front, while it can still change their mind.
-      if (!returning) {
+      // Only for a brand-new guest, not for one that came back.
+      if (auth.lastGuestWasNew) {
         ref.read(pendingGuestWelcomeProvider.notifier).state = true;
       }
       context.go('/home');
@@ -287,7 +286,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         if (showLogo) ...[
           Row(
             children: [
-              const AppLogo(size: 32),
+              GestureDetector(
+                onLongPress: () => showGuestDiagnostics(context, ref),
+                child: const AppLogo(size: 32),
+              ),
               const SizedBox(width: 10),
               Text(
                 'CheckMate',

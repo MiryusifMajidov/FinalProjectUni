@@ -1,7 +1,9 @@
 import 'package:easy_localization/easy_localization.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:package_info_plus/package_info_plus.dart';
 import 'package:phosphor_icons/phosphor_icons.dart';
 
 import '../../features/auth/widgets/apple_sign_in_button.dart'
@@ -54,6 +56,50 @@ Future<void> showGuestWelcomeDialog(BuildContext context) {
 /// Asks a guest to confirm signing out. The account stays on this device, so
 /// this is a reminder rather than a warning. Returns true only for "Sign
 /// out"; "Add e-mail" opens the link sheet and returns false.
+/// Support view: what happened to the guest account on this phone. Opened by
+/// a long press on the logo of the start screen or on the version in About.
+/// It lists steps and result codes only.
+Future<void> showGuestDiagnostics(BuildContext context, WidgetRef ref) async {
+  var build = '';
+  try {
+    final info = await PackageInfo.fromPlatform();
+    build = 'v${info.version} build ${info.buildNumber}';
+  } catch (_) {}
+  if (!context.mounted) return;
+  final text =
+      'CheckMate $build\n${ref.read(authServiceProvider).guestDiagnostics}';
+  await showDialog<void>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      backgroundColor: AppColors.surface,
+      title: Text(
+        'Guest account log',
+        style: AppFonts.ui(
+            fontSize: 16, fontWeight: FontWeight.w700, color: AppColors.ink),
+      ),
+      content: SingleChildScrollView(
+        child: SelectableText(
+          text,
+          style: AppFonts.ui(fontSize: 12, color: AppColors.inkDim, height: 1.5),
+        ),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () {
+            Clipboard.setData(ClipboardData(text: text));
+            Navigator.of(ctx).pop();
+          },
+          child: const Text('Copy'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.of(ctx).pop(),
+          child: const Text('Close'),
+        ),
+      ],
+    ),
+  );
+}
+
 Future<bool> confirmGuestSignOut(BuildContext context) async {
   final result = await showDialog<String>(
     context: context,

@@ -7,6 +7,7 @@ import 'package:cloud_functions/cloud_functions.dart';
 import 'package:crypto/crypto.dart';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -61,6 +62,25 @@ class AuthService {
   static String? _deviceGuestName;
   static bool _guestSignedOut = false;
 
+  /// True while this service itself takes the player out (sign-out, account
+  /// deletion): a missing user is then expected, not a lost session.
+  bool _leaving = false;
+
+  /// True while "Play as guest" runs. It ties the guest to the device itself,
+  /// after the profile exists, so nothing else may do it in the meantime.
+  bool _guestFlow = false;
+
+  /// Whether the last signed-in user was this device's guest.
+  bool _lastWasDeviceGuest = false;
+
+  /// Whether the last "Play as guest" made a brand-new account (as opposed
+  /// to bringing one back). The start screen greets only new guests.
+  bool lastGuestWasNew = false;
+
+  Future<void>? _binding;
+  Future<User?>? _restoring;
+  Future<User?>? _healing;
+
   /// Reads the kept guest before the app starts, so the very first auth
   /// event already hides it.
   static Future<void> loadKeptGuest() async {
@@ -71,6 +91,7 @@ class AuthService {
       _deviceGuestName = p.getString(_kDeviceGuestName);
       _guestSignedOut = p.getBool(_kGuestSignedOut) ?? false;
     } catch (_) {}
+    await GuestDiag.load();
   }
 
   final _keptGuestChanges = StreamController<void>.broadcast();
@@ -99,7 +120,36 @@ class AuthService {
     out = StreamController<User?>(
       onListen: () {
         fromFirebase = source.listen(
-          (u) => out.add(_visible(u)),
+          (u) {
+            if (u != null) {
+              _lastWasDeviceGuest = DeviceGuest.isDeviceGuest(u);
+              out.add(_visible(u));
+              return;
+            }
+            // Firebase dropped the user. If nobody asked for that and it was
+            // this device's guest, sign the guest straight back in; the app
+            // never sees the gap. Only a failed attempt lets the null through.
+            if (_healing == null &&
+                _lastWasDeviceGuest &&
+                !_leaving &&
+                !_guestSignedOut) {
+              _lastWasDeviceGuest = false;
+              GuestDiag.add('session', 'lost');
+              final heal = _restoreDeviceGuest('heal');
+              _healing = heal;
+              heal.whenComplete(() {
+                if (identical(_healing, heal)) _healing = null;
+              });
+            }
+            final heal = _healing;
+            if (heal == null) {
+              out.add(null);
+              return;
+            }
+            heal.then((user) {
+              if (user == null && !out.isClosed) out.add(null);
+            });
+          },
           onError: out.addError,
         );
         fromKeep = _keptGuestChanges.stream
@@ -171,46 +221,186 @@ class AuthService {
     }
   }
 
+  /// Signs the guest tied to this phone back in. Null when the phone has no
+  /// such guest. Any other failure (no network, too many attempts) is null
+  /// too, unless [strict]: then it is thrown, so the caller does not go on to
+  /// make a second guest for a phone that already has one.
+  Future<User?> _restoreDeviceGuest(String why, {bool strict = false}) async {
+    final running = _restoring;
+    if (running != null && !strict) return running;
+    final attempt = () async {
+      final device = await DeviceGuest.credentials();
+      if (device == null) {
+        // Expected off Android; worth a line only where there should be one.
+        if (defaultTargetPlatform == TargetPlatform.android) {
+          GuestDiag.add('restore($why)', 'no-device-id');
+        }
+        return null;
+      }
+      try {
+        final user = await _signInDeviceGuest(device);
+        GuestDiag.add('restore($why)', user == null ? 'no-such-guest' : 'ok');
+        return user;
+      } catch (e) {
+        GuestDiag.add('restore($why)', GuestDiag.code(e));
+        if (strict) rethrow;
+        return null;
+      }
+    }();
+    if (!strict) {
+      _restoring = attempt;
+      attempt.whenComplete(() {
+        if (identical(_restoring, attempt)) _restoring = null;
+      }).ignore();
+    }
+    return attempt;
+  }
+
   /// Ties the signed-in anonymous guest to this Android device, so cleared
   /// app data or a reinstall no longer loses it. Safe to call any time; does
   /// nothing off Android, for registered accounts, or for a hidden guest.
   Future<void> bindDeviceGuest() async {
+    // "Play as guest" does this itself once the profile exists.
+    if (_guestFlow) return;
+    await _bind();
+  }
+
+  Future<void> _bind([UserModel? profile]) {
+    final running = _binding;
+    if (running != null) return running;
+    final attempt = _doBind(profile);
+    _binding = attempt;
+    attempt.whenComplete(() {
+      if (identical(_binding, attempt)) _binding = null;
+    }).ignore();
+    return attempt;
+  }
+
+  Future<void> _doBind(UserModel? profile) async {
     final user = _auth.currentUser;
     if (user == null || !user.isAnonymous || _isKept(user)) return;
     final device = await DeviceGuest.credentials();
-    if (device == null) return;
+    if (device == null) {
+      GuestDiag.add('bind', 'no-device-id');
+      return;
+    }
+    // The profile comes first: the server hands out the guest name
+    // ("user#0042") and the country only while the account is anonymous,
+    // and tying it to the device ends that.
     try {
-      await user.linkWithCredential(EmailAuthProvider.credential(
-          email: device.email, password: device.password));
-      final profile = await _firestore.getUser(user.uid);
-      await _rememberDeviceGuest(name: profile?.username, signedOut: false);
+      profile ??= await _firestore.getUser(user.uid);
+    } catch (e) {
+      GuestDiag.add('bind', 'profile: ${GuestDiag.code(e)}');
+      return;
+    }
+    if (profile == null) {
+      GuestDiag.add('bind', 'no-profile-yet');
+      return;
+    }
+    final credential = EmailAuthProvider.credential(
+        email: device.email, password: device.password);
+    try {
+      await user.linkWithCredential(credential);
+    } on FirebaseAuthException catch (e) {
+      if (e.code == 'provider-already-linked') {
+        // Already tied.
+      } else if (e.code == 'email-already-in-use' ||
+          e.code == 'credential-already-in-use') {
+        // An older guest on this phone holds the device login. The player is
+        // using this one, so the login moves here.
+        GuestDiag.add('bind', 'held-by-older-guest');
+        if (!await _releaseDeviceLogin(device)) return;
+        try {
+          await user.linkWithCredential(credential);
+        } catch (e2) {
+          GuestDiag.add('bind', 'after-handover: ${GuestDiag.code(e2)}');
+          return;
+        }
+      } else {
+        GuestDiag.add('bind', e.code);
+        return;
+      }
     } catch (e) {
       // e.g. offline: the guest stays anonymous and is tied on a later launch.
-      debugPrint('[Guest] tying the guest to this device failed: $e');
+      GuestDiag.add('bind', GuestDiag.code(e));
+      return;
+    }
+    await _rememberDeviceGuest(name: profile.username, signedOut: false);
+    GuestDiag.add('bind', 'ok');
+  }
+
+  /// Takes the device login away from the older guest that holds it, through
+  /// a second Firebase session so the current guest stays signed in. That
+  /// older account keeps its data but can no longer be opened from here.
+  Future<bool> _releaseDeviceLogin(
+      ({String email, String password}) device) async {
+    const name = 'guest-handover';
+    FirebaseApp? app;
+    try {
+      try {
+        app = Firebase.app(name);
+      } catch (_) {
+        app = await Firebase.initializeApp(
+            name: name, options: Firebase.app().options);
+      }
+      final other = FirebaseAuth.instanceFor(app: app);
+      final cred = await other.signInWithEmailAndPassword(
+          email: device.email, password: device.password);
+      await cred.user?.unlink(EmailAuthProvider.PROVIDER_ID);
+      await other.signOut();
+      GuestDiag.add('handover', 'ok');
+      return true;
+    } catch (e) {
+      GuestDiag.add('handover', GuestDiag.code(e));
+      return false;
+    } finally {
+      try {
+        await app?.delete();
+      } catch (_) {}
     }
   }
 
-  /// On Android, signs the guest tied to this device back in when the app
-  /// starts signed out: after cleared app data or a reinstall
-  /// ([firstSession]), or when the session went missing without the player
-  /// signing out. Returns true when it did.
-  Future<bool> tryAutoRestoreDeviceGuest({required bool firstSession}) async {
+  /// On Android, signs the guest tied to this device back in whenever the
+  /// app starts with nobody signed in: after cleared app data, a reinstall,
+  /// or a session that went missing. Not after a sign-out on purpose: then
+  /// the start screen offers "Continue as …". Returns true when it did.
+  Future<bool> tryAutoRestoreDeviceGuest() async {
     if (_auth.currentUser != null) return false;
-    if (!firstSession && (_deviceGuestName == null || _guestSignedOut)) {
+    if (_guestSignedOut) {
+      GuestDiag.add('restore(start)', 'signed-out-on-purpose');
       return false;
     }
-    final device = await DeviceGuest.credentials();
-    if (device == null) return false;
+    final user = await _restoreDeviceGuest('start');
+    if (user == null) return false;
     try {
-      final user = await _signInDeviceGuest(device);
-      if (user == null) return false;
       final profile = await ensureGuestProfile(user);
       await _rememberDeviceGuest(name: profile.username, signedOut: false);
-      return true;
     } catch (e) {
-      debugPrint('[Guest] restoring the device guest failed: $e');
-      return false;
+      // Signed in all the same; home creates the profile if it is missing.
+      GuestDiag.add('profile', GuestDiag.code(e));
     }
+    return true;
+  }
+
+  /// What happened to the guest on this phone, for support. No names, no
+  /// addresses, no keys: only steps and result codes.
+  String get guestDiagnostics {
+    final u = _auth.currentUser;
+    final who = u == null
+        ? 'nobody'
+        : _isKept(u)
+            ? 'guest, signed out (kept)'
+            : u.isAnonymous
+                ? 'guest, not tied to this phone'
+                : DeviceGuest.isDeviceGuest(u)
+                    ? 'guest, tied to this phone'
+                    : 'registered account';
+    return [
+      'signed in: $who',
+      'guest name known: ${_deviceGuestName != null}',
+      'signed out on purpose: $_guestSignedOut',
+      GuestDiag.text.isEmpty ? '(no guest events yet)' : GuestDiag.text,
+    ].join('\n');
   }
 
   Future<UserModel> register({
@@ -360,27 +550,37 @@ class AuthService {
   /// this device until an e-mail, Google or Apple sign-in is linked to it:
   /// deleting the app or its data loses it for good.
   Future<UserModel> signInAsGuest() async {
-    final kept = keptGuest;
-    if (kept != null) {
-      final profile = await ensureGuestProfile(kept);
-      await _keepGuest(null);
-      await bindDeviceGuest();
-      return profile;
-    }
-    // Android: the guest tied to this phone, if it has one.
-    final device = await DeviceGuest.credentials();
-    if (device != null) {
-      final restored = await _signInDeviceGuest(device);
+    _guestFlow = true;
+    lastGuestWasNew = false;
+    try {
+      final kept = keptGuest;
+      if (kept != null) {
+        final profile = await ensureGuestProfile(kept);
+        await _keepGuest(null);
+        await _rememberDeviceGuest(signedOut: false);
+        GuestDiag.add('guest', 'kept one came back');
+        await _bind(profile);
+        return profile;
+      }
+      // Android: the guest tied to this phone, if it has one. Strict, so a
+      // passing failure shows an error instead of making a second guest.
+      final restored = await _restoreDeviceGuest('button', strict: true);
       if (restored != null) {
         final profile = await ensureGuestProfile(restored);
         await _rememberDeviceGuest(name: profile.username, signedOut: false);
         return profile;
       }
+      final cred = await _auth.signInAnonymously();
+      lastGuestWasNew = true;
+      GuestDiag.add('guest', 'new');
+      // Profile first, then the tie to the device (see _doBind).
+      final profile = await ensureGuestProfile(cred.user!);
+      await _rememberDeviceGuest(signedOut: false);
+      await _bind(profile);
+      return profile;
+    } finally {
+      _guestFlow = false;
     }
-    final cred = await _auth.signInAnonymously();
-    final profile = await ensureGuestProfile(cred.user!);
-    await bindDeviceGuest();
-    return profile;
   }
 
   /// Returns the profile of an anonymous user, creating it if it is missing
@@ -930,6 +1130,15 @@ class AuthService {
   }
 
   Future<void> signOut() async {
+    _leaving = true;
+    try {
+      await _signOut();
+    } finally {
+      _leaving = false;
+    }
+  }
+
+  Future<void> _signOut() async {
     final user = _auth.currentUser;
     String? username;
     if (user != null) {
@@ -947,7 +1156,9 @@ class AuthService {
     // A guest cannot sign back in after a real sign-out, so keep it on this
     // device instead (see "Guest kept on this device" above).
     if (user != null && user.isAnonymous) {
+      await _rememberDeviceGuest(signedOut: true);
       await _keepGuest(user.uid, name: username);
+      GuestDiag.add('sign-out', 'guest kept');
       return;
     }
     // A device guest can always come back through "Play as guest"; remember
@@ -955,10 +1166,9 @@ class AuthService {
     // of another account on this phone) stops the app from signing the guest
     // back in by itself on the next launch.
     final wasDeviceGuest = user != null && DeviceGuest.isDeviceGuest(user);
-    if (wasDeviceGuest || _deviceGuestName != null) {
-      await _rememberDeviceGuest(
-          name: wasDeviceGuest ? username : null, signedOut: true);
-    }
+    await _rememberDeviceGuest(
+        name: wasDeviceGuest ? username : null, signedOut: true);
+    GuestDiag.add('sign-out', wasDeviceGuest ? 'device guest' : 'account');
     // Without this, google_sign_in silently reuses the last Google account,
     // so after logging out nobody could pick a different one.
     if (user?.providerData.any((p) => p.providerId == 'google.com') ?? false) {
@@ -980,6 +1190,15 @@ class AuthService {
   ///   Apple. Without it Firebase throws 'requires-recent-login' and the
   ///   account can never be deleted (App Store guideline 5.1.1(v)).
   Future<void> deleteAccount(String? currentPassword) async {
+    _leaving = true;
+    try {
+      await _deleteAccount(currentPassword);
+    } finally {
+      _leaving = false;
+    }
+  }
+
+  Future<void> _deleteAccount(String? currentPassword) async {
     final user = _auth.currentUser;
     if (user == null) throw Exception('Not logged in');
 

@@ -4,6 +4,7 @@ import 'package:crypto/crypto.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart';
 import 'package:flutter/services.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 /// Ties an Android guest account to the phone, so it survives cleared app
 /// data.
@@ -80,3 +81,45 @@ class DeviceGuest {
 /// True while [user] is a guest: anonymous, or a guest tied to this device.
 bool isGuestUser(User? user) =>
     user != null && (user.isAnonymous || DeviceGuest.isDeviceGuest(user));
+
+/// A short trail of what happened to the guest on this phone: steps and
+/// result codes only, never a name, an address or a key. Shown in About
+/// (long-press the version) so a player can send it to support.
+class GuestDiag {
+  GuestDiag._();
+
+  static const _key = 'guest_diag';
+  static const _max = 30;
+  static final List<String> _lines = [];
+
+  static Future<void> load() async {
+    try {
+      final p = await SharedPreferences.getInstance();
+      _lines
+        ..clear()
+        ..addAll(p.getStringList(_key) ?? const []);
+    } catch (_) {}
+  }
+
+  static void add(String step, [String result = 'ok', DateTime? at]) {
+    final t = (at ?? DateTime.now()).toUtc().toIso8601String();
+    final line = '${t.substring(5, 10)} ${t.substring(11, 19)}Z $step: $result';
+    _lines.add(line);
+    while (_lines.length > _max) {
+      _lines.removeAt(0);
+    }
+    debugPrint('[Guest] $line');
+    SharedPreferences.getInstance()
+        .then((p) => p.setStringList(_key, List.of(_lines)))
+        .catchError((_) => false);
+  }
+
+  /// A short code for an error: Firebase's own code when it has one.
+  static String code(Object e) =>
+      e is FirebaseException ? e.code : e.runtimeType.toString();
+
+  static String get text => _lines.join('\n');
+
+  @visibleForTesting
+  static void reset() => _lines.clear();
+}
